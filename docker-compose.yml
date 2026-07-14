@@ -1,0 +1,69 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tutor
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tutor"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - tutor-postgres-data:/var/lib/postgresql/data
+
+  api:
+    image: kimthanh-tutor-api:local
+    build:
+      context: .
+      dockerfile: tutor-api/Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      API_PREFIX: api/v1
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/tutor?schema=public
+      JWT_ACCESS_SECRET: docker-dev-access-secret
+      JWT_REFRESH_SECRET: docker-dev-refresh-secret
+      JWT_ACCESS_TTL: 900
+      JWT_REFRESH_TTL: 1209600
+      OTP_TTL_SECONDS: 300
+      OTP_MAX_ATTEMPTS: 5
+      CONSENT_STORE_IP: "true"
+      CONSENT_STORE_USER_AGENT: "true"
+      PLATFORM_BANK_CODE: "970436"
+      PLATFORM_BANK_ACCOUNT: "0000000000"
+      PLATFORM_BANK_ACCOUNT_NAME: "KIM THANH TUTOR"
+      SEPAY_WEBHOOK_API_KEY: docker-dev-sepay-key
+      SEPAY_IP_ALLOWLIST: "127.0.0.1,::1"
+      MEDIA_SIGNING_SECRET: docker-dev-media-signing-secret
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    command: ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/main.js"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/healthz >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  verify:
+    image: kimthanh-tutor-api:local
+    pull_policy: never
+    environment:
+      API_BASE_URL: http://api:3000
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/tutor?schema=public
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: tutor
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["sh", "/app/tutor-api/scripts/verify-api-io.sh"]
+
+volumes:
+  tutor-postgres-data:

@@ -1,0 +1,5 @@
+packages:
+  - "tutor-api"
+  - "tutor-market"
+  - "tutor-app"
+  - "packages/*"

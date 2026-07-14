@@ -1,0 +1,847 @@
+// Prisma schema cho tutor-api — sinh từ ai-docs/11-database-erd.md
+// Quy ước (ai-docs/15): PK = ULID (String @db.Char(26)); thời gian UTC (@db.Timestamptz);
+// tiền = BigInt (đồng VND); soft delete = deletedAt; enum có giá trị cố định;
+// bảng có state machine có `version` cho optimistic lock.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+enum UserStatus {
+  pending_consent
+  active
+  suspended
+  deleted
+}
+
+enum TutorProfileStatus {
+  draft
+  publishable
+  published
+  hidden
+  suspended
+}
+
+enum ModerationStatus {
+  pending
+  approved
+  rejected
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  cancelled
+  refunded
+}
+
+enum ProductType {
+  single_unlock
+  parent_vip
+  parent_tracking
+  tutor_qr
+}
+
+enum SubscriptionType {
+  parent_vip_unlock
+  parent_tracking
+  tutor_qr
+}
+
+enum SubscriptionStatus {
+  pending_payment
+  active
+  past_due
+  expired
+  cancelled
+  refunded
+}
+
+enum UnlockSource {
+  single_unlock
+  vip_subscription
+}
+
+enum UnlockStatus {
+  active
+  expired
+  revoked
+}
+
+enum TrialStatus {
+  pending
+  accepted
+  declined
+  expired
+  cancelled
+}
+
+enum ClassStatus {
+  trial_accepted
+  active
+  paused
+  completed_pending_review
+  completed
+  cancelled
+}
+
+enum AbsorptionLevel {
+  good
+  normal
+  needs_review
+}
+
+enum ReviewStatus {
+  pending_moderation
+  published
+  hidden
+  disputed
+}
+
+enum CollectionStatus {
+  created
+  sent
+  marked_collected
+  cancelled
+}
+
+enum NotificationChannel {
+  in_app
+  sms
+  email
+  push
+}
+
+enum NotificationStatus {
+  queued
+  sent
+  failed
+  read
+}
+
+enum OutboxStatus {
+  pending
+  processing
+  done
+  failed
+}
+
+enum LeadStatus {
+  new
+  converted
+  expired
+}
+
+enum RefundStatus {
+  requested
+  processing
+  done
+  rejected
+}
+
+enum ScanStatus {
+  pending
+  clean
+  infected
+}
+
+enum PaidFeature {
+  single_unlock
+  parent_vip
+  parent_tracking
+  tutor_qr
+}
+
+// ---------- Core ----------
+model User {
+  id        String     @id @db.Char(26)
+  phone     String?    @unique
+  email     String?    @unique
+  roles     String[]   @default([])
+  status    UserStatus @default(pending_consent)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt DateTime?  @map("deleted_at") @db.Timestamptz
+
+  parentProfile ParentProfile?
+  tutorProfile  TutorProfile?
+  consents      LegalConsent[]
+  payments      Payment[]
+  subscriptions Subscription[]
+  notifications Notification[]
+  mediaAssets   MediaAsset[]
+  refreshTokens RefreshToken[]
+  authAccounts  AuthAccount[]
+  paidFeatureOverrides PaidFeatureOverride[]
+
+  @@index([status])
+  @@map("users")
+}
+
+model AuthAccount {
+  id             String   @id @db.Char(26)
+  userId         String   @map("user_id") @db.Char(26)
+  provider       String
+  providerUserId String   @map("provider_user_id")
+  email          String?
+  emailVerified  Boolean  @default(false) @map("email_verified")
+  displayName    String?  @map("display_name")
+  avatarUrl      String?  @map("avatar_url")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@index([email])
+  @@map("auth_accounts")
+}
+
+model LegalDocument {
+  id          String   @id @db.Char(26)
+  docType     String   @map("doc_type") // terms | privacy
+  version     String
+  locale      String   @default("vi-VN")
+  title       String
+  contentUrl  String   @map("content_url")
+  checksum    String
+  isActive    Boolean  @default(false) @map("is_active")
+  publishedAt DateTime @default(now()) @map("published_at") @db.Timestamptz
+
+  termsConsents   LegalConsent[] @relation("TermsDoc")
+  privacyConsents LegalConsent[] @relation("PrivacyDoc")
+
+  @@unique([docType, version])
+  @@index([docType, isActive])
+  @@map("legal_documents")
+}
+
+model LegalConsent {
+  id                String   @id @db.Char(26)
+  userId            String   @map("user_id") @db.Char(26)
+  roleAtAcceptance  String   @map("role_at_acceptance")
+  termsDocumentId   String   @map("terms_document_id") @db.Char(26)
+  privacyDocumentId String   @map("privacy_document_id") @db.Char(26)
+  acceptedAt        DateTime @default(now()) @map("accepted_at") @db.Timestamptz
+  scrollReachedBottom Boolean @map("scroll_reached_bottom")
+  consentMethod     String   @map("consent_method")
+  ipAddress         String?  @map("ip_address")
+  userAgent         String?  @map("user_agent")
+
+  user        User          @relation(fields: [userId], references: [id])
+  termsDoc    LegalDocument @relation("TermsDoc", fields: [termsDocumentId], references: [id])
+  privacyDoc  LegalDocument @relation("PrivacyDoc", fields: [privacyDocumentId], references: [id])
+
+  @@index([userId])
+  @@map("legal_consents")
+}
+
+// Refresh token quay vòng + thu hồi được (13-security). Lưu HASH của token,
+// không lưu plaintext. rotatedTo trỏ tới token kế tiếp để phát hiện tái sử dụng.
+model RefreshToken {
+  id         String    @id @db.Char(26)
+  userId     String    @map("user_id") @db.Char(26)
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz
+  rotatedToId String?  @map("rotated_to_id") @db.Char(26)
+  createdIp  String?   @map("created_ip")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, revokedAt])
+  @@map("refresh_tokens")
+}
+
+model OtpRequest {
+  id          String    @id @db.Char(26)
+  channel     String // sms | email
+  destination String // hash SĐT/email
+  codeHash    String    @map("code_hash")
+  attempts    Int       @default(0)
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz
+  consumedAt  DateTime? @map("consumed_at") @db.Timestamptz
+  requestIp   String?   @map("request_ip")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([destination, createdAt])
+  @@map("otp_requests")
+}
+
+// ---------- Parent ----------
+model ParentProfile {
+  id          String    @id @db.Char(26)
+  userId      String    @unique @map("user_id") @db.Char(26)
+  displayName String    @map("display_name")
+  status      String    @default("active")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+
+  user           User            @relation(fields: [userId], references: [id])
+  students       Student[]
+  profileUnlocks ProfileUnlock[]
+  trialRequests  TrialRequest[]
+  classContracts ClassContract[]
+  reviews        Review[]
+  leadOrigin     Lead?
+
+  @@map("parent_profiles")
+}
+
+model Student {
+  id              String    @id @db.Char(26)
+  parentProfileId String    @map("parent_profile_id") @db.Char(26)
+  name            String // PII trẻ vị thành niên
+  grade           String
+  learningGoals   String?   @map("learning_goals")
+  status          String    @default("active")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
+
+  parentProfile  ParentProfile   @relation(fields: [parentProfileId], references: [id])
+  trialRequests  TrialRequest[]
+  classContracts ClassContract[]
+
+  @@index([parentProfileId])
+  @@map("students")
+}
+
+// ---------- Tutor ----------
+model TutorProfile {
+  id             String             @id @db.Char(26)
+  userId         String             @unique @map("user_id") @db.Char(26)
+  displayName    String             @map("display_name")
+  avatarMediaId  String?            @map("avatar_media_id") @db.Char(26)
+  introVideoMediaId String?         @map("intro_video_media_id") @db.Char(26)
+  bio            String?
+  region         String?
+  voiceAccent    String?            @map("voice_accent")
+  gender         String?
+  educationLevel String?            @map("education_level")
+  schoolName     String?            @map("school_name")
+  studentYear    Int?               @map("student_year")
+  examScore      Float?             @map("exam_score")
+  gpa            Float?
+  expectedFeeMin BigInt?            @map("expected_fee_min")
+  expectedFeeMax BigInt?            @map("expected_fee_max")
+  status         TutorProfileStatus @default(draft)
+  moderationStatus ModerationStatus @default(pending) @map("moderation_status")
+  ratingAvg      Float              @default(0) @map("rating_avg")
+  ratingCount    Int                @default(0) @map("rating_count")
+  version        Int                @default(0)
+  publishedAt    DateTime?          @map("published_at") @db.Timestamptz
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?          @map("deleted_at") @db.Timestamptz
+
+  user           User                    @relation(fields: [userId], references: [id])
+  subjects       TutorSubject[]
+  gradeLevels    TutorGradeLevel[]
+  teachingModes  TutorTeachingMode[]
+  offlineAreas   TutorOfflineArea[]
+  availabilities TutorAvailability[]
+  payoutAccounts TutorPayoutAccount[]
+  profileUnlocks ProfileUnlock[]
+  trialRequests  TrialRequest[]
+  classContracts ClassContract[]
+  lessonLogs     LessonLog[]
+  reviews        Review[]
+  qrRecords      TutorPaymentQrRecord[]
+
+  @@index([status, publishedAt])
+  @@index([region, expectedFeeMin, expectedFeeMax])
+  @@index([ratingAvg])
+  @@map("tutor_profiles")
+}
+
+model TutorSubject {
+  id             String @id @db.Char(26)
+  tutorProfileId String @map("tutor_profile_id") @db.Char(26)
+  subjectCode    String @map("subject_code")
+
+  tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([tutorProfileId, subjectCode])
+  @@index([subjectCode, tutorProfileId])
+  @@map("tutor_subjects")
+}
+
+model TutorGradeLevel {
+  id             String @id @db.Char(26)
+  tutorProfileId String @map("tutor_profile_id") @db.Char(26)
+  gradeLevel     Int    @map("grade_level")
+
+  tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([tutorProfileId, gradeLevel])
+  @@index([gradeLevel, tutorProfileId])
+  @@map("tutor_grade_levels")
+}
+
+model TutorTeachingMode {
+  id             String @id @db.Char(26)
+  tutorProfileId String @map("tutor_profile_id") @db.Char(26)
+  mode           String // online | offline
+
+  tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([tutorProfileId, mode])
+  @@index([mode, tutorProfileId])
+  @@map("tutor_teaching_modes")
+}
+
+model TutorOfflineArea {
+  id             String  @id @db.Char(26)
+  tutorProfileId String  @map("tutor_profile_id") @db.Char(26)
+  provinceCode   String  @map("province_code")
+  districtCode   String? @map("district_code")
+
+  tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id], onDelete: Cascade)
+
+  @@index([provinceCode, districtCode, tutorProfileId])
+  @@map("tutor_offline_areas")
+}
+
+model MediaAsset {
+  id               String           @id @db.Char(26)
+  ownerUserId      String           @map("owner_user_id") @db.Char(26)
+  kind             String // avatar | intro_video | other
+  storageKey       String           @map("storage_key")
+  contentType      String           @map("content_type")
+  sizeBytes        BigInt           @map("size_bytes")
+  moderationStatus ModerationStatus @default(pending) @map("moderation_status")
+  scanStatus       ScanStatus       @default(pending) @map("scan_status")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  owner User @relation(fields: [ownerUserId], references: [id])
+
+  @@index([ownerUserId])
+  @@map("media_assets")
+}
+
+model TutorAvailability {
+  id             String  @id @db.Char(26)
+  tutorProfileId String  @map("tutor_profile_id") @db.Char(26)
+  dayOfWeek      Int     @map("day_of_week")
+  startTime      String  @map("start_time") // HH:mm
+  endTime        String  @map("end_time")
+  type           String // busy | available
+  note           String?
+
+  tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id], onDelete: Cascade)
+
+  @@index([tutorProfileId, dayOfWeek])
+  @@map("tutor_availabilities")
+}
+
+model TutorPayoutAccount {
+  id             String   @id @db.Char(26)
+  tutorProfileId String   @map("tutor_profile_id") @db.Char(26)
+  bankCode       String   @map("bank_code")
+  accountNumber  String   @map("account_number") // PII
+  accountHolder  String   @map("account_holder") // PII
+  isDefault      Boolean  @default(false) @map("is_default")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  tutorProfile TutorProfile           @relation(fields: [tutorProfileId], references: [id])
+  qrRecords    TutorPaymentQrRecord[]
+
+  @@index([tutorProfileId])
+  @@map("tutor_payout_accounts")
+}
+
+// ---------- Billing ----------
+model Payment {
+  id                String        @id @db.Char(26)
+  payerUserId       String        @map("payer_user_id") @db.Char(26)
+  productType       ProductType   @map("product_type")
+  targetRefId       String?       @map("target_ref_id") @db.Char(26)
+  amount            BigInt
+  currency          String        @default("VND")
+  provider          String        @default("sepay")
+  providerReference String?       @unique @map("provider_reference")
+  status            PaymentStatus @default(pending)
+  idempotencyKey    String?       @map("idempotency_key")
+  version           Int           @default(0)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  paidAt            DateTime?     @map("paid_at") @db.Timestamptz
+
+  payer         User            @relation(fields: [payerUserId], references: [id])
+  profileUnlock ProfileUnlock?
+  subscription  Subscription?
+  refunds       Refund[]
+
+  @@unique([payerUserId, idempotencyKey])
+  @@index([payerUserId, status, createdAt])
+  @@map("payments")
+}
+
+model ProductPricing {
+  id          String      @id @db.Char(26)
+  productType ProductType @unique @map("product_type")
+  amount      BigInt
+  currency    String      @default("VND")
+  periodDays  Int?        @map("period_days")
+  isEnabled   Boolean     @default(true) @map("is_enabled")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([isEnabled])
+  @@map("product_pricing")
+}
+
+model PlatformPaymentAccount {
+  id            String   @id @db.Char(26)
+  bankCode      String   @map("bank_code")
+  accountNumber String   @map("account_number") // PII
+  accountHolder String   @map("account_holder") // PII
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([isActive, updatedAt])
+  @@map("platform_payment_accounts")
+}
+
+model PaidFeatureOverride {
+  id        String      @id @db.Char(26)
+  userId    String      @map("user_id") @db.Char(26)
+  feature   PaidFeature
+  enabled   Boolean
+  reason    String
+  expiresAt DateTime?   @map("expires_at") @db.Timestamptz
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, feature])
+  @@index([feature, enabled])
+  @@index([expiresAt])
+  @@map("paid_feature_overrides")
+}
+
+model Refund {
+  id          String       @id @db.Char(26)
+  paymentId   String       @map("payment_id") @db.Char(26)
+  amount      BigInt
+  reason      String?
+  status      RefundStatus @default(requested)
+  actorUserId String?      @map("actor_user_id") @db.Char(26)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  processedAt DateTime?    @map("processed_at") @db.Timestamptz
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId])
+  @@map("refunds")
+}
+
+model WebhookEvent {
+  id                String    @id @db.Char(26)
+  provider          String
+  providerReference String    @map("provider_reference")
+  signatureVerified Boolean   @default(false) @map("signature_verified")
+  rawPayloadHash    String    @map("raw_payload_hash")
+  processStatus     String    @default("received") @map("process_status")
+  receivedAt        DateTime  @default(now()) @map("received_at") @db.Timestamptz
+  processedAt       DateTime? @map("processed_at") @db.Timestamptz
+
+  @@unique([provider, providerReference])
+  @@map("webhook_events")
+}
+
+model IdempotencyKey {
+  id           String   @id @db.Char(26)
+  scope        String
+  key          String
+  userId       String?  @map("user_id") @db.Char(26)
+  responseHash String?  @map("response_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz
+
+  @@unique([scope, key])
+  @@map("idempotency_keys")
+}
+
+model ProfileUnlock {
+  id              String       @id @db.Char(26)
+  parentProfileId String       @map("parent_profile_id") @db.Char(26)
+  tutorProfileId  String       @map("tutor_profile_id") @db.Char(26)
+  paymentId       String?      @unique @map("payment_id") @db.Char(26)
+  source          UnlockSource @default(single_unlock)
+  startsAt        DateTime     @default(now()) @map("starts_at") @db.Timestamptz
+  expiresAt       DateTime?    @map("expires_at") @db.Timestamptz // null = vĩnh viễn
+  status          UnlockStatus @default(active)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  parentProfile ParentProfile @relation(fields: [parentProfileId], references: [id])
+  tutorProfile  TutorProfile  @relation(fields: [tutorProfileId], references: [id])
+  payment       Payment?      @relation(fields: [paymentId], references: [id])
+
+  // Một cặp parent↔tutor chỉ có đúng 1 dòng unlock (chống double-unlock/charge —
+  // webhook retry/double-payment upsert lại dòng này thay vì insert mới).
+  @@unique([parentProfileId, tutorProfileId])
+  @@index([parentProfileId, tutorProfileId, status])
+  @@map("profile_unlocks")
+}
+
+model Subscription {
+  id               String             @id @db.Char(26)
+  userId           String             @map("user_id") @db.Char(26)
+  type             SubscriptionType
+  scopeRefId       String?            @map("scope_ref_id") @db.Char(26) // student_id cho parent_tracking
+  paymentId        String?            @unique @map("payment_id") @db.Char(26)
+  status           SubscriptionStatus @default(pending_payment)
+  autoRenew        Boolean            @default(false) @map("auto_renew")
+  startsAt         DateTime?          @map("starts_at") @db.Timestamptz
+  currentPeriodEnd DateTime?          @map("current_period_end") @db.Timestamptz
+  cancelledAt      DateTime?          @map("cancelled_at") @db.Timestamptz
+  version          Int                @default(0)
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  user    User     @relation(fields: [userId], references: [id])
+  payment Payment? @relation(fields: [paymentId], references: [id])
+
+  @@index([userId, type, status, currentPeriodEnd])
+  @@index([scopeRefId, type, status])
+  @@map("subscriptions")
+}
+
+// ---------- Trials & Classes ----------
+model Lead {
+  id                        String     @id @db.Char(26)
+  contactName               String     @map("contact_name")
+  contactPhone              String     @map("contact_phone")
+  contactEmail              String?    @map("contact_email")
+  convertedParentProfileId  String?    @unique @map("converted_parent_profile_id") @db.Char(26)
+  status                    LeadStatus @default(new)
+  createdAt                 DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt                 DateTime?  @map("expires_at") @db.Timestamptz
+
+  convertedParentProfile ParentProfile? @relation(fields: [convertedParentProfileId], references: [id])
+  trialRequests          TrialRequest[]
+  activationTokens       ActivationToken[]
+
+  @@index([status])
+  @@map("leads")
+}
+
+// One-time token for converting a guest Lead into a ParentProfile after a tutor
+// accepts the trial. Store only SHA-256 hash; raw token is returned once for link delivery.
+model ActivationToken {
+  id             String    @id @db.Char(26)
+  leadId         String    @map("lead_id") @db.Char(26)
+  trialRequestId String?   @map("trial_request_id") @db.Char(26)
+  tokenHash      String    @unique @map("token_hash")
+  purpose        String    @default("guest_trial_activation")
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz
+  consumedAt     DateTime? @map("consumed_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  lead         Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  trialRequest TrialRequest? @relation(fields: [trialRequestId], references: [id])
+
+  @@index([leadId, consumedAt, expiresAt])
+  @@map("activation_tokens")
+}
+
+model TrialRequest {
+  id              String      @id @db.Char(26)
+  parentProfileId String?     @map("parent_profile_id") @db.Char(26)
+  leadId          String?     @map("lead_id") @db.Char(26)
+  studentId       String?     @map("student_id") @db.Char(26)
+  tutorProfileId  String      @map("tutor_profile_id") @db.Char(26)
+  subject         String
+  grade           String?
+  learningGoal    String?     @map("learning_goal")
+  teachingMode    String?     @map("teaching_mode")
+  preferredSchedule String?   @map("preferred_schedule")
+  message         String?
+  contactSnapshot String?     @map("contact_snapshot") // PII
+  status          TrialStatus @default(pending)
+  version         Int         @default(0)
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  respondedAt     DateTime?   @map("responded_at") @db.Timestamptz
+  expiresAt       DateTime?   @map("expires_at") @db.Timestamptz
+
+  parentProfile ParentProfile? @relation(fields: [parentProfileId], references: [id])
+  lead          Lead?          @relation(fields: [leadId], references: [id])
+  student       Student?       @relation(fields: [studentId], references: [id])
+  tutorProfile  TutorProfile   @relation(fields: [tutorProfileId], references: [id])
+  classContract ClassContract?
+  activationTokens ActivationToken[]
+
+  @@index([tutorProfileId, status])
+  @@index([parentProfileId, status])
+  @@index([leadId, status])
+  @@map("trial_requests")
+}
+
+model ClassContract {
+  id              String      @id @db.Char(26)
+  trialRequestId  String?     @unique @map("trial_request_id") @db.Char(26)
+  parentProfileId String?     @map("parent_profile_id") @db.Char(26)
+  studentId       String?     @map("student_id") @db.Char(26)
+  tutorProfileId  String      @map("tutor_profile_id") @db.Char(26)
+  subject         String
+  status          ClassStatus @default(trial_accepted)
+  version         Int         @default(0)
+  startedAt       DateTime?   @map("started_at") @db.Timestamptz
+  endedAt         DateTime?   @map("ended_at") @db.Timestamptz
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+
+  trialRequest  TrialRequest?  @relation(fields: [trialRequestId], references: [id])
+  parentProfile ParentProfile? @relation(fields: [parentProfileId], references: [id])
+  student       Student?       @relation(fields: [studentId], references: [id])
+  tutorProfile  TutorProfile   @relation(fields: [tutorProfileId], references: [id])
+  lessonLogs    LessonLog[]
+  review        Review?
+  qrRecords     TutorPaymentQrRecord[]
+
+  @@index([parentProfileId, status])
+  @@index([tutorProfileId, status])
+  @@map("class_contracts")
+}
+
+model LessonLog {
+  id              String          @id @db.Char(26)
+  classContractId String          @map("class_contract_id") @db.Char(26)
+  tutorProfileId  String          @map("tutor_profile_id") @db.Char(26)
+  lessonAt        DateTime        @map("lesson_at") @db.Timestamptz
+  subject         String
+  content         String?
+  homework        String?
+  absorptionLevel AbsorptionLevel @map("absorption_level")
+  tutorNote       String?         @map("tutor_note")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz
+
+  classContract ClassContract @relation(fields: [classContractId], references: [id])
+  tutorProfile  TutorProfile  @relation(fields: [tutorProfileId], references: [id])
+
+  @@index([classContractId, lessonAt])
+  @@map("lesson_logs")
+}
+
+model Review {
+  id              String       @id @db.Char(26)
+  classContractId String       @unique @map("class_contract_id") @db.Char(26)
+  parentProfileId String       @map("parent_profile_id") @db.Char(26)
+  tutorProfileId  String       @map("tutor_profile_id") @db.Char(26)
+  rating          Int
+  comment         String?
+  status          ReviewStatus @default(pending_moderation)
+  editableUntil   DateTime?    @map("editable_until") @db.Timestamptz
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  classContract ClassContract @relation(fields: [classContractId], references: [id])
+  parentProfile ParentProfile @relation(fields: [parentProfileId], references: [id])
+  tutorProfile  TutorProfile  @relation(fields: [tutorProfileId], references: [id])
+  edits         ReviewEdit[]
+
+  @@index([tutorProfileId, status])
+  @@map("reviews")
+}
+
+model ReviewEdit {
+  id         String   @id @db.Char(26)
+  reviewId   String   @map("review_id") @db.Char(26)
+  oldRating  Int      @map("old_rating")
+  oldComment String?  @map("old_comment")
+  editedBy   String   @map("edited_by") @db.Char(26)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  review Review @relation(fields: [reviewId], references: [id])
+
+  @@index([reviewId])
+  @@map("review_edits")
+}
+
+// ---------- QR học phí ----------
+model TutorPaymentQrRecord {
+  id               String           @id @db.Char(26)
+  tutorProfileId   String           @map("tutor_profile_id") @db.Char(26)
+  classContractId  String?          @map("class_contract_id") @db.Char(26)
+  payoutAccountId  String?          @map("payout_account_id") @db.Char(26)
+  amount           BigInt
+  description      String?
+  qrUrl            String?          @map("qr_url")
+  paymentLink      String?          @map("payment_link")
+  collectionStatus CollectionStatus @default(created) @map("collection_status")
+  markedCollectedAt DateTime?       @map("marked_collected_at") @db.Timestamptz
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  tutorProfile  TutorProfile        @relation(fields: [tutorProfileId], references: [id])
+  classContract ClassContract?      @relation(fields: [classContractId], references: [id])
+  payoutAccount TutorPayoutAccount? @relation(fields: [payoutAccountId], references: [id])
+
+  @@index([tutorProfileId])
+  @@map("tutor_payment_qr_records")
+}
+
+// ---------- Notifications / Outbox / Audit ----------
+model Notification {
+  id              String              @id @db.Char(26)
+  recipientUserId String              @map("recipient_user_id") @db.Char(26)
+  channel         NotificationChannel
+  type            String
+  payload         Json
+  status          NotificationStatus  @default(queued)
+  retryCount      Int                 @default(0) @map("retry_count")
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  readAt          DateTime?           @map("read_at") @db.Timestamptz
+
+  recipient User @relation(fields: [recipientUserId], references: [id])
+
+  @@index([recipientUserId, status, createdAt])
+  @@map("notifications")
+}
+
+model OutboxEvent {
+  id            String       @id @db.Char(26)
+  aggregateType String       @map("aggregate_type")
+  aggregateId   String       @map("aggregate_id") @db.Char(26)
+  eventType     String       @map("event_type")
+  payload       Json
+  status        OutboxStatus @default(pending)
+  retryCount    Int          @default(0) @map("retry_count")
+  availableAt   DateTime     @default(now()) @map("available_at") @db.Timestamptz
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  processedAt   DateTime?    @map("processed_at") @db.Timestamptz
+
+  @@index([status, availableAt])
+  @@map("outbox_events")
+}
+
+model AuditLog {
+  id          String   @id @db.Char(26)
+  actorUserId String?  @map("actor_user_id") @db.Char(26)
+  actorRole   String?  @map("actor_role")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id") @db.Char(26)
+  beforeHash  String?  @map("before_hash")
+  afterHash   String?  @map("after_hash")
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([entityType, entityId, createdAt])
+  @@map("audit_logs")
+}

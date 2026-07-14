@@ -2,7 +2,7 @@
 
 Ghi chú trạng thái API ngày 2026-07-14:
 
-- Các API phục vụ Flow 1-11 trong `07-api-curl-user-flows.md` đã được verify end-to-end bằng cURL.
+- Các API phục vụ Flow 1-12 trong `07-api-curl-user-flows.md` đã được verify end-to-end bằng cURL.
 - Các dòng có ghi "API" là backend contract đã có; phần giao diện/app frontend chỉ xem là hoàn tất khi `tutor-market`/`tutor-app` ráp xong màn tương ứng.
 
 ## Nhóm việc 1: Nền tảng
@@ -119,8 +119,7 @@ Ghi chú trạng thái API ngày 2026-07-14:
 ## Nhóm việc 9: Kiểm thử và nghiệm thu
 
 - ✅ Unit test service/contract trọng yếu cho API.
-- ✅ cURL user-flow contract Flow 1-11 trong `07-api-curl-user-flows.md` đã Verified.
-- ✅ cURL user-flow contract Flow 12 cho `tutor-admin` đã Verified.
+- ✅ cURL user-flow contract Flow 1-12 trong `07-api-curl-user-flows.md` đã Verified (Flow 12 = `tutor-admin`).
 - ✅ Test phân quyền theo vai trò ở service/flow chính.
 - ✅ Test chuyển trạng thái ở service/flow chính.
 - ✅ Test webhook thanh toán chống xử lý trùng ở API contract.

@@ -1,4 +1,4 @@
-import { SearchService } from './search.service';
+import { PgSearchAdapter } from './pg-search.adapter';
 import { encodeCursor } from '../../common/pagination/keyset';
 import { ErrorCode } from '../../common/errors/error-codes';
 
@@ -21,13 +21,13 @@ const row = (id: string, ratingAvg: number, fee: bigint | null = 100_000n) => ({
   teachingModes: [{ mode: 'online' }],
 });
 
-describe('SearchService', () => {
+describe('PgSearchAdapter', () => {
   it('builds normalized filters, keyset pagination, and maps tutor cards', async () => {
     const rows = [row('tutor-2', 4.9), row('tutor-1', 4.7)];
     const prisma = {
       tutorProfile: { findMany: jest.fn().mockResolvedValue(rows) },
     };
-    const service = new SearchService(prisma as any);
+    const service = new PgSearchAdapter(prisma as any);
 
     const result = await service.search({
       subject: 'math',
@@ -76,7 +76,7 @@ describe('SearchService', () => {
   });
 
   it('rejects invalid cursors', async () => {
-    const service = new SearchService({ tutorProfile: { findMany: jest.fn() } } as any);
+    const service = new PgSearchAdapter({ tutorProfile: { findMany: jest.fn() } } as any);
 
     await expect(
       service.search({ cursor: 'not-base64-json', sort: 'rating' }),
@@ -85,7 +85,7 @@ describe('SearchService', () => {
 
   it('rejects impossible fee ranges before querying', async () => {
     const prisma = { tutorProfile: { findMany: jest.fn() } };
-    const service = new SearchService(prisma as any);
+    const service = new PgSearchAdapter(prisma as any);
 
     await expect(
       service.search({ fee_min: 300_000, fee_max: 100_000 }),
@@ -101,7 +101,7 @@ describe('SearchService', () => {
     const prisma = {
       tutorProfile: { findMany: jest.fn().mockResolvedValue([row('tutor-null-2', 5, null)]) },
     };
-    const service = new SearchService(prisma as any);
+    const service = new PgSearchAdapter(prisma as any);
 
     await service.search({ sort: 'fee_asc', cursor, limit: '10' });
 

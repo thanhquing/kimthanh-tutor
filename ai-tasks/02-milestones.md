@@ -2,7 +2,7 @@
 
 Trạng thái API ngày 2026-07-14:
 
-- Backend `tutor-api` đã có NestJS/Prisma modules cho Flow 1-11 và đã verify end-to-end bằng cURL theo `07-api-curl-user-flows.md`.
+- Backend `tutor-api` đã có NestJS/Prisma modules cho Flow 1-12 và đã verify end-to-end bằng cURL theo `07-api-curl-user-flows.md`.
 - Các mốc dưới đây vẫn dùng để theo dõi sản phẩm tổng thể; phần frontend/CI/hạ tầng provider thật có thể chưa hoàn tất dù API contract đã pass.
 
 ## Mốc 0: Tài liệu sẵn sàng

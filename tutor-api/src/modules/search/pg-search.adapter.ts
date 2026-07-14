@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AppException } from '../../common/errors/app.exception';
 import { ErrorCode } from '../../common/errors/error-codes';
 import { SearchQueryDto } from './dto/search-query.dto';
+import { SearchPort, TutorCard } from './search.port';
 import {
   buildKeyset,
   clampLimit,
@@ -11,23 +12,6 @@ import {
   encodeCursor,
   KeysetResult,
 } from '../../common/pagination/keyset';
-
-export interface TutorCard {
-  id: string;
-  display_name: string;
-  avatar_media_id: string | null;
-  region: string | null;
-  education_level: string | null;
-  school_name: string | null;
-  subjects: string[];
-  grade_levels: number[];
-  teaching_modes: string[];
-  fee_min: number | null;
-  fee_max: number | null;
-  rating_avg: number;
-  rating_count: number;
-  bio_snippet: string | null;
-}
 
 // select tối thiểu cho thẻ search (không over-fetch cột không dùng trên hot-path).
 const cardSelect = {
@@ -50,8 +34,9 @@ const cardSelect = {
 
 type Row = Prisma.TutorProfileGetPayload<{ select: typeof cardSelect }>;
 
+// Adapter mặc định của SearchPort: Postgres (lọc bảng chuẩn hóa đã index).
 @Injectable()
-export class SearchService {
+export class PgSearchAdapter implements SearchPort {
   constructor(private readonly prisma: PrismaService) {}
 
   // GET /tutors/search — hot-path công khai. Lọc bảng chuẩn hóa (index),

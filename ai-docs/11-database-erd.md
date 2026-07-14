@@ -516,7 +516,7 @@ Chi tiết chiến lược ở `12-non-functional-requirements.md`. Tối thiể
   - `tutor_profiles (status, published_at)` partial `WHERE status='published' AND deleted_at IS NULL`.
   - Index trên các bảng chuẩn hóa: `tutor_subjects(subject_code, tutor_profile_id)`, `tutor_grade_levels(grade_level, tutor_profile_id)`, `tutor_teaching_modes(mode, tutor_profile_id)`, `tutor_offline_areas(province_code, district_code, tutor_profile_id)`.
   - `tutor_profiles (region, expected_fee_min, expected_fee_max)`, index `rating_avg`, `student_year`, `education_level`.
-  - **Full-text search** GIN cho `school_name`/`bio` (Postgres FTS `tsvector`). Khi vượt ngưỡng → chuyển sang Meilisearch qua outbox.
+  - `school_name`: hiện lọc substring bằng `ILIKE` (chưa có index full-text). Nâng cấp theo ngưỡng: GIN trigram (`pg_trgm`) cho substring hoặc `tsvector` cho full-text, khai bằng raw SQL migration; quá ngưỡng ở `15` → Meilisearch qua outbox. `bio` là nội dung sau paywall nên **không** đưa vào chỉ mục tìm kiếm công khai.
 - Mọi cột FK đều có index.
 - `profile_unlocks (parent_profile_id, tutor_profile_id, status)`.
 - `subscriptions (user_id, type, status, current_period_end)`, `subscriptions (scope_ref_id, type, status)`.
@@ -597,6 +597,6 @@ Chi tiết chiến lược ở `12-non-functional-requirements.md`. Tối thiể
 - **Webhook**: verify chữ ký/API key provider (SePay/Casso) + đối chiếu `amount`/`provider_reference` trước khi cấp quyền. Chi tiết ở `13-security-and-threat-model.md`.
 - **Outbox**: notification/sync search/gọi provider đi qua `outbox_events` để at-least-once, không mất sự kiện.
 - **rating_avg**: cập nhật khi review đổi trạng thái, không tính runtime khi search.
-- **Search**: mặc định Postgres (GIN + FTS + bảng chuẩn hóa); vượt ngưỡng ở `15-...` thì đồng bộ Meilisearch qua outbox — schema không đổi.
+- **Search**: mặc định Postgres (bảng chuẩn hóa đã index + `ILIKE` cho `school_name`); GIN trigram/`tsvector` là nâng cấp index theo ngưỡng; vượt ngưỡng ở `15-...` thì đồng bộ Meilisearch qua outbox. Nghiệp vụ đọc qua `SearchPort` nên chỉ đổi adapter, không đổi schema.
 - **Partition-ready**: `lesson_logs`, `notifications`, `audit_logs`, `outbox_events` thiết kế để partition theo tháng khi lớn.
 - **Retention/ẩn danh**: `otp_requests`, `webhook_events`, `outbox_events(done)` có TTL dọn định kỳ; xóa user → ẩn danh PII, giữ bản ghi tài chính.

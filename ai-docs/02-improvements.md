@@ -162,7 +162,7 @@ Các điểm dưới đây bổ sung tầng kỹ thuật cho bản thiết kế,
 ## 14. Tìm kiếm không chịu được tải với chuỗi CSV
 
 - Vấn đề: `subjects/grade_levels/teaching_modes/offline_areas` lưu chuỗi → không index/lọc hiệu quả (full scan).
-- Điều chỉnh: chuẩn hóa thành bảng con + index; Postgres GIN/FTS; `SearchPort` để nâng cấp Meilisearch theo ngưỡng. Xem `11`, `12`.
+- Điều chỉnh: chuẩn hóa thành bảng con + index; đọc qua `SearchPort` (adapter Postgres mặc định); GIN trigram/`tsvector` và Meilisearch là nâng cấp theo ngưỡng. Xem `11`, `12`.
 
 ## 15. Điểm đánh giá tính runtime gây chậm
 

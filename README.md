@@ -22,7 +22,7 @@ docker compose up --build --abort-on-container-exit verify
 
 Xem checklist chi tiết ở `ai-tasks/06-verification.md`.
 
-Trạng thái API hiện tại: `tutor-api` đã có các module NestJS/Prisma cho auth, consent, search, tutor, parent, billing, trial, class, dashboard, review, QR và admin. Flow cURL 1-11 trong `ai-tasks/07-api-curl-user-flows.md` đã Verified ngày 2026-07-14.
+Trạng thái API hiện tại: `tutor-api` đã có các module NestJS/Prisma cho auth, consent, search, tutor, parent, billing, trial, class, dashboard, review, QR và admin. Flow cURL 1-12 trong `ai-tasks/07-api-curl-user-flows.md` đã Verified ngày 2026-07-14.
 
 ## Nguyên tắc giai đoạn 1
 

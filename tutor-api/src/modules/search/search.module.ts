@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { SearchController } from './search.controller';
-import { SearchService } from './search.service';
+import { SearchPort } from './search.port';
+import { PgSearchAdapter } from './pg-search.adapter';
 
 @Module({
   controllers: [SearchController],
-  providers: [SearchService],
+  // Bind SearchPort -> adapter Postgres. Đổi engine = đổi useClass tại đây.
+  providers: [{ provide: SearchPort, useClass: PgSearchAdapter }],
 })
 export class SearchModule {}

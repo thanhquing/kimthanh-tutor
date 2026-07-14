@@ -1,11 +1,11 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { SearchService } from './search.service';
+import { SearchPort } from './search.port';
 import { SearchQueryDto } from './dto/search-query.dto';
 import { Public } from '../../common/auth/roles.decorator';
 
 @Controller('tutors')
 export class SearchController {
-  constructor(private readonly search: SearchService) {}
+  constructor(private readonly search: SearchPort) {}
 
   @Public()
   @Get('search')

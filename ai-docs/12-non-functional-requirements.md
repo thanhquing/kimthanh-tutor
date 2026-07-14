@@ -30,9 +30,9 @@ Các mục tiêu về khả năng chịu tải: hệ thống phải phục vụ 
 ### Kiến trúc trừu tượng hóa search
 
 ```
-SearchController -> SearchService -> SearchPort (interface)
-                                       ├─ PgSearchAdapter   (mặc định: SQL + GIN + FTS)
-                                       └─ MeiliSearchAdapter (bật khi chạm ngưỡng)
+SearchController -> SearchPort (interface)
+                      ├─ PgSearchAdapter    (mặc định: Prisma + bảng chuẩn hóa đã index + ILIKE school_name)
+                      └─ MeiliSearchAdapter (bật khi chạm ngưỡng)
 ```
 
 Nhờ `SearchPort`, việc nâng cấp là thay adapter + bật job đồng bộ, không đụng controller/nghiệp vụ.

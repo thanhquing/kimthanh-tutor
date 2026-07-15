@@ -105,6 +105,7 @@ Phạm vi đã đọc: toàn bộ HTML/CSS/JS trong `kimthanh-tutor-mock/public/
 | UX-028 | Medium | `tutor-admin` chưa nằm trong `pnpm-workspace.yaml`, root scripts không build/test app này. | AD-00. |
 | UX-029 | High | `/classes/mine` chỉ trả ID/subject/status/time, trong khi mock cần tên học sinh/phụ huynh/gia sư, mode, fee, schedule; mock market còn nhầm class contract với từng buổi học. | Bổ sung relation summary owner-safe; chỉ mở rộng domain cho fee/mode/schedule khi rule được chốt. TA-06, TM-06. |
 | UX-030 | Medium | Tutor dashboard mock cần lesson logs toàn tutor để tính “cần ghi sổ”, nhưng API chỉ list log theo từng class; gọi tuần tự sẽ thành N+1 và vẫn không có lịch buổi học. | Thêm tutor overview aggregate hoặc giản lược widget theo dữ liệu có thật. TA-04. |
+| UX-031 | Critical | Mock market là static SPA và không có canonical/SSR metadata riêng cho từng hồ sơ; crawler Google và link preview Facebook/Zalo/LinkedIn có thể không đọc đúng nội dung hoặc chia sẻ mọi tutor bằng một preview chung. | `tutor-market` dùng SSR/SSG; mỗi tutor có canonical, OG, sitemap, JSON-LD và social image từ preview public approved; redaction paywall bắt buộc. TM-00, TM-01, TM-02, TM-10. |
 
 ## 6. Đề xuất UX bổ sung
 

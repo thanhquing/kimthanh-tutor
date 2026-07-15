@@ -81,7 +81,7 @@ Tên commit đề xuất: `feat(<app>): <TASK-ID> <phạm vi ngắn>`; fix hậu
 
 Đây là baseline để ba app không tự phát triển ba kiểu khác nhau. Task scaffold đầu tiên của mỗi app có quyền điều chỉnh nếu ghi rõ lý do và cập nhật tài liệu này trước khi code tiếp.
 
-- TypeScript strict, React, Vite, React Router.
+- TypeScript strict và React. `tutor-app`/`tutor-admin` dùng Vite + React Router; `tutor-market` phải dùng framework hỗ trợ SSR/SSG (đề xuất Next.js App Router) vì trang search/hồ sơ gia sư cần Google SEO và link preview Facebook/Zalo/LinkedIn.
 - TanStack Query cho server state; form library + schema validation có typed mapper riêng.
 - Vitest + Testing Library + MSW cho unit/component/contract test; Playwright cho smoke/E2E khi scaffold nền đã ổn định.
 - CSS tokens và component primitives nằm trong từng app trước; chỉ tách package UI dùng chung khi đã có ít nhất hai consumer thật sự giống nhau.
@@ -90,6 +90,7 @@ Tên commit đề xuất: `feat(<app>): <TASK-ID> <phạm vi ngắn>`; fix hậu
 - Tiền lấy từ response checkout/pricing, không nhận `amount` từ URL hoặc state phía client.
 - UTC từ API, format `Asia/Ho_Chi_Minh` ở view; tiền là integer VND.
 - Auth token ưu tiên cookie bảo mật nếu backend được refactor hỗ trợ; nếu MVP còn lưu token phía client phải có threat note và tuyệt đối không log/token snapshot.
+- Public tutor profile phải có HTML server-rendered/cached, canonical URL ổn định, metadata title/description, Open Graph, sitemap và JSON-LD phù hợp. Metadata chỉ dùng dữ liệu preview public/approved; không đưa nội dung paywall, contact, PII, media pending/rejected hoặc rating đang bị khóa vào source HTML.
 
 ## 6. Route và quyền sở hữu app
 

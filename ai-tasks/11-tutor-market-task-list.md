@@ -33,16 +33,18 @@ MVP gồm TM-00 đến TM-10. TM-11 đến TM-13 bao phủ các màn mock ngoài
 
 Scope:
 
-- Scaffold TypeScript/React package, scripts và root workspace; route shell responsive theo mock, 404/error boundary/loading/empty/toast/modal primitives.
+- Scaffold TypeScript/React bằng framework SSR/SSG (đề xuất Next.js App Router), scripts và root workspace; route shell responsive theo mock, 404/error boundary/loading/empty/toast/modal primitives.
 - Typed API client chung semantics với tutor app: refresh single-flight, normalized error, abort, idempotency, UTC/VND, auth/consent/capability guards.
 - Mở rộng/sửa `@kimthanh-tutor/contracts` cho search/public detail/parent/student/trial/class/dashboard/billing/review/notification; contract tests đối chiếu JSON thật.
 - Canonical routes thay cho từng `.html`; alias `search/tutor-detail/parent-profile/subscriptions` redirect nội bộ có test. Screen map/API base/mock mode chỉ dev build, không ở production.
 - Shell ưu tiên search cho guest; route dữ liệu trẻ em/parent không prefetch khi chưa auth.
+- Dựng nền SEO/share: server metadata API, canonical host env, robots, sitemap động cho tutor `published`, Open Graph dùng ảnh public approved, JSON-LD, cache/revalidation và `noindex` cho account/checkout/dashboard/admin-like routes.
 
 Nghiệm thu và test:
 
 - Guest vào `/` thấy search ngay; deep link/refresh hoạt động; 401/refresh/403/pending consent không loop; mobile nav đúng quyền.
-- Unit API client/contract/error mapper; component shell/nav/404/open redirect; lint/test/build package và `verify-api-io.sh` pass.
+- `curl`/view-source của public route có title/canonical/OG mà không cần chạy JS; private route có `noindex`; sitemap không chứa profile hidden/suspended.
+- Unit API client/contract/error/metadata mapper; component shell/nav/404/open redirect; lint/test/build package và `verify-api-io.sh` pass.
 
 ## TM-01 — Guest search, filter và tutor preview card
 
@@ -56,6 +58,7 @@ Scope:
 - Keyset “Tải thêm”, sort, skeleton/empty/error/retry, abort request cũ và responsive filter drawer; không dùng offset hay hiển thị fake total khi API không trả total.
 - Tutor card chỉ hiển thị preview được phép. Theo rule an toàn hiện tại: ẩn rating/count; bỏ claim “đã xác minh danh tính/bằng cấp” và dùng copy “thông tin tự khai/đã duyệt” đúng data.
 - Refactor API/contracts nếu cần URL avatar approved an toàn. Không public media pending/rejected; không N+1 signed URL.
+- Search result link dùng canonical tutor URL có ID ổn định và slug đọc được; đổi display name không tạo duplicate content, slug cũ redirect canonical nếu triển khai slug persistence.
 
 Nghiệm thu và test:
 
@@ -75,12 +78,15 @@ Scope:
 - Paywall nói rõ video/bio/review bị khóa, single unlock vĩnh viễn theo decision hiện tại, VIP theo kỳ hạn server; giá không hard-code và không truyền amount trong URL.
 - Unlocked detail render approved signed video, bio, published reviews và expiry refresh; contact vẫn ẩn cho tới policy được chốt.
 - CTA trial tuân theo rule sản phẩm; copy bỏ “hoàn tiền nếu không hài lòng” và eKYC claim.
+- Sinh metadata server-side riêng từng tutor cho Google/Facebook/Zalo/LinkedIn: title, mô tả preview, canonical absolute URL, `og:type`, approved avatar/social image và JSON-LD `ProfilePage`/`Person`. Dữ liệu locked không xuất hiện trong metadata, JSON-LD hay HTML hydration payload.
+- Profile `hidden/suspended/deleted` phải biến mất khỏi sitemap và trả semantics `404`/`410` theo policy; không để bản cache cũ tiếp tục được crawler đọc.
 
 Nghiệm thu và test:
 
 - Locked không lộ data qua DOM/query cache; unlocked đúng tutor; expired/refunded relock; CTA checkout chứa chỉ product/target.
-- Component test locked/unlocked/VIP/single/refund/error; API access/serialization test nếu sửa paywall meta.
+- Component test locked/unlocked/VIP/single/refund/error; metadata snapshot/redaction/canonical/hidden-profile tests; API access/serialization test nếu sửa paywall meta.
 - `verify-flow-03-guest-search-paywall.sh` và `verify-flow-08-single-unlock-profile.sh` pass.
+- Thêm cURL SEO smoke: HTML không cần JS vẫn có canonical + Open Graph, share image absolute/public và không chứa bio/review/contact locked.
 
 ## TM-03 — Auth, activation và legal consent
 
@@ -220,6 +226,7 @@ Nghiệm thu và test:
 Scope:
 
 - PWA/offline shell không cache PII/API protected; install/update state; responsive 360px+, filter/modal focus/accessibility/contrast/reduced motion.
+- SEO regression: sitemap/robots/canonical, SSR status code, metadata unique, structured-data parse, social preview image và cache invalidation khi tutor bị hide/suspend.
 - Playwright API thật: guest search/locked detail → single unlock; guest trial → activation/consent; parent student/trial/classes; dashboard locked → buy tracking → detail; complete → review.
 - Xóa mock API/data, fake counts/claims, dev links, hard-coded price và feature hậu MVP khỏi production nav.
 

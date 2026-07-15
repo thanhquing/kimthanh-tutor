@@ -33,17 +33,18 @@ MVP gồm TM-00 đến TM-10. TM-11 đến TM-13 bao phủ các màn mock ngoài
 
 Scope:
 
-- Scaffold TypeScript/React bằng framework SSR/SSG (đề xuất Next.js App Router), scripts và root workspace; route shell responsive theo mock, 404/error boundary/loading/empty/toast/modal primitives.
+- Scaffold TypeScript/React bằng framework hybrid SSR + SPA (đề xuất Next.js App Router), scripts và root workspace; route shell responsive theo mock, 404/error boundary/loading/empty/toast/modal primitives.
 - Typed API client chung semantics với tutor app: refresh single-flight, normalized error, abort, idempotency, UTC/VND, auth/consent/capability guards.
 - Mở rộng/sửa `@kimthanh-tutor/contracts` cho search/public detail/parent/student/trial/class/dashboard/billing/review/notification; contract tests đối chiếu JSON thật.
 - Canonical routes thay cho từng `.html`; alias `search/tutor-detail/parent-profile/subscriptions` redirect nội bộ có test. Screen map/API base/mock mode chỉ dev build, không ở production.
 - Shell ưu tiên search cho guest; route dữ liệu trẻ em/parent không prefetch khi chưa auth.
-- Dựng nền SEO/share: server metadata API, canonical host env, robots, sitemap động cho tutor `published`, Open Graph dùng ảnh public approved, JSON-LD, cache/revalidation và `noindex` cho account/checkout/dashboard/admin-like routes.
+- Chia route rõ ràng: public search/profile dùng Server Components + SSR/SSG/ISR; account/students/classes/dashboard/billing/checkout/notifications dùng client-side app behavior sau auth.
+- Dựng nền SEO/share: server metadata API, canonical host env, robots, sitemap động cho tutor `published`, Open Graph dùng ảnh public approved, JSON-LD, cache/revalidation và `noindex,nofollow` cho toàn bộ route login-only.
 
 Nghiệm thu và test:
 
 - Guest vào `/` thấy search ngay; deep link/refresh hoạt động; 401/refresh/403/pending consent không loop; mobile nav đúng quyền.
-- `curl`/view-source của public route có title/canonical/OG mà không cần chạy JS; private route có `noindex`; sitemap không chứa profile hidden/suspended.
+- `curl`/view-source của public route có title/canonical/OG mà không cần chạy JS; private route có `noindex,nofollow`, không chứa protected data và vẫn chuyển trang mượt kiểu SPA sau login; sitemap không chứa profile hidden/suspended/private route.
 - Unit API client/contract/error/metadata mapper; component shell/nav/404/open redirect; lint/test/build package và `verify-api-io.sh` pass.
 
 ## TM-01 — Guest search, filter và tutor preview card

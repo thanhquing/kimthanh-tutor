@@ -2,11 +2,12 @@
 
 ## Khi bắt đầu một task code
 
-1. Đọc file liên quan trong `ai-docs`. Với task kỹ thuật, đọc thêm `15` (quy ước chung), `12` (chịu tải), `13` (bảo mật), `14` (pháp lý dữ liệu).
-2. Kiểm tra `04-open-questions.md` để biết có assumption nào cần chốt.
-3. Nếu task chạm thanh toán, pháp lý, quyền riêng tư hoặc phân quyền, ưu tiên validation phía máy chủ + ownership check + audit log.
-4. Không thêm scope ngoài MVP nếu không có yêu cầu.
-5. Cập nhật tài liệu nếu phần triển khai làm thay đổi business rule.
+1. Với frontend, đọc `14-active-work.md` và chỉ nhận đúng `Current task`; không tự chọn task khác trong backlog.
+2. Đọc file liên quan trong `ai-docs`. Với task kỹ thuật, đọc thêm `15` (quy ước chung), `12` (chịu tải), `13` (bảo mật), `14` (pháp lý dữ liệu).
+3. Kiểm tra `04-open-questions.md` để biết có assumption nào cần chốt.
+4. Nếu task chạm thanh toán, pháp lý, quyền riêng tư hoặc phân quyền, ưu tiên validation phía máy chủ + ownership check + audit log.
+5. Không thêm scope ngoài MVP nếu không có yêu cầu.
+6. Cập nhật tài liệu nếu phần triển khai làm thay đổi business rule.
 
 ## Quy ước kỹ thuật bắt buộc (từ `ai-docs/15`)
 

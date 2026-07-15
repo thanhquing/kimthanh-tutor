@@ -71,8 +71,8 @@ Trường chính:
 - `id`
 - `user_id`
 - `display_name`
-- `avatar_url`
-- `intro_video_url`
+- `avatar_media_id` (tham chiếu `MediaAsset`; không lưu URL media dài hạn)
+- `intro_video_media_id` (tham chiếu `MediaAsset`; URL đọc là signed URL ngắn hạn)
 - `bio`
 - `subjects`
 - `grade_levels`
@@ -90,6 +90,8 @@ Trường chính:
 - `offline_areas`
 - `status`: draft, publishable, published, hidden, suspended
 - `moderation_status`
+
+API presenter cho card/public preview trả `avatar_media_id`, `fee_min`, `fee_max` và `bio_snippet`; không trả `avatar_url` hoặc `expected_fee_*`. `expected_fee_*` là tên cột/domain nội bộ của hồ sơ.
 
 ### TutorAvailability
 

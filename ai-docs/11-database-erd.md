@@ -52,7 +52,7 @@ erDiagram
         string email "🔒 nullable"
         boolean email_verified
         string display_name
-        string avatar_url
+        string avatar_url "avatar từ OAuth provider, khác với tutor avatar media"
         datetime created_at
         datetime updated_at
     }

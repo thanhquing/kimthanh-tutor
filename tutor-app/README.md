@@ -1,31 +1,24 @@
 # tutor-app
 
-Ứng dụng giáo viên/gia sư: quản lý hồ sơ, lịch dạy, lớp học, sổ đầu bài và QR thanh toán.
+React workspace dành cho gia sư. App này là khu vực đăng nhập, chạy theo mô hình SPA; các trang public/SEO thuộc `tutor-market`.
 
-## Phạm vi
+## Lệnh phát triển
 
-- Đăng ký bằng số điện thoại OTP và đồng ý điều khoản/chính sách.
-- Tạo hồ sơ gia sư gồm trường, năm học, môn dạy, khối lớp, điểm thi/GPA nếu có, vùng miền, giọng nói, hình thức dạy và học phí tham khảo.
-- Quản lý lịch bận để tránh trùng giờ dạy.
-- Nhận và phản hồi yêu cầu dạy thử.
-- Tạo/quản lý lớp sau khi chấp nhận.
-- Ghi sổ đầu bài sau mỗi buổi học.
-- Kết thúc hợp đồng/lớp để kích hoạt luồng đánh giá phụ huynh.
-- Mua gói QR 30k/tháng để bật tính năng tạo QR/link thanh toán.
-- Tự đối chiếu tiền học phí ngoài hệ thống và đánh dấu "đã thu".
+```bash
+pnpm --filter tutor-app dev
+pnpm --filter tutor-app lint
+pnpm --filter tutor-app test
+pnpm --filter tutor-app build
+```
 
-## Nguyên tắc trải nghiệm người dùng
+API base được đóng tại build time bằng `VITE_API_BASE_URL` (mặc định `/api/v1`). Production UI không cho sửa API base, đọc token hay xóa storage.
 
-- Gia sư cần thấy việc cần làm hôm nay: lịch dạy, yêu cầu mới, sổ đầu bài cần nhập và gói QR sắp hết hạn.
-- Form hồ sơ cần có trạng thái hoàn thành hồ sơ để đủ điều kiện xuất hiện trên chợ.
-- Sau mỗi buổi học, sổ đầu bài phải nhập nhanh nhưng đủ dữ liệu cho bảng điều khiển phụ huynh.
-- QR thanh toán phải nhắc rõ hệ thống không xác nhận tiền vào ngân hàng.
+## Kiến trúc nền
 
-## Tài liệu nên đọc trước khi code
+- `src/app`: route, shell, error boundary.
+- `src/components`: primitive dùng chung.
+- `src/lib/api`: typed client, refresh single-flight và normalized error.
+- `src/lib`: format UTC/VND và capability guard.
+- `src/styles`: design tokens và responsive workspace shell bám mock.
 
-1. `../ai-docs/01-business-flow.md`
-2. `../ai-docs/03-product-scope.md`
-3. `../ai-docs/04-roles-and-permissions.md`
-4. `../ai-docs/05-domain-model.md`
-5. `../ai-docs/07-payments-and-monetization.md`
-6. `../ai-docs/10-acceptance-criteria.md`
+Các màn hiện là placeholder có chủ đích của `TA-00`; business flow được triển khai theo từng task tiếp theo trong `ai-tasks/10-tutor-app-task-list.md`.

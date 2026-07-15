@@ -8,25 +8,25 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-00` |
-| App | `tutor-app` |
+| Task | `TM-00` |
+| App | `tutor-market` |
 | Title | Scaffold, contracts, shell và API client |
-| Source | `ai-tasks/10-tutor-app-task-list.md` |
+| Source | `ai-tasks/11-tutor-market-task-list.md` |
 | Status | `TODO` |
 | Owner | — |
 | Started | — |
 | Branch/worktree | — |
 | Blocker | — |
 
-Lệnh cho AI mới: nhận đúng `TA-00`; không tự chuyển sang `TM-00`, `AD-00` hoặc task khác.
+Lệnh cho AI mới: nhận đúng `TM-00`; không tự chuyển sang `AD-00` hoặc task khác.
 
 ## Last completed
 
 | Field | Value |
 | --- | --- |
-| Task | Chuẩn bị architecture/task documents |
-| Commit | `e027b0d` |
-| Evidence | 38 task có trạng thái; toàn bộ mock HTML đã được map; audit mock/API đã hoàn tất |
+| Task | `TA-00` — Scaffold, contracts, shell và API client |
+| Commit | Tra bằng `git log --oneline --grep='TA-00' -1` |
+| Evidence | 15 tutor-app tests, contracts serialization test, lint/build, cURL Docker baseline; local UI review đã xử lý Lucide alignment |
 
 ## Global queue
 

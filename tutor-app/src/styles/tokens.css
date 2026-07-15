@@ -1,0 +1,32 @@
+:root {
+  color-scheme: light;
+  --brand-950: #071d35;
+  --brand-900: #0b2545;
+  --brand-800: #0f4c81;
+  --brand-700: #1863a1;
+  --brand-600: #2278bd;
+  --brand-100: #dcecf8;
+  --brand-50: #eaf3fb;
+  --accent-500: #f59e0b;
+  --success-600: #0d8a50;
+  --success-50: #e6f7ee;
+  --danger-600: #c52222;
+  --danger-50: #fdecec;
+  --ink-950: #0b1220;
+  --ink-700: #1f2a3a;
+  --ink-600: #3a4a63;
+  --ink-500: #56657f;
+  --ink-300: #b6c0d1;
+  --line: #e5eaf1;
+  --line-soft: #eef2f7;
+  --background: #f4f6fa;
+  --surface: #ffffff;
+  --surface-muted: #f9fafc;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 20px 40px rgba(15, 23, 42, 0.16);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --sidebar-width: 248px;
+  --topbar-height: 64px;
+  --font-sans: "Be Vietnam Pro", "Plus Jakarta Sans", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+}

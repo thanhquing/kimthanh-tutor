@@ -6,7 +6,7 @@ Tất cả task khởi tạo ở trạng thái `TODO`. Quy tắc trạng thái, 
 
 | Thứ tự | Task | Phụ thuộc | Trạng thái |
 | --- | --- | --- | --- |
-| 1 | TA-00 Scaffold, contracts, shell và API client | — | TODO |
+| 1 | TA-00 Scaffold, contracts, shell và API client | — | DONE |
 | 2 | TA-01 Auth, role và legal consent | TA-00 | TODO |
 | 3 | TA-02 Hồ sơ, media và publish | TA-01 | TODO |
 | 4 | TA-03 Lịch available/busy | TA-01 | TODO |
@@ -25,8 +25,12 @@ Tất cả task khởi tạo ở trạng thái `TODO`. Quy tắc trạng thái, 
 
 ## TA-00 — Scaffold, contracts, shell và API client
 
-- Trạng thái: TODO
-- Commit: —
+- Trạng thái: DONE
+- Owner: `codex/root`
+- Started: 2026-07-15
+- Completed: 2026-07-15
+- Commit lookup: `git log --oneline --grep='TA-00' -1`
+- Evidence: local desktop UI review đã xử lý alignment Lucide icon/text; deep link `/dashboard` và `/classes/class-01` trả `200`; `pnpm --filter tutor-app lint`, `test` (15 tests) và `build` pass; `pnpm --filter @kimthanh-tutor/contracts test` pass; `docker compose run --rm verify` pass health/ready/error envelope/OTP/auth-me/database checks.
 - Mock: `app/styles.css`, `app/app.js`, `app/mock-data.js`, shell của mọi màn, `settings.html`, `index.html`.
 
 Scope:
@@ -54,6 +58,7 @@ Scope:
 - Google/Facebook OAuth thật theo server contract; OTP fallback gửi `{channel,destination}`, giữ `request_id`, verify `{request_id,code}`; không thêm email/password vì API không hỗ trợ.
 - Sau auth gọi `/auth/me`, kiểm tra role/status; active user chưa có tutor profile được phép bootstrap ở TA-02; parent-only bị chặn và có link về market.
 - Legal gate full-screen không đóng: tải terms/privacy active, hiển thị version/link/checksum, chỉ bật checkbox/nút sau scroll 100%, POST một consent gồm hai document ID và consent metadata.
+- Wire `decideRouteAccess` vào route tree bằng auth snapshot thật trước khi bất kỳ protected screen/data nào render; không giữ scaffold bypass hoặc snapshot mặc định trong production. Mọi nhánh `auth/consent/role/suspended` phải điều hướng vào màn an toàn tương ứng.
 - Giữ allowlist cho `next`, xử lý refresh/logout/suspended/pending_consent và retry có giới hạn.
 
 Nghiệm thu và test:

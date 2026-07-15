@@ -8,25 +8,25 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 
 | Field | Value |
 | --- | --- |
-| Task | `TM-00` |
-| App | `tutor-market` |
-| Title | Scaffold, contracts, shell và API client |
-| Source | `ai-tasks/11-tutor-market-task-list.md` |
+| Task | `AD-00` |
+| App | `tutor-admin` |
+| Title | Scaffold, workspace, auth/RBAC và shell/API client |
+| Source | `ai-tasks/12-tutor-admin-task-list.md` |
 | Status | `TODO` |
 | Owner | — |
 | Started | — |
 | Branch/worktree | — |
 | Blocker | — |
 
-Lệnh cho AI mới: nhận đúng `TM-00`; không tự chuyển sang `AD-00` hoặc task khác.
+Lệnh cho AI mới: nhận đúng `AD-00`; không tự chuyển sang task khác.
 
 ## Last completed
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-00` — Scaffold, contracts, shell và API client |
-| Commit | Tra bằng `git log --oneline --grep='TA-00' -1` |
-| Evidence | 15 tutor-app tests, contracts serialization test, lint/build, cURL Docker baseline; local UI review đã xử lý Lucide alignment |
+| Task | `TM-00` — Scaffold, contracts, shell và API client |
+| Commit | Tra bằng `git log --oneline --grep='TM-00' -1` |
+| Evidence | 17 tutor-market tests, contracts serialization, lint/typecheck/build, Docker verify-api-io và cURL SEO/private/sitemap/404 với API thật pass |
 
 ## Global queue
 

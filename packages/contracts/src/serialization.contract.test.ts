@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import type {
   ApiErrorResponse,
   AuthMeResponse,
+  DashboardOverview,
   PaymentSummary,
+  Student,
+  TutorPublicDetail,
   TutorSearchCard,
 } from "./index";
 
@@ -20,8 +23,6 @@ const card = {
   region: "79",
   education_level: "university",
   school_name: "Đại học Sư phạm",
-  gender: "female",
-  voice_accent: "south",
   fee_min: 150_000,
   fee_max: 250_000,
   rating_avg: 4.8,
@@ -65,3 +66,54 @@ assert.deepEqual(roundTrip(card), card);
 assert.deepEqual(roundTrip(me), me);
 assert.deepEqual(roundTrip(error), error);
 assert.deepEqual(roundTrip(payment), payment);
+
+const student = {
+  id: "student_01",
+  name: "Bé An",
+  grade: "5",
+  learning_goals: "Củng cố Toán",
+  status: "active",
+  created_at: "2026-07-15T00:00:00.000Z",
+} satisfies Student;
+
+const lockedDetail = {
+  ...card,
+  gender: "female",
+  voice_accent: "south",
+  unlock_state: "locked",
+  unlock_via: null,
+  paywall: {
+    message: "Mở khóa hồ sơ để xem nội dung chi tiết.",
+    products: ["single_unlock", "parent_vip"],
+  },
+} satisfies TutorPublicDetail;
+
+const overview = {
+  student,
+  summary: {
+    total_classes: 1,
+    active_classes: 1,
+    total_lesson_logs: 2,
+    latest_lesson_at: "2026-07-15T00:00:00.000Z",
+  },
+  latest_lesson: {
+    id: "lesson_01",
+    class_contract_id: "class_01",
+    subject: "math",
+    absorption_level: "good",
+    lesson_at: "2026-07-15T00:00:00.000Z",
+  },
+  classes: [{
+    id: "class_01",
+    subject: "math",
+    status: "active",
+    tutor: { id: "tutor_01", display_name: "Nguyễn An", avatar_media_id: null },
+    lesson_log_count: 2,
+    started_at: null,
+    ended_at: null,
+  }],
+} satisfies DashboardOverview;
+
+assert.deepEqual(roundTrip(student), student);
+assert.deepEqual(roundTrip(lockedDetail), lockedDetail);
+assert.deepEqual(roundTrip(overview), overview);

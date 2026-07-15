@@ -29,3 +29,19 @@
 4. `../ai-docs/04-roles-and-permissions.md`
 5. `../ai-docs/09-notification-and-state-flows.md`
 6. `../ai-docs/10-acceptance-criteria.md`
+
+## Phát triển
+
+`tutor-market` dùng Next.js App Router. Trang tìm kiếm và hồ sơ gia sư là
+Server Components có SSR/ISR; các khu vực phụ huynh là shell `noindex,nofollow`
+và chỉ được nạp dữ liệu sau auth + consent ở task tương ứng.
+
+```bash
+pnpm --filter tutor-market dev
+pnpm --filter tutor-market test
+pnpm --filter tutor-market lint
+pnpm --filter tutor-market build
+```
+
+Thiết lập `API_BASE_URL` và `NEXT_PUBLIC_SITE_URL` từ `.env.example`. Không có
+UI production để đổi API base hoặc bật mock mode.

@@ -8,7 +8,7 @@ MVP gồm TM-00 đến TM-10. TM-11 đến TM-13 bao phủ các màn mock ngoài
 
 | Thứ tự | Task | Phụ thuộc | Release | Trạng thái |
 | --- | --- | --- | --- | --- |
-| 1 | TM-00 Scaffold, contracts, shell/API client | — | MVP | TODO |
+| 1 | TM-00 Scaffold, contracts, shell/API client | — | MVP | DONE |
 | 2 | TM-01 Guest search/filter/card | TM-00 | MVP | TODO |
 | 3 | TM-02 Tutor detail, paywall, unlock CTA | TM-01 | MVP | TODO |
 | 4 | TM-03 Auth, activation và legal consent | TM-00 | MVP | TODO |
@@ -27,8 +27,12 @@ MVP gồm TM-00 đến TM-10. TM-11 đến TM-13 bao phủ các màn mock ngoài
 
 ## TM-00 — Scaffold, contracts, shell và API client
 
-- Trạng thái: TODO
-- Commit: —
+- Trạng thái: DONE
+- Owner: codex/root
+- Completed: 2026-07-15
+- Commit lookup: `git log --oneline --grep='TM-00' -1`
+- Review: Chủ dự án xác nhận shell/layout phải bám HTML/CSS mock, không tự sáng tạo visual ngoài scope.
+- Evidence: 17 `tutor-market` tests; contracts serialization test; lint, typecheck và production build pass; Docker `verify-api-io.sh` pass; cURL public/private/sitemap/404 với API thật trả đúng status, canonical/OG và robots redaction.
 - Mock: `market/styles.css`, `api.js`, `shell.js`, `not-found.html`, dev-only `overview.html/settings.html`.
 
 Scope:

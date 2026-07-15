@@ -72,6 +72,27 @@ export interface KeysetPage<T> {
   next_cursor: string | null;
 }
 
+/** Query được API công khai `/tutors/search` chấp nhận. */
+export interface TutorSearchQuery {
+  subject?: string;
+  grade_level?: number;
+  teaching_mode?: TeachingMode;
+  gender?: "male" | "female" | "other";
+  region?: string;
+  voice_accent?: string;
+  education_level?: string;
+  school_name?: string;
+  min_exam_score?: number;
+  min_gpa?: number;
+  fee_min?: number;
+  fee_max?: number;
+  province_code?: string;
+  district_code?: string;
+  sort?: "rating" | "newest" | "fee_asc";
+  limit?: number;
+  cursor?: string;
+}
+
 export interface TutorSearchCard {
   id: string;
   display_name: string;
@@ -82,14 +103,51 @@ export interface TutorSearchCard {
   region: string | null;
   education_level: string | null;
   school_name: string | null;
-  gender: string | null;
-  voice_accent: string | null;
   fee_min: number | null;
   fee_max: number | null;
   rating_avg: number;
   rating_count: number;
   bio_snippet: string | null;
 }
+
+export type TutorUnlockState = "locked" | "unlocked";
+
+export interface TutorPublishedReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+}
+
+/**
+ * `/tutors/:id/public`: các trường locked chỉ xuất hiện ở biến thể unlocked.
+ * `rating_*` được giữ vì API hiện trả, còn UI market tuyệt đối không render ở
+ * bề mặt preview cho đến khi rule sản phẩm được chốt lại.
+ */
+export interface TutorPublicDetailBase extends TutorSearchCard {
+  gender: string | null;
+  voice_accent: string | null;
+  unlock_state: TutorUnlockState;
+  unlock_via: "single_unlock" | "vip_subscription" | null;
+}
+
+export interface TutorPublicDetailLocked extends TutorPublicDetailBase {
+  unlock_state: "locked";
+  unlock_via: null;
+  paywall: {
+    message: string;
+    products: Array<"single_unlock" | "parent_vip">;
+  };
+}
+
+export interface TutorPublicDetailUnlocked extends TutorPublicDetailBase {
+  unlock_state: "unlocked";
+  bio: string | null;
+  intro_video_url: string | null;
+  reviews: TutorPublishedReview[];
+}
+
+export type TutorPublicDetail = TutorPublicDetailLocked | TutorPublicDetailUnlocked;
 
 export interface AuthTokens {
   access_token: string;
@@ -110,6 +168,27 @@ export interface AuthMeResponse {
     parent: { id: string } | null;
     tutor: { id: string } | null;
   };
+}
+
+export interface ParentProfile {
+  id: string;
+  display_name: string;
+  email: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface Student {
+  id: string;
+  name: string;
+  grade: string;
+  learning_goals: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface StudentListResponse {
+  items: Student[];
 }
 
 export interface TutorProfileResponse {
@@ -180,6 +259,27 @@ export interface TrialRequestSummary {
   class_contract_id: string | null;
 }
 
+export interface TrialCreateInput {
+  tutor_profile_id: string;
+  subject: string;
+  grade: number;
+  learning_goal?: string;
+  teaching_mode: TeachingMode;
+  preferred_schedule?: unknown;
+  message?: string;
+  student_id?: string;
+  contact_name?: string;
+  contact_phone?: string;
+  contact_email?: string;
+}
+
+export interface ActivationCompleteResponse {
+  user: AuthUserSummary;
+  parent_profile: ParentProfile;
+  class_contract: ClassSummary;
+  consent_required: boolean;
+}
+
 export interface ClassSummary {
   id: string;
   trial_request_id: string;
@@ -193,6 +293,28 @@ export interface ClassSummary {
   ended_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface DashboardClassSummary {
+  id: string;
+  subject: string;
+  status: ClassStatus;
+  tutor: Pick<TutorSearchCard, "id" | "display_name" | "avatar_media_id">;
+  lesson_log_count: number;
+  started_at: string | null;
+  ended_at: string | null;
+}
+
+export interface DashboardOverview {
+  student: Pick<Student, "id" | "name" | "grade" | "learning_goals">;
+  summary: {
+    total_classes: number;
+    active_classes: number;
+    total_lesson_logs: number;
+    latest_lesson_at: string | null;
+  };
+  latest_lesson: Pick<LessonLogSummary, "id" | "class_contract_id" | "subject" | "absorption_level" | "lesson_at"> | null;
+  classes: DashboardClassSummary[];
 }
 
 export type AbsorptionLevel = "good" | "normal" | "needs_review";
@@ -209,6 +331,16 @@ export interface LessonLogSummary {
   tutor_note: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface DashboardTimelineItem extends LessonLogSummary {
+  class_subject: string | null;
+}
+
+export interface DashboardDetail {
+  student: Pick<Student, "id" | "name" | "grade">;
+  growth: Partial<Record<AbsorptionLevel, number>>;
+  timeline: KeysetPage<DashboardTimelineItem>;
 }
 
 export type CollectionStatus = "created" | "sent" | "marked_collected" | "cancelled";
@@ -266,6 +398,16 @@ export interface SubscriptionSummary {
   cancelled_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface NotificationPage extends KeysetPage<NotificationItem> {}
+
+export interface ClassReviewCapability {
+  class_id: string;
+  review: ReviewSummary | null;
+  can_create: boolean;
+  can_edit: boolean;
+  can_report: boolean;
 }
 
 export interface PaymentSummary {

@@ -1,0 +1,7 @@
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { getPublicTutor } from "@/lib/api/public";
+import { tutorJsonLd, tutorMetadata } from "@/lib/metadata";
+import { formatVnd } from "@/lib/format";
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> { const { id } = await params; const tutor = await getPublicTutor(id); return tutor ? tutorMetadata(tutor, `/tutors/${encodeURIComponent(id)}`) : {}; }
+export default async function TutorPage({ params }: { params: Promise<{ id: string }> }) { const { id } = await params; const tutor = await getPublicTutor(id); if (!tutor) notFound(); const path = `/tutors/${encodeURIComponent(id)}`; return <article className="page profile"><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(tutorJsonLd(tutor, path)) }}/><p className="eyebrow">Hồ sơ gia sư</p><h1>{tutor.display_name}</h1><p>{tutor.subjects.join(" · ")} · Lớp {tutor.grade_levels.join(", ")}</p><p>{tutor.fee_min === null ? "Trao đổi học phí" : formatVnd(tutor.fee_min)}</p>{tutor.unlock_state === "locked" ? <section className="paywall"><h2>Thông tin chi tiết đang được bảo vệ</h2><p>{tutor.paywall.message}</p><a className="button" href="/login">Đăng nhập để mở khóa</a></section> : <section><h2>Giới thiệu</h2><p>{tutor.bio ?? "Gia sư chưa bổ sung phần giới thiệu."}</p></section>}</article>; }

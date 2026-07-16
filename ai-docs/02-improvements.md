@@ -69,16 +69,13 @@ Vấn đề:
 
 - Flow gốc chưa nói mở khóa từng hồ sơ có hiệu lực bao lâu.
 
-Điều chỉnh đề xuất:
+Điều chỉnh đã chốt:
 
-- Mở khóa từng hồ sơ: xem trọn đời với hồ sơ đó, hoặc tối thiểu 30 ngày. Cần chốt trước khi code.
+- Mở khóa từng hồ sơ: vĩnh viễn với đúng hồ sơ đó.
 - VIP: theo chu kỳ tháng.
 - Gói theo dõi bảng điều khiển: theo chu kỳ tháng, hết hạn thì khóa chi tiết nhưng giữ dữ liệu.
 
-Mặc định tài liệu giai đoạn 1 dùng quy ước:
-
-- `ProfileUnlock` có `expires_at` tùy chính sách giá quyết định.
-- Nếu `expires_at = null` thì mở khóa vĩnh viễn cho hồ sơ đó.
+Quy ước code giai đoạn 1: `ProfileUnlock.expires_at = null` cho `single_unlock`. Giá/kỳ hạn sản phẩm khác lấy từ cấu hình server, UI không hard-code.
 
 ## 7. Cần luồng thanh toán thất bại/hủy/hoàn tiền
 

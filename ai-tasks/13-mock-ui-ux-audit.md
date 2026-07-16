@@ -2,6 +2,8 @@
 
 Ngày audit: 2026-07-15.
 
+Implementation update: 2026-07-16. Bảng phát hiện giữ nguyên để truy vết nguồn mock; trạng thái đã xử lý sau scaffold được ghi ở mục 5a, không xóa issue lịch sử.
+
 Phạm vi đã đọc: toàn bộ HTML/CSS/JS trong `kimthanh-tutor-mock/public/app`, `market`, `admin`; README ba app; API controller/DTO/service liên quan; `ai-docs` và flow cURL hiện có.
 
 ## 1. Bản đồ hành trình xuyên app
@@ -106,6 +108,17 @@ Phạm vi đã đọc: toàn bộ HTML/CSS/JS trong `kimthanh-tutor-mock/public/
 | UX-029 | High | `/classes/mine` chỉ trả ID/subject/status/time, trong khi mock cần tên học sinh/phụ huynh/gia sư, mode, fee, schedule; mock market còn nhầm class contract với từng buổi học. | Bổ sung relation summary owner-safe; chỉ mở rộng domain cho fee/mode/schedule khi rule được chốt. TA-06, TM-06. |
 | UX-030 | Medium | Tutor dashboard mock cần lesson logs toàn tutor để tính “cần ghi sổ”, nhưng API chỉ list log theo từng class; gọi tuần tự sẽ thành N+1 và vẫn không có lịch buổi học. | Thêm tutor overview aggregate hoặc giản lược widget theo dữ liệu có thật. TA-04. |
 | UX-031 | Critical | Mock market là static SPA và không có canonical/SSR metadata riêng cho từng hồ sơ; crawler Google và link preview Facebook/Zalo/LinkedIn có thể không đọc đúng nội dung hoặc chia sẻ mọi tutor bằng một preview chung. | `tutor-market` dùng SSR/SSG; mỗi tutor có canonical, OG, sitemap, JSON-LD và social image từ preview public approved; redaction paywall bắt buộc. TM-00, TM-01, TM-02, TM-10. |
+
+### 5a. Trạng thái sau scaffold (2026-07-16)
+
+| Issue | Trạng thái code hiện tại | Phần còn lại |
+| --- | --- | --- |
+| UX-017 | **Resolved ở AD-00**: email/password thật, `/auth/me`, role/status/consent gate, access RAM + refresh cookie HttpOnly; không demo token/localStorage. | Regression guardrails tiếp tục bắt buộc ở AD-01–AD-09. |
+| UX-023 | **Resolved ở scaffold**: production không có API switch/clear localStorage; env đóng ở build/deploy. | Hardening cuối TA-13/TM-10/AD-09 kiểm lại dead dev routes. |
+| UX-024 | **Resolved nền ở AD-00**, **partial ở TA-00/TM-00**: shell/error/API client đã có; auth/consent business của tutor/market còn TA-01/TM-03. | Hoàn tất state theo task auth tương ứng. |
+| UX-027 | **Resolved cho shape scaffold đang dùng** bằng `@kimthanh-tutor/contracts` và serialization tests. | Mỗi task business tiếp tục bổ sung contract mới, không định nghĩa trùng trong app. |
+| UX-028 | **Resolved ở AD-00**: admin đã ở workspace, root lint/test/build bao phủ package. | Không còn blocker scaffold. |
+| UX-031 | **Partial ở TM-00**: Next.js SSR/ISR foundation, canonical, robots, sitemap và public/private redaction đã có. | Dữ liệu tutor thật, metadata/JSON-LD/social image theo profile hoàn tất ở TM-01/TM-02/TM-10. |
 
 ## 6. Đề xuất UX bổ sung
 

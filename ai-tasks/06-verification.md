@@ -12,10 +12,16 @@ Kết quả chạy gần nhất: ✅ pass ngày 2026-07-14 bằng:
 docker compose up --build --abort-on-container-exit verify
 ```
 
-Kết quả API/unit mới nhất: ✅ pass ngày 2026-07-14:
+Kết quả API/unit mới nhất: ✅ pass ngày 2026-07-16:
+
+- Full Jest API: 16 suite / 93 test pass.
+- API lint và Nest production build pass.
+- `tutor-admin`: 6 file / 15 test, lint và Vite production build pass.
+- `@kimthanh-tutor/contracts`: serialization tests pass.
+
+Evidence Docker/flow gần nhất vẫn là 2026-07-14:
 
 - `docker compose up -d --build api`: Prisma generate + Nest build pass.
-- `docker compose exec -T api npm test -- --runInBand`: 14 suites / 79 tests pass.
 - `docker compose exec -T api sh /app/tutor-api/scripts/verify-flow-12-tutor-admin-ops.sh`: Flow 12 pass end-to-end.
 - Regression cURL sau refactor billing/access: Flow 7 và Flow 10 pass ngày 2026-07-14; Flow 10 script đã đọc giá `tutor_qr` từ checkout output thay vì hard-code để tương thích `product_pricing`.
 
@@ -41,7 +47,7 @@ Phạm vi kiểm chứng hiện tại:
 
 - `prisma validate` đọc `tutor-api/prisma/schema.prisma`.
 - API container chạy `prisma db push --accept-data-loss` để dựng schema vào PostgreSQL verify.
-- `psql` kiểm tra các bảng chính: `users`, `otp_requests`, `tutor_profiles`, `payments`, `class_contracts`, `reviews`, `audit_logs`.
+- `psql` kiểm tra các bảng chính: `users`, `otp_requests`, `tutor_profiles`, `payments`, `class_contracts`, `reviews`, `audit_logs`. Schema hiện còn có `admin_credentials`, `refresh_tokens`, `platform_payment_accounts`, `product_pricing`, `paid_feature_overrides`; bổ sung chúng vào script DB assertion khi mở rộng verify schema.
 - `psql` kiểm tra enum chính: `UserStatus`, `ProductType`, `PaymentStatus`, `ClassStatus`.
 - `curl` kiểm tra output `GET /healthz`.
 - `curl` kiểm tra output `GET /readyz`.
@@ -116,6 +122,7 @@ Sau mỗi task API/hạ tầng, cập nhật tối thiểu:
 - `ai-tasks/06-verification.md` nếu thêm/sửa cách verify.
 - `ai-tasks/07-api-curl-user-flows.md` nếu thêm/sửa luồng người dùng, màn hình, payload cURL hoặc expected output phục vụ mock UI/UX.
 - README tương ứng (`README.md`, `tutor-api/README.md`, `tutor-market/README.md`, `tutor-app/README.md`) nếu cách chạy hoặc trạng thái dự án thay đổi.
+- Với thay đổi admin, cập nhật thêm `tutor-admin/README.md` và `tutor-admin/DEPLOYMENT.md` nếu auth/cookie/header/deployment invariant đổi.
 - `ai-tasks/01-backlog.md` hoặc `02-milestones.md` nếu task/mốc đã hoàn tất hoặc đổi phạm vi.
 
 Quy tắc riêng khi ráp API vào mock UI/UX:

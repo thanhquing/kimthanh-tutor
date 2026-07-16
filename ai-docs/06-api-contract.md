@@ -15,11 +15,11 @@ Khi thiết kế API chi tiết, đối chiếu bảng đọc/ghi trong `11-data
 ## Quy ước kỹ thuật chung (áp dụng mọi endpoint)
 
 - **Versioning**: prefix `/api/v1`.
-- **Định dạng lỗi thống nhất**: `{ code, message, details? }` với `code` thuộc danh sách chuẩn (cuối tài liệu).
+- **Định dạng lỗi thống nhất**: `{ code, message, details?, request_id? }` với `code` thuộc danh sách chuẩn (cuối tài liệu).
 - **Phân trang keyset (seek)**: tham số `limit` + `cursor`; response trả `items` + `next_cursor`. **Không dùng offset** cho danh sách lớn (search, timeline). Xem `12-non-functional-requirements.md`.
 - **Idempotency**: API tạo tiền/hành động nhạy cảm nhận header `Idempotency-Key`; lặp key trả kết quả cũ, không tạo mới.
 - **Rate limiting**: mọi nhóm có giới hạn theo IP/user/thiết bị; vượt → `RATE_LIMITED` + `Retry-After`. Chi tiết ở `13-security-and-threat-model.md`.
-- **Xác thực**: JWT access ngắn hạn + refresh quay vòng; API stateless.
+- **Xác thực**: JWT access ngắn hạn + refresh quay vòng; API không phụ thuộc session RAM giữa request. Refresh token hash/rotation/revocation hiện nằm trong PostgreSQL.
 - **Validate**: DTO/schema chặt, từ chối field thừa; chống mass-assignment.
 - **Side-effect** (thông báo/đồng bộ search): không làm đồng bộ trong request — ghi outbox, worker xử lý.
 
@@ -68,6 +68,7 @@ Dữ liệu ra:
 
 - Đăng nhập/đăng ký bằng Google/Facebook OAuth, server verify token với provider.
 - Gửi/xác minh OTP SĐT fallback/local; non-production dùng mã cố định `272727`.
+- Admin đăng nhập qua endpoint riêng bằng email/password đã provision; server kiểm tra scrypt hash, status và role `admin`, tăng failed-attempt bằng compare-and-swap, khóa 15 phút sau 5 lần sai. Access token chỉ giữ trong RAM; refresh token hash nằm trong PostgreSQL và token thô chỉ ở cookie HttpOnly `SameSite=Strict`. `/auth/admin/refresh` claim/rotate trong transaction, cho grace 5 giây với xung đột multi-tab; reuse sau grace thu hồi mọi refresh token còn hoạt động của user. `/auth/admin/logout` thu hồi phiên và rotate password thu hồi mọi refresh token của admin.
 - Tạo tài khoản ở trạng thái chờ consent.
 - Lấy version pháp lý hiện tại.
 - Ghi nhận đồng ý điều khoản/chính sách.
@@ -128,12 +129,18 @@ Hành vi webhook (sau khi verify chữ ký + đối chiếu số tiền + chốn
 
 ## API cho quản trị viên
 
+- Xem dashboard user/registration/moderation/payment summary.
+- Tìm, xem detail đã mask PII, suspend/reactivate user và thu hồi session.
+- Xem/cập nhật paid-feature override theo user.
 - Kiểm duyệt hồ sơ gia sư.
-- Kiểm duyệt đánh giá.
+- Kiểm duyệt media và đánh giá.
 - Ẩn/tạm khóa hồ sơ gia sư.
-- Xem bản ghi thanh toán.
+- Xem bản ghi thanh toán; tạo refund record theo chính sách đã chốt.
+- Xem audit log, webhook event, outbox/notification event đã redaction.
+- Đọc/cập nhật tài khoản VietQR nền tảng và bảng giá/bật tắt sản phẩm.
 - Xử lý tranh chấp/báo cáo.
-- Xem nhật ký kiểm toán.
+
+Mọi mutation admin nhạy cảm yêu cầu `reason`, role `admin`, audit log và không trả raw PII.
 
 ## Các lỗi cần chuẩn hóa
 

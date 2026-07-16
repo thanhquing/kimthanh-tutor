@@ -1,17 +1,17 @@
 # Backlog Sản Phẩm
 
-Ghi chú trạng thái API ngày 2026-07-14:
+Ghi chú trạng thái code ngày 2026-07-16:
 
-- Các API phục vụ Flow 1-12 trong `07-api-curl-user-flows.md` đã được verify end-to-end bằng cURL.
-- Các dòng có ghi "API" là backend contract đã có; phần giao diện/app frontend chỉ xem là hoàn tất khi `tutor-market`/`tutor-app` ráp xong màn tương ứng.
+- Các API phục vụ Flow 1-12 đã verify end-to-end bằng cURL ngày 2026-07-14; unit API mới nhất 93 test.
+- Scaffold `TA-00`, `TM-00`, `AD-00` đã DONE; các dòng có ghi "API" không đồng nghĩa màn business frontend đã hoàn tất. Trạng thái chính xác nằm ở task list và `14-active-work.md`.
 
 ## Nhóm việc 1: Nền tảng
 
-- ✅ Tạo monorepo pnpm cho `tutor-api` (NestJS), `tutor-market`, `tutor-app`, package `contracts` (DTO/type/enum dùng chung).
+- ✅ Tạo monorepo pnpm cho `tutor-api` (NestJS), `tutor-market`, `tutor-app`, `tutor-admin`, package `contracts` (DTO/type/enum dùng chung).
 - ✅ Thiết lập PostgreSQL + Prisma; áp quy ước ULID/UTC/tiền-nguyên/soft delete/enum-CHECK (`ai-docs/15`).
 - ✅ Thêm Docker Compose verify local cho `tutor-api` + PostgreSQL: validate schema, `prisma db push`, kiểm tra DB bằng `psql`, kiểm tra API input/output bằng cURL (`ai-tasks/06-verification.md`).
 - Thiết lập Redis (cache, rate limit, lock, BullMQ).
-- Thiết lập lint/test/build; benchmark hot-path search (EXPLAIN ANALYZE trong CI).
+- ✅ Thiết lập lint/test/build cho workspace hiện có. Benchmark hot-path search (EXPLAIN ANALYZE trong CI) vẫn TODO.
 - ✅ Thiết lập env config cơ bản; secret manager thật vẫn là việc triển khai hạ tầng.
 - ✅ Thiết lập xác thực Google/Facebook OAuth phía server; phone OTP còn là fallback/local với mã `272727`, hash mã, cooldown/rate-limit cơ bản.
 - ✅ Tạo versioning cho legal consent (`legal_documents`/`legal_consents`).
@@ -25,9 +25,9 @@ Ghi chú trạng thái API ngày 2026-07-14:
 - Outbox pattern + worker (BullMQ) cho notification/đồng bộ search/gọi provider.
 - ✅ Idempotency-Key cho API tạo tiền; `idempotency_keys`.
 - ✅ Verify webhook dev/SePay contract + đối chiếu số tiền + `webhook_events` chống trùng; provider production hardening còn cần môi trường thật.
-- Optimistic lock (`version`) cho request/lớp/subscription/payment.
+- ✅ Optimistic lock/conditional state update (`version` hoặc expected-state CAS) cho các flow trial/lớp/subscription/payment hiện có; tiếp tục bắt buộc cho state machine mới.
 - ✅ Rate limiting cơ bản cho auth/search/guest request/payment; Redis/distributed limit còn cần hạ tầng.
-- Signed upload media + quét virus + kiểm duyệt trước khi public.
+- ✅ API signed upload contract + moderation state. Object storage upload thật và worker quét virus/malware trước public vẫn TODO.
 - ✅ `audit_logs` cho hành động admin/nhạy cảm.
 - Chính sách retention + ẩn danh khi xóa user (`ai-docs/14`).
 
@@ -96,7 +96,7 @@ Ghi chú trạng thái API ngày 2026-07-14:
 
 ## Nhóm việc 7b: Tutor Admin nội bộ
 
-- ✅ Tạo thư mục root `tutor-admin` để chủ dự án tự scaffold app quản trị.
+- ✅ `AD-00`: scaffold `tutor-admin`, workspace scripts, email/password admin, RBAC/consent/status gate, refresh cookie HttpOnly, shell và typed API client. `AD-01`–`AD-09` vẫn là màn nghiệp vụ/hardening TODO.
 - ✅ API dashboard tổng quan: thống kê user đăng ký theo ngày/role/status, pending approval, doanh thu/payment summary.
 - ✅ API danh sách user: lọc theo role/status/search, xem profile liên quan, xem trạng thái gói/quyền trả phí.
 - ✅ API khóa/mở khóa account user ở mức `users.status`, có reason, revoke refresh token khi suspend và audit log.

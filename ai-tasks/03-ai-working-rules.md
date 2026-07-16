@@ -9,6 +9,8 @@
 5. Không thêm scope ngoài MVP nếu không có yêu cầu.
 6. Cập nhật tài liệu nếu phần triển khai làm thay đổi business rule.
 
+Snapshot điều phối hiện tại nằm duy nhất ở `14-active-work.md`; không dùng ngày/test count trong prompt mock để suy ra task đã xong. `Verified` cURL phải giữ đúng ngày script thực sự chạy, còn unit/lint/build ghi ngày evidence riêng trong `06-verification.md`.
+
 ## Quy ước kỹ thuật bắt buộc (từ `ai-docs/15`)
 
 - ID = ULID; thời gian = UTC `timestamptz`; tiền = số nguyên VND; soft delete cho dữ liệu nghiệp vụ; enum có CHECK.
@@ -23,6 +25,7 @@
 - Backend: `tutor-api`.
 - App phụ huynh: `tutor-market`.
 - Ứng dụng gia sư: `tutor-app`.
+- Console quản trị nội bộ: `tutor-admin`.
 - Gói định kỳ bảng điều khiển cho phụ huynh: `parent_tracking`.
 - VIP chợ gia sư cho phụ huynh: `parent_vip_unlock`.
 - Gói định kỳ QR cho gia sư: `tutor_qr`.

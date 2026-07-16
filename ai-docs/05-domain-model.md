@@ -313,6 +313,8 @@ Trường chính: `id`, `doc_type` (terms/privacy), `version`, `locale`, `title`
 ### Thực thể hạ tầng (kỹ thuật, không hiển thị người dùng)
 
 - `AuthAccount`: liên kết user với tài khoản Google/Facebook đã verify phía server (`provider`, `provider_user_id`, email/profile snapshot).
+- `AdminCredential`: credential email/password chỉ cho user có role `admin`; lưu scrypt hash, `failed_attempts`, `locked_until`, `password_changed_at`, được provision/rotate ngoài giao diện. Tăng số lần sai phải compare-and-swap/ghi nguyên tử; rotate password thu hồi mọi refresh token còn hoạt động.
+- `RefreshToken`: chỉ lưu hash trong PostgreSQL với `user_id`, `expires_at`, `revoked_at`, `rotated_to_id`, `created_ip`. Rotation claim token cũ trong transaction rồi nối tới token con; xung đột đồng thời trong grace ngắn không thu hồi token con của request thắng, reuse sau grace thu hồi mọi refresh token còn hoạt động của user.
 - `OtpRequest`: OTP đã hash, số lần thử, hết hạn — chống brute-force/đốt SMS.
 - `WebhookEvent`: chống trùng + lưu kết quả verify chữ ký webhook thanh toán.
 - `IdempotencyKey`: chống double-submit các API tạo tiền.

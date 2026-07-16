@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Logger } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ErrorCode } from '../../common/errors/error-codes';
-import { hashOtp, sha256 } from '../../common/utils/hash.util';
+import { hashOtp, hashPassword, sha256 } from '../../common/utils/hash.util';
 
 function config() {
   return {
@@ -38,6 +38,105 @@ describe('AuthService', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  it('logs in an active admin with a valid scrypt password', async () => {
+    const passwordHash = await hashPassword('correct-password');
+    const credential = { userId: 'admin-1', passwordHash, failedAttempts: 2, lockedUntil: null };
+    const user = {
+      id: 'admin-1', phone: null, email: 'admin@example.test', roles: ['admin'],
+      status: 'active', deletedAt: null, adminCredential: credential,
+    };
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue(user) },
+      adminCredential: { update: jest.fn() },
+      refreshToken: { create: jest.fn() },
+    };
+    const jwt = { signAsync: jest.fn().mockResolvedValue('access-token') };
+    const service = new AuthService(prisma as any, jwt as any, config());
+
+    const result = await service.adminPasswordLogin(' Admin@Example.Test ', 'correct-password', '1.2.3.4');
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { email: 'admin@example.test' },
+      include: { adminCredential: true },
+    });
+    expect(prisma.adminCredential.update).toHaveBeenCalledWith({
+      where: { userId: 'admin-1' },
+      data: { failedAttempts: 0, lockedUntil: null },
+    });
+    expect(result).toMatchObject({ access_token: 'access-token', user: { id: 'admin-1' }, consent_required: false });
+  });
+
+  it('increments failures and rejects an invalid admin password generically', async () => {
+    const credential = {
+      userId: 'admin-1', passwordHash: await hashPassword('correct-password'),
+      failedAttempts: 4, lockedUntil: null,
+    };
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue({ id: 'admin-1', adminCredential: credential }) },
+      adminCredential: {
+        findUnique: jest.fn().mockResolvedValue({ failedAttempts: 4, lockedUntil: null }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const service = new AuthService(prisma as any, {} as JwtService, config());
+
+    await expect(service.adminPasswordLogin('admin@example.test', 'wrong-password')).rejects.toMatchObject({
+      code: ErrorCode.AUTH_REQUIRED,
+      message: 'Email hoặc mật khẩu không đúng',
+    });
+    expect(prisma.adminCredential.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'admin-1', failedAttempts: 4, lockedUntil: null },
+      data: { failedAttempts: 5, lockedUntil: expect.any(Date) },
+    });
+  });
+
+  it('retries a contended admin failure increment instead of losing it', async () => {
+    const credential = {
+      userId: 'admin-1', passwordHash: await hashPassword('correct-password'),
+      failedAttempts: 2, lockedUntil: null,
+    };
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue({ id: 'admin-1', adminCredential: credential }) },
+      adminCredential: {
+        findUnique: jest.fn()
+          .mockResolvedValueOnce({ failedAttempts: 2, lockedUntil: null })
+          .mockResolvedValueOnce({ failedAttempts: 3, lockedUntil: null }),
+        updateMany: jest.fn()
+          .mockResolvedValueOnce({ count: 0 })
+          .mockResolvedValueOnce({ count: 1 }),
+      },
+    };
+    const service = new AuthService(prisma as any, {} as JwtService, config());
+
+    await expect(service.adminPasswordLogin('admin@example.test', 'wrong-password')).rejects.toMatchObject({
+      code: ErrorCode.AUTH_REQUIRED,
+    });
+    expect(prisma.adminCredential.updateMany).toHaveBeenNthCalledWith(2, {
+      where: { userId: 'admin-1', failedAttempts: 3, lockedUntil: null },
+      data: { failedAttempts: 4, lockedUntil: null },
+    });
+  });
+
+  it('does not issue tokens when a valid credential no longer has admin role', async () => {
+    const credential = {
+      userId: 'user-1', passwordHash: await hashPassword('correct-password'),
+      failedAttempts: 0, lockedUntil: null,
+    };
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue({
+        id: 'user-1', roles: ['parent'], status: 'active', deletedAt: null, adminCredential: credential,
+      }) },
+      adminCredential: { update: jest.fn() },
+      refreshToken: { create: jest.fn() },
+    };
+    const service = new AuthService(prisma as any, {} as JwtService, config());
+
+    await expect(service.adminPasswordLogin('parent@example.test', 'correct-password')).rejects.toMatchObject({
+      code: ErrorCode.FORBIDDEN_ROLE,
+    });
+    expect(prisma.refreshToken.create).not.toHaveBeenCalled();
   });
 
   it('creates an OTP request with normalized destination and returns dev code outside production', async () => {
@@ -232,21 +331,96 @@ describe('AuthService', () => {
       tokenHash: sha256(raw),
       revokedAt: new Date('2026-01-01T00:00:00Z'),
       expiresAt: new Date(Date.now() + 60_000),
+      user: { id: 'user-1', roles: ['parent'], status: 'active', deletedAt: null },
     };
-    const prisma = {
+    const tx = {
       refreshToken: {
         findUnique: jest.fn().mockResolvedValue(record),
         updateMany: jest.fn(),
       },
     };
+    const prisma = { $transaction: jest.fn((fn) => fn(tx)) };
     const service = new AuthService(prisma as any, {} as any, config());
 
     await expect(service.refresh(raw)).rejects.toMatchObject({
       code: ErrorCode.AUTH_REQUIRED,
     });
-    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+    expect(tx.refreshToken.updateMany).toHaveBeenCalledWith({
       where: { userId: 'user-1', revokedAt: null },
       data: { revokedAt: expect.any(Date) },
     });
+  });
+
+  it('claims a refresh token before creating its rotated child', async () => {
+    const raw = 'refresh-token';
+    const tx = {
+      refreshToken: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'rt-1', userId: 'admin-1', revokedAt: null,
+          expiresAt: new Date(Date.now() + 60_000),
+          user: { id: 'admin-1', roles: ['admin'], status: 'active', deletedAt: null },
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        create: jest.fn(),
+        update: jest.fn(),
+      },
+    };
+    const prisma = { $transaction: jest.fn((fn) => fn(tx)) };
+    const jwt = { signAsync: jest.fn().mockResolvedValue('next-access') };
+    const service = new AuthService(prisma as any, jwt as any, config());
+
+    await expect(service.refreshAdmin(raw, '1.2.3.4')).resolves.toMatchObject({
+      access_token: 'next-access',
+      refresh_token: expect.any(String),
+    });
+    expect(tx.refreshToken.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.refreshToken.create.mock.invocationCallOrder[0],
+    );
+    expect(tx.refreshToken.update).toHaveBeenCalledWith({
+      where: { id: 'rt-1' },
+      data: { rotatedToId: expect.any(String) },
+    });
+  });
+
+  it('does not mint a child when another request already claimed the refresh token', async () => {
+    const tx = {
+      refreshToken: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'rt-1', userId: 'admin-1', revokedAt: null,
+          expiresAt: new Date(Date.now() + 60_000),
+          user: { id: 'admin-1', roles: ['admin'], status: 'active', deletedAt: null },
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        create: jest.fn(),
+        update: jest.fn(),
+      },
+    };
+    const prisma = { $transaction: jest.fn((fn) => fn(tx)) };
+    const service = new AuthService(prisma as any, {} as JwtService, config());
+
+    await expect(service.refreshAdmin('refresh-token')).rejects.toMatchObject({
+      code: ErrorCode.CONFLICT,
+    });
+    expect(tx.refreshToken.create).not.toHaveBeenCalled();
+  });
+
+  it('does not revoke the winning token-family for an immediate duplicate refresh', async () => {
+    const tx = {
+      refreshToken: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'rt-1', userId: 'admin-1', rotatedToId: 'rt-2',
+          revokedAt: new Date(), expiresAt: new Date(Date.now() + 60_000),
+          user: { id: 'admin-1', roles: ['admin'], status: 'active', deletedAt: null },
+        }),
+        updateMany: jest.fn(),
+      },
+    };
+    const prisma = { $transaction: jest.fn((fn) => fn(tx)) };
+    const service = new AuthService(prisma as any, {} as JwtService, config());
+
+    await expect(service.refreshAdmin('refresh-token')).rejects.toMatchObject({
+      code: ErrorCode.CONFLICT,
+    });
+    expect(tx.refreshToken.updateMany).not.toHaveBeenCalled();
   });
 });

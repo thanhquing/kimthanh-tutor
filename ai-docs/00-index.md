@@ -31,6 +31,10 @@ Thư mục này là bộ tài liệu tham chiếu cho AI/lập trình viên khi 
 - `../tutor-api`: API phía máy chủ.
 - `../tutor-market`: ứng dụng phụ huynh.
 - `../tutor-app`: ứng dụng gia sư.
+- `../tutor-admin`: console vận hành nội bộ cho role `admin`.
+- `../packages/contracts`: enum/type/DTO dùng chung giữa API và ba frontend.
+
+`ai-docs` mô tả quyết định và tiêu chí mục tiêu; trạng thái code/test hiện tại được ghi ở `../ai-tasks/14-active-work.md` và `../ai-tasks/06-verification.md`. Không suy ra một feature đã hoàn tất chỉ vì nó xuất hiện trong tài liệu phạm vi.
 
 ## Quy ước
 

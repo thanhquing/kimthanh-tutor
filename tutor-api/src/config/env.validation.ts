@@ -16,6 +16,7 @@ const base = {
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   API_PREFIX: z.string().default('api/v1'),
+  CORS_ORIGINS: z.string().default(''),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL bắt buộc'),
 
   JWT_ACCESS_SECRET: z.string().default('dev-access'),
@@ -71,6 +72,13 @@ const schema = z
     requireStrong('JWT_REFRESH_SECRET');
     requireStrong('MEDIA_SIGNING_SECRET');
     requireStrong('SEPAY_WEBHOOK_API_KEY', 8);
+    if (!env.CORS_ORIGINS.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['CORS_ORIGINS'],
+        message: 'CORS_ORIGINS bắt buộc ở production',
+      });
+    }
     if (!env.GOOGLE_CLIENT_ID.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

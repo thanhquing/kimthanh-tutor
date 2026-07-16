@@ -6,13 +6,13 @@ Tài liệu này chốt stack, ranh giới module, các quy ước chung và **c
 
 | Hạng mục | Quyết định | Lý do |
 | --- | --- | --- |
-| Backend | **NestJS (TypeScript)** | Có cấu trúc module/DI rõ, dễ tuyển ở VN, chia sẻ type với 2 app frontend. |
+| Backend | **NestJS (TypeScript)** | Có cấu trúc module/DI rõ, dễ tuyển ở VN, chia sẻ type với 3 app frontend. |
 | Database | **PostgreSQL 15+** | Đủ mạnh cho chợ gia sư giai đoạn 1: JSONB, mảng, GIN, full-text search, partitioning gốc. |
 | ORM | **Prisma** | Type-safe, migration rõ ràng, dễ audit schema. Xem lưu ý ở mục 6. |
 | Cache/khóa/queue nhẹ | **Redis** | Cache đọc, rate limit, distributed lock, hàng đợi job nhẹ (BullMQ). |
-| Frontend | `tutor-market` (phụ huynh), `tutor-app` (gia sư) — **web responsive/PWA** giai đoạn 1 | Tránh chi phí native sớm; PWA push đủ cho thông báo. |
+| Frontend | `tutor-market`: Next.js SSR/ISR; `tutor-app` và `tutor-admin`: Vite React SPA — **web responsive/PWA** giai đoạn 1 | Public market cần SEO/share; vùng tutor/admin là workspace đăng nhập, tránh chi phí native sớm. |
 | Thanh toán | **VietQR** (NAPAS 247) — miễn phí | Học phí gia sư: tạo QR vào TK gia sư, tự đối chiếu. Doanh thu nền tảng: VietQR vào TK nền tảng + webhook biến động số dư (**SePay** free tier / Casso) để auto-unlock. Xem `07-payments-and-monetization.md`. |
-| Tổ chức mã | **Monorepo** (pnpm workspace) | Chia sẻ package `contracts` (DTO/type/enum) giữa API và 2 app → không lệch hợp đồng. |
+| Tổ chức mã | **Monorepo** (pnpm workspace) | Chia sẻ package `contracts` (DTO/type/enum) giữa API và 3 app → không lệch hợp đồng. |
 
 > Stack này khớp lựa chọn của chủ sản phẩm (NestJS + PostgreSQL + Prisma). Nếu thay stack, phải cập nhật lại doc này trước khi code.
 
@@ -96,9 +96,9 @@ Ngoài ra code có 2 module hạ tầng không thuộc bản đồ nghiệp vụ
 ## 5. Sơ đồ triển khai (giai đoạn 1, PA2)
 
 ```
-[tutor-market PWA] [tutor-app PWA]
-        \              /
-         \            /
+[tutor-market SSR/PWA] [tutor-app SPA] [tutor-admin SPA]
+          \                 |              /
+           \                |             /
         [ API Gateway / LB ]
                 |
          [ tutor-api (NestJS, stateless, scale ngang) ]
@@ -116,13 +116,14 @@ Ngoài ra code có 2 module hạ tầng không thuộc bản đồ nghiệp vụ
 
 - **Prisma**: dùng migration có kiểm soát; các index đặc thù (GIN, partial, expression, full-text) khai bằng raw SQL trong migration khi Prisma chưa hỗ trợ trực tiếp. Partitioning cũng khai bằng raw SQL.
 - **Config/secrets**: mọi bí mật qua biến môi trường/secret manager, không commit. Xem `13-security-and-threat-model.md`.
-- **API stateless**: không lưu state phiên trong RAM tiến trình; dùng JWT ngắn hạn + refresh, blacklist/rotate qua Redis.
+- **API stateless giữa request**: không giữ session trong RAM tiến trình; dùng JWT ngắn hạn + refresh token hash/rotation chain trong PostgreSQL `refresh_tokens`. Redis dành cho cache/shared rate limit/lock/queue khi bật, không là nguồn chân lý phiên.
 - **Observability**: log có `request_id`, metric p50/p95/p99 cho search + payment webhook, health check `/healthz` và `/readyz`. Chi tiết ở `12-non-functional-requirements.md`.
 
-### Trạng thái triển khai hiện tại (2026-07-14)
+### Trạng thái triển khai hiện tại (2026-07-16)
 
 Phân biệt "thiết kế đã đúng" với "hạ tầng đã bật" — các phần sau còn là tích hợp hạ tầng, chưa wire trong `tutor-api`:
 
 - **Outbox worker**: `OutboxService.emit` ghi `outbox_events` trong transaction nghiệp vụ (đúng pattern), nhưng **chưa có consumer** drain outbox để gửi ra kênh ngoài. Notification in-app ghi thẳng DB nên đọc được ngay; các kênh sms/email/push và đồng bộ search mới dừng ở mức phát sự kiện.
 - **Redis + BullMQ**: là quyết định kiến trúc (cache/lock/queue) nhưng **chưa thêm dependency**; rate limit hiện dùng `@nestjs/throttler` in-memory. Bật khi tách worker hoặc scale ngang > 1 instance.
 - Provider gửi OTP thật, object storage thật, OAuth production hardening, provider webhook thật: xem `../ai-tasks/01-backlog.md`.
+- **Code evidence**: API 16 suite / 93 test pass; `tutor-app` `TA-00` DONE (15 test), `tutor-market` `TM-00` DONE (17 test), `tutor-admin` `AD-00` DONE (15 test). Các con số frontend là evidence của task; business screens sau scaffold vẫn TODO theo `../ai-tasks/14-active-work.md`.

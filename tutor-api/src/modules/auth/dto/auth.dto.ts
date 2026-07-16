@@ -1,4 +1,14 @@
-import { IsIn, IsNotEmpty, IsString, Length } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsString, Length, MaxLength } from 'class-validator';
+
+export class AdminPasswordLoginDto {
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
+
+  @IsString()
+  @Length(12, 128)
+  password!: string;
+}
 
 export class RequestOtpDto {
   @IsIn(['sms', 'email'])

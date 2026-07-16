@@ -56,6 +56,18 @@ Dùng tài liệu này để kiểm tra MVP khi bắt đầu triển khai.
 - Gói theo dõi kiểm tra đúng theo từng học sinh (`scope_ref_id`).
 - Guest gửi yêu cầu dạy thử qua `Lead`, convert đúng khi kích hoạt.
 - API ghi nhật ký kiểm toán các hành động quan trọng.
+- Admin failed-login counter không mất increment khi request song song; credential khóa đúng ngưỡng.
+- Admin refresh rotation chỉ có một request claim token cũ; xung đột trong grace không phá phiên thắng, reuse sau grace thu hồi mọi refresh token còn hoạt động của user.
+- Provision/rotate password admin thu hồi toàn bộ refresh token còn hoạt động.
+
+## `tutor-admin`
+
+- Chỉ email/password đã provision cho user role `admin` và status hợp lệ mới vào được console; không có đăng ký/quên mật khẩu public.
+- Access token chỉ ở RAM, refresh token chỉ trong cookie HttpOnly `SameSite=Strict` (`Secure` ở production); reload khôi phục phiên qua API.
+- 401/403/pending consent/suspended/expired và lỗi refresh tạm thời có state rõ ràng; không hiển thị hoặc log token.
+- Route nghiệp vụ không render trước khi `/auth/me` xác nhận role/status/consent.
+- Mutation suspend/reactivate, moderation, pricing, payment account và paid-feature override yêu cầu reason, được audit và không unmask raw PII.
+- Password rotation làm các phiên refresh cũ hết hiệu lực.
 
 ## Phi chức năng
 

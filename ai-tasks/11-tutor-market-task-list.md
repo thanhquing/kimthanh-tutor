@@ -2,6 +2,8 @@
 
 Tất cả task khởi tạo ở trạng thái `TODO`. Quy tắc chung: `09-frontend-task-governance.md`. Audit mock/API: `13-mock-ui-ux-audit.md`.
 
+Snapshot 2026-07-16: `TM-00` DONE với 17 test/lint/typecheck/build theo evidence bên dưới. Public SSR/SEO shell đã có nhưng search/detail/private business behavior từ `TM-01` trở đi vẫn TODO.
+
 MVP gồm TM-00 đến TM-10. TM-11 đến TM-13 bao phủ các màn mock ngoài phạm vi hoặc chưa có API; không đưa chúng vào navigation production trước khi chủ dự án kích hoạt scope.
 
 ## Thứ tự đề xuất

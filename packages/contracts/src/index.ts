@@ -3,28 +3,17 @@ export type ApiRole = "guest" | "parent" | "tutor" | "admin" | "system";
 export type UserStatus = "pending_consent" | "active" | "suspended" | "deleted";
 
 export type TutorProfileStatus =
-  | "draft"
-  | "publishable"
-  | "published"
-  | "hidden"
-  | "suspended";
+  "draft" | "publishable" | "published" | "hidden" | "suspended";
 
 export type ModerationStatus = "pending" | "approved" | "rejected";
 
 export type TeachingMode = "online" | "offline";
 
 export type PaymentStatus =
-  | "pending"
-  | "paid"
-  | "failed"
-  | "cancelled"
-  | "refunded";
+  "pending" | "paid" | "failed" | "cancelled" | "refunded";
 
 export type ProductType =
-  | "single_unlock"
-  | "parent_vip"
-  | "parent_tracking"
-  | "tutor_qr";
+  "single_unlock" | "parent_vip" | "parent_tracking" | "tutor_qr";
 
 export type SubscriptionStatus =
   | "pending_payment"
@@ -35,16 +24,10 @@ export type SubscriptionStatus =
   | "refunded";
 
 export type SubscriptionType =
-  | "parent_vip_unlock"
-  | "parent_tracking"
-  | "tutor_qr";
+  "parent_vip_unlock" | "parent_tracking" | "tutor_qr";
 
 export type TrialStatus =
-  | "pending"
-  | "accepted"
-  | "declined"
-  | "expired"
-  | "cancelled";
+  "pending" | "accepted" | "declined" | "expired" | "cancelled";
 
 export type ClassStatus =
   | "trial_accepted"
@@ -55,10 +38,7 @@ export type ClassStatus =
   | "cancelled";
 
 export type ReviewStatus =
-  | "pending_moderation"
-  | "published"
-  | "hidden"
-  | "disputed";
+  "pending_moderation" | "published" | "hidden" | "disputed";
 
 export interface ApiErrorResponse {
   code: string;
@@ -147,11 +127,54 @@ export interface TutorPublicDetailUnlocked extends TutorPublicDetailBase {
   reviews: TutorPublishedReview[];
 }
 
-export type TutorPublicDetail = TutorPublicDetailLocked | TutorPublicDetailUnlocked;
+export type TutorPublicDetail =
+  TutorPublicDetailLocked | TutorPublicDetailUnlocked;
 
 export interface AuthTokens {
   access_token: string;
   refresh_token: string;
+}
+
+/** Hợp đồng OTP dùng chung cho các ứng dụng; không dùng trường `{ phone }` cũ. */
+export type AuthOtpChannel = "sms" | "email";
+
+export interface AuthOtpRequest {
+  channel: AuthOtpChannel;
+  destination: string;
+}
+
+export interface AuthOtpRequestResponse {
+  request_id: string;
+  expires_at: string;
+}
+
+export interface AuthOtpVerify {
+  request_id: string;
+  code: string;
+}
+
+export interface AuthGoogleOAuth {
+  id_token: string;
+}
+
+export interface AdminPasswordLogin {
+  email: string;
+  password: string;
+}
+
+/** Admin refresh token được giữ trong cookie HttpOnly, không trả cho JavaScript. */
+export interface AdminAccessTokenResponse {
+  access_token: string;
+}
+
+export interface AdminAuthResponse extends AdminAccessTokenResponse {
+  user: AuthUserSummary;
+  consent_required: boolean;
+}
+
+export interface AuthVerifyResponse extends AuthTokens {
+  user: AuthUserSummary;
+  consent_required: boolean;
 }
 
 export interface AuthUserSummary {
@@ -169,6 +192,27 @@ export interface AuthMeResponse {
     tutor: { id: string } | null;
   };
 }
+
+/** Nền hợp đồng cho console vận hành; mọi mutation nhạy cảm phải kèm lý do. */
+export interface AdminKeysetQuery {
+  limit?: number;
+  cursor?: string;
+}
+
+export interface AdminReasonMutation {
+  reason: string;
+}
+
+export interface AdminUserStatusMutation extends AdminReasonMutation {
+  status: "active" | "suspended";
+}
+
+export interface AdminPaidFeatureMutation extends AdminReasonMutation {
+  enabled: boolean;
+  expires_at?: string;
+}
+
+export interface AdminKeysetPage<T> extends KeysetPage<T> {}
 
 export interface ParentProfile {
   id: string;
@@ -313,7 +357,10 @@ export interface DashboardOverview {
     total_lesson_logs: number;
     latest_lesson_at: string | null;
   };
-  latest_lesson: Pick<LessonLogSummary, "id" | "class_contract_id" | "subject" | "absorption_level" | "lesson_at"> | null;
+  latest_lesson: Pick<
+    LessonLogSummary,
+    "id" | "class_contract_id" | "subject" | "absorption_level" | "lesson_at"
+  > | null;
   classes: DashboardClassSummary[];
 }
 
@@ -343,7 +390,8 @@ export interface DashboardDetail {
   timeline: KeysetPage<DashboardTimelineItem>;
 }
 
-export type CollectionStatus = "created" | "sent" | "marked_collected" | "cancelled";
+export type CollectionStatus =
+  "created" | "sent" | "marked_collected" | "cancelled";
 
 export interface TutorQrRecord {
   id: string;
@@ -425,6 +473,16 @@ export interface PaymentSummary {
     transfer_content: string;
   };
   entitlement:
-    | { kind: "profile_unlock"; tutor_profile_id: string | null; active: boolean }
-    | { kind: "subscription"; type: SubscriptionType; scope_ref_id: string | null; status: SubscriptionStatus; active: boolean };
+    | {
+        kind: "profile_unlock";
+        tutor_profile_id: string | null;
+        active: boolean;
+      }
+    | {
+        kind: "subscription";
+        type: SubscriptionType;
+        scope_ref_id: string | null;
+        status: SubscriptionStatus;
+        active: boolean;
+      };
 }

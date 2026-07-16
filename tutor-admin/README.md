@@ -1,32 +1,29 @@
 # tutor-admin
 
-App quản trị vận hành nội bộ cho chủ dự án Kim Thanh Tutor.
+SPA React/Vite dành riêng cho vận hành nội bộ. Form đăng nhập chỉ nhận email/password admin đã provision; route luôn gọi `/auth/me`, chặn role không phải `admin` trước khi render shell, không lưu token trong browser storage và không có công tắc API/demo token trên giao diện production. Access token chỉ ở RAM; API giữ refresh token trong cookie HttpOnly để reload vẫn khôi phục được phiên.
 
-Thư mục này hiện để trống về code để chủ dự án tự chọn stack/scaffold. README này giữ chỗ cho app admin và giúp repo track thư mục.
+## Lệnh
 
-## Mục tiêu
+```bash
+pnpm --filter tutor-admin dev
+pnpm --filter tutor-admin lint
+pnpm --filter tutor-admin test
+pnpm --filter tutor-admin build
+```
 
-- Thống kê user đăng ký vào hệ thống theo ngày, vai trò và trạng thái.
-- Xem logs vận hành: audit logs, webhook events, outbox/notification events.
-- Setup tài khoản thanh toán VietQR nền tảng.
-- Setup phí sản phẩm: `single_unlock`, `parent_vip`, `parent_tracking`, `tutor_qr`.
-- Phê duyệt/ẩn/khóa hồ sơ, media, review.
-- Khóa/mở account user.
-- Bật/tắt chức năng trả phí theo từng user.
+Dev server tự proxy `/api/*` sang `http://127.0.0.1:3000`, nên cấu hình mặc định
+`VITE_API_BASE_URL=/api/v1` hoạt động với API local mà không cần đổi origin.
 
-## API Contract
+Biến build: xem [`.env.example`](.env.example). Header production/CSP/noindex/cache-control bắt buộc: xem [`DEPLOYMENT.md`](DEPLOYMENT.md).
 
-Nguồn tham chiếu:
+Provision hoặc rotate password cho một user đã có role `admin`:
 
-- `../ai-tasks/05-api-endpoints.md`: mục `Tutor Admin App / Operations`.
-- `../ai-tasks/07-api-curl-user-flows.md`: `Flow 12 - Tutor Admin Control Center`.
-- `../ai-tasks/06-verification.md`: script `verify-flow-12-tutor-admin-ops.sh`.
+```bash
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD='mật-khẩu-tối-thiểu-12-ký-tự' pnpm --filter tutor-api admin:set-password
+```
 
-Trạng thái hiện tại: Flow 12 đã `Verified` bằng cURL end-to-end ngày 2026-07-14. API dashboard/users/logs/platform VietQR/pricing/paid-feature override đã có ở `tutor-api`.
+Rotate password luôn thu hồi toàn bộ refresh token còn hoạt động của admin đó.
 
-## Nguyên tắc
+Các route shell là placeholder có chủ đích; màn nghiệp vụ được triển khai lần lượt theo `AD-01` đến `AD-09`.
 
-- Chỉ dùng cho user role `admin`.
-- Không hiển thị raw PII/secret/raw webhook payload.
-- Mọi thay đổi nhạy cảm phải có reason và ghi `audit_logs`.
-- Flow API phải verify bằng cURL trước khi đánh dấu `Verified`.
+Trạng thái ngày 2026-07-16: `AD-00` DONE; 6 file / 15 test pass, lint và production build pass. API client retry tối đa hai lần khi refresh gặp `409` do tab khác vừa rotate token; lỗi refresh tạm thời 5xx/network chỉ xóa access token trong RAM, không chủ động logout hoặc xóa refresh cookie còn hợp lệ.

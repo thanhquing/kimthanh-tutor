@@ -22,6 +22,7 @@ services:
       NODE_ENV: development
       PORT: 3000
       API_PREFIX: api/v1
+      CORS_ORIGINS: http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175
       DATABASE_URL: postgresql://postgres:postgres@db:5432/tutor?schema=public
       JWT_ACCESS_SECRET: docker-dev-access-secret
       JWT_REFRESH_SECRET: docker-dev-refresh-secret

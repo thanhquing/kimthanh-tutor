@@ -8,25 +8,25 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 
 | Field | Value |
 | --- | --- |
-| Task | `AD-00` |
-| App | `tutor-admin` |
-| Title | Scaffold, workspace, auth/RBAC và shell/API client |
-| Source | `ai-tasks/12-tutor-admin-task-list.md` |
+| Task | `TA-01` |
+| App | `tutor-app` |
+| Title | Auth, role tutor và legal consent gate |
+| Source | `ai-tasks/10-tutor-app-task-list.md` |
 | Status | `TODO` |
 | Owner | — |
 | Started | — |
 | Branch/worktree | — |
 | Blocker | — |
 
-Lệnh cho AI mới: nhận đúng `AD-00`; không tự chuyển sang task khác.
+Lệnh cho AI mới: nhận đúng `TA-01`; không tự chuyển sang task khác.
 
 ## Last completed
 
 | Field | Value |
 | --- | --- |
-| Task | `TM-00` — Scaffold, contracts, shell và API client |
-| Commit | Tra bằng `git log --oneline --grep='TM-00' -1` |
-| Evidence | 17 tutor-market tests, contracts serialization, lint/typecheck/build, Docker verify-api-io và cURL SEO/private/sitemap/404 với API thật pass |
+| Task | `AD-00` — Scaffold, workspace, auth/RBAC và shell/API client |
+| Commit | Tra bằng `git log --oneline --grep='AD-00' -1` |
+| Evidence | Frozen install; hardening follow-up pass 93 API tests, 15 admin tests, API/admin lint + build; regression phủ atomic failed-attempt, refresh CAS/multi-tab grace, cookie 5xx và revoke session khi rotate password; contracts serialization; deep-link/security headers; Flow 1 và Flow 12 trên Docker DB cô lập pass |
 
 ## Global queue
 

@@ -170,19 +170,34 @@ model User {
   updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt DateTime?  @map("deleted_at") @db.Timestamptz
 
-  parentProfile ParentProfile?
-  tutorProfile  TutorProfile?
-  consents      LegalConsent[]
-  payments      Payment[]
-  subscriptions Subscription[]
-  notifications Notification[]
-  mediaAssets   MediaAsset[]
-  refreshTokens RefreshToken[]
-  authAccounts  AuthAccount[]
+  parentProfile        ParentProfile?
+  tutorProfile         TutorProfile?
+  consents             LegalConsent[]
+  payments             Payment[]
+  subscriptions        Subscription[]
+  notifications        Notification[]
+  mediaAssets          MediaAsset[]
+  refreshTokens        RefreshToken[]
+  authAccounts         AuthAccount[]
+  adminCredential      AdminCredential?
   paidFeatureOverrides PaidFeatureOverride[]
 
   @@index([status])
   @@map("users")
+}
+
+model AdminCredential {
+  userId            String    @id @map("user_id") @db.Char(26)
+  passwordHash      String    @map("password_hash")
+  failedAttempts    Int       @default(0) @map("failed_attempts")
+  lockedUntil       DateTime? @map("locked_until") @db.Timestamptz
+  passwordChangedAt DateTime  @default(now()) @map("password_changed_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admin_credentials")
 }
 
 model AuthAccount {
@@ -225,20 +240,20 @@ model LegalDocument {
 }
 
 model LegalConsent {
-  id                String   @id @db.Char(26)
-  userId            String   @map("user_id") @db.Char(26)
-  roleAtAcceptance  String   @map("role_at_acceptance")
-  termsDocumentId   String   @map("terms_document_id") @db.Char(26)
-  privacyDocumentId String   @map("privacy_document_id") @db.Char(26)
-  acceptedAt        DateTime @default(now()) @map("accepted_at") @db.Timestamptz
-  scrollReachedBottom Boolean @map("scroll_reached_bottom")
-  consentMethod     String   @map("consent_method")
-  ipAddress         String?  @map("ip_address")
-  userAgent         String?  @map("user_agent")
+  id                  String   @id @db.Char(26)
+  userId              String   @map("user_id") @db.Char(26)
+  roleAtAcceptance    String   @map("role_at_acceptance")
+  termsDocumentId     String   @map("terms_document_id") @db.Char(26)
+  privacyDocumentId   String   @map("privacy_document_id") @db.Char(26)
+  acceptedAt          DateTime @default(now()) @map("accepted_at") @db.Timestamptz
+  scrollReachedBottom Boolean  @map("scroll_reached_bottom")
+  consentMethod       String   @map("consent_method")
+  ipAddress           String?  @map("ip_address")
+  userAgent           String?  @map("user_agent")
 
-  user        User          @relation(fields: [userId], references: [id])
-  termsDoc    LegalDocument @relation("TermsDoc", fields: [termsDocumentId], references: [id])
-  privacyDoc  LegalDocument @relation("PrivacyDoc", fields: [privacyDocumentId], references: [id])
+  user       User          @relation(fields: [userId], references: [id])
+  termsDoc   LegalDocument @relation("TermsDoc", fields: [termsDocumentId], references: [id])
+  privacyDoc LegalDocument @relation("PrivacyDoc", fields: [privacyDocumentId], references: [id])
 
   @@index([userId])
   @@map("legal_consents")
@@ -247,14 +262,14 @@ model LegalConsent {
 // Refresh token quay vòng + thu hồi được (13-security). Lưu HASH của token,
 // không lưu plaintext. rotatedTo trỏ tới token kế tiếp để phát hiện tái sử dụng.
 model RefreshToken {
-  id         String    @id @db.Char(26)
-  userId     String    @map("user_id") @db.Char(26)
-  tokenHash  String    @unique @map("token_hash")
-  expiresAt  DateTime  @map("expires_at") @db.Timestamptz
-  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz
-  rotatedToId String?  @map("rotated_to_id") @db.Char(26)
-  createdIp  String?   @map("created_ip")
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  id          String    @id @db.Char(26)
+  userId      String    @map("user_id") @db.Char(26)
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz
+  rotatedToId String?   @map("rotated_to_id") @db.Char(26)
+  createdIp   String?   @map("created_ip")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id])
 
@@ -319,33 +334,33 @@ model Student {
 
 // ---------- Tutor ----------
 model TutorProfile {
-  id             String             @id @db.Char(26)
-  userId         String             @unique @map("user_id") @db.Char(26)
-  displayName    String             @map("display_name")
-  avatarMediaId  String?            @map("avatar_media_id") @db.Char(26)
-  introVideoMediaId String?         @map("intro_video_media_id") @db.Char(26)
-  bio            String?
-  region         String?
-  voiceAccent    String?            @map("voice_accent")
-  gender         String?
-  educationLevel String?            @map("education_level")
-  schoolName     String?            @map("school_name")
-  studentYear    Int?               @map("student_year")
-  examScore      Float?             @map("exam_score")
-  gpa            Float?
-  expectedFeeMin BigInt?            @map("expected_fee_min")
-  expectedFeeMax BigInt?            @map("expected_fee_max")
-  status         TutorProfileStatus @default(draft)
-  moderationStatus ModerationStatus @default(pending) @map("moderation_status")
-  ratingAvg      Float              @default(0) @map("rating_avg")
-  ratingCount    Int                @default(0) @map("rating_count")
-  version        Int                @default(0)
-  publishedAt    DateTime?          @map("published_at") @db.Timestamptz
-  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt      DateTime?          @map("deleted_at") @db.Timestamptz
+  id                String             @id @db.Char(26)
+  userId            String             @unique @map("user_id") @db.Char(26)
+  displayName       String             @map("display_name")
+  avatarMediaId     String?            @map("avatar_media_id") @db.Char(26)
+  introVideoMediaId String?            @map("intro_video_media_id") @db.Char(26)
+  bio               String?
+  region            String?
+  voiceAccent       String?            @map("voice_accent")
+  gender            String?
+  educationLevel    String?            @map("education_level")
+  schoolName        String?            @map("school_name")
+  studentYear       Int?               @map("student_year")
+  examScore         Float?             @map("exam_score")
+  gpa               Float?
+  expectedFeeMin    BigInt?            @map("expected_fee_min")
+  expectedFeeMax    BigInt?            @map("expected_fee_max")
+  status            TutorProfileStatus @default(draft)
+  moderationStatus  ModerationStatus   @default(pending) @map("moderation_status")
+  ratingAvg         Float              @default(0) @map("rating_avg")
+  ratingCount       Int                @default(0) @map("rating_count")
+  version           Int                @default(0)
+  publishedAt       DateTime?          @map("published_at") @db.Timestamptz
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt         DateTime?          @map("deleted_at") @db.Timestamptz
 
-  user           User                    @relation(fields: [userId], references: [id])
+  user           User                   @relation(fields: [userId], references: [id])
   subjects       TutorSubject[]
   gradeLevels    TutorGradeLevel[]
   teachingModes  TutorTeachingMode[]
@@ -478,7 +493,7 @@ model Payment {
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
   paidAt            DateTime?     @map("paid_at") @db.Timestamptz
 
-  payer         User            @relation(fields: [payerUserId], references: [id])
+  payer         User           @relation(fields: [payerUserId], references: [id])
   profileUnlock ProfileUnlock?
   subscription  Subscription?
   refunds       Refund[]
@@ -623,16 +638,16 @@ model Subscription {
 
 // ---------- Trials & Classes ----------
 model Lead {
-  id                        String     @id @db.Char(26)
-  contactName               String     @map("contact_name")
-  contactPhone              String     @map("contact_phone")
-  contactEmail              String?    @map("contact_email")
-  convertedParentProfileId  String?    @unique @map("converted_parent_profile_id") @db.Char(26)
-  status                    LeadStatus @default(new)
-  createdAt                 DateTime   @default(now()) @map("created_at") @db.Timestamptz
-  expiresAt                 DateTime?  @map("expires_at") @db.Timestamptz
+  id                       String     @id @db.Char(26)
+  contactName              String     @map("contact_name")
+  contactPhone             String     @map("contact_phone")
+  contactEmail             String?    @map("contact_email")
+  convertedParentProfileId String?    @unique @map("converted_parent_profile_id") @db.Char(26)
+  status                   LeadStatus @default(new)
+  createdAt                DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt                DateTime?  @map("expires_at") @db.Timestamptz
 
-  convertedParentProfile ParentProfile? @relation(fields: [convertedParentProfileId], references: [id])
+  convertedParentProfile ParentProfile?    @relation(fields: [convertedParentProfileId], references: [id])
   trialRequests          TrialRequest[]
   activationTokens       ActivationToken[]
 
@@ -660,29 +675,29 @@ model ActivationToken {
 }
 
 model TrialRequest {
-  id              String      @id @db.Char(26)
-  parentProfileId String?     @map("parent_profile_id") @db.Char(26)
-  leadId          String?     @map("lead_id") @db.Char(26)
-  studentId       String?     @map("student_id") @db.Char(26)
-  tutorProfileId  String      @map("tutor_profile_id") @db.Char(26)
-  subject         String
-  grade           String?
-  learningGoal    String?     @map("learning_goal")
-  teachingMode    String?     @map("teaching_mode")
-  preferredSchedule String?   @map("preferred_schedule")
-  message         String?
-  contactSnapshot String?     @map("contact_snapshot") // PII
-  status          TrialStatus @default(pending)
-  version         Int         @default(0)
-  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
-  respondedAt     DateTime?   @map("responded_at") @db.Timestamptz
-  expiresAt       DateTime?   @map("expires_at") @db.Timestamptz
+  id                String      @id @db.Char(26)
+  parentProfileId   String?     @map("parent_profile_id") @db.Char(26)
+  leadId            String?     @map("lead_id") @db.Char(26)
+  studentId         String?     @map("student_id") @db.Char(26)
+  tutorProfileId    String      @map("tutor_profile_id") @db.Char(26)
+  subject           String
+  grade             String?
+  learningGoal      String?     @map("learning_goal")
+  teachingMode      String?     @map("teaching_mode")
+  preferredSchedule String?     @map("preferred_schedule")
+  message           String?
+  contactSnapshot   String?     @map("contact_snapshot") // PII
+  status            TrialStatus @default(pending)
+  version           Int         @default(0)
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  respondedAt       DateTime?   @map("responded_at") @db.Timestamptz
+  expiresAt         DateTime?   @map("expires_at") @db.Timestamptz
 
-  parentProfile ParentProfile? @relation(fields: [parentProfileId], references: [id])
-  lead          Lead?          @relation(fields: [leadId], references: [id])
-  student       Student?       @relation(fields: [studentId], references: [id])
-  tutorProfile  TutorProfile   @relation(fields: [tutorProfileId], references: [id])
-  classContract ClassContract?
+  parentProfile    ParentProfile?    @relation(fields: [parentProfileId], references: [id])
+  lead             Lead?             @relation(fields: [leadId], references: [id])
+  student          Student?          @relation(fields: [studentId], references: [id])
+  tutorProfile     TutorProfile      @relation(fields: [tutorProfileId], references: [id])
+  classContract    ClassContract?
   activationTokens ActivationToken[]
 
   @@index([tutorProfileId, status])
@@ -705,10 +720,10 @@ model ClassContract {
   createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
   updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz
 
-  trialRequest  TrialRequest?  @relation(fields: [trialRequestId], references: [id])
-  parentProfile ParentProfile? @relation(fields: [parentProfileId], references: [id])
-  student       Student?       @relation(fields: [studentId], references: [id])
-  tutorProfile  TutorProfile   @relation(fields: [tutorProfileId], references: [id])
+  trialRequest  TrialRequest?          @relation(fields: [trialRequestId], references: [id])
+  parentProfile ParentProfile?         @relation(fields: [parentProfileId], references: [id])
+  student       Student?               @relation(fields: [studentId], references: [id])
+  tutorProfile  TutorProfile           @relation(fields: [tutorProfileId], references: [id])
   lessonLogs    LessonLog[]
   review        Review?
   qrRecords     TutorPaymentQrRecord[]
@@ -776,17 +791,17 @@ model ReviewEdit {
 
 // ---------- QR học phí ----------
 model TutorPaymentQrRecord {
-  id               String           @id @db.Char(26)
-  tutorProfileId   String           @map("tutor_profile_id") @db.Char(26)
-  classContractId  String?          @map("class_contract_id") @db.Char(26)
-  payoutAccountId  String?          @map("payout_account_id") @db.Char(26)
-  amount           BigInt
-  description      String?
-  qrUrl            String?          @map("qr_url")
-  paymentLink      String?          @map("payment_link")
-  collectionStatus CollectionStatus @default(created) @map("collection_status")
-  markedCollectedAt DateTime?       @map("marked_collected_at") @db.Timestamptz
-  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  id                String           @id @db.Char(26)
+  tutorProfileId    String           @map("tutor_profile_id") @db.Char(26)
+  classContractId   String?          @map("class_contract_id") @db.Char(26)
+  payoutAccountId   String?          @map("payout_account_id") @db.Char(26)
+  amount            BigInt
+  description       String?
+  qrUrl             String?          @map("qr_url")
+  paymentLink       String?          @map("payment_link")
+  collectionStatus  CollectionStatus @default(created) @map("collection_status")
+  markedCollectedAt DateTime?        @map("marked_collected_at") @db.Timestamptz
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz
 
   tutorProfile  TutorProfile        @relation(fields: [tutorProfileId], references: [id])
   classContract ClassContract?      @relation(fields: [classContractId], references: [id])

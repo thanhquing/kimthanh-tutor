@@ -1734,6 +1734,7 @@ Ghi chú implement:
 - `BillingService` đọc pricing/account active từ DB khi có cấu hình, fallback default/env cho dev.
 - `BillingService` và `AccessService` đọc paid-feature override trước khi cho mua/dùng paid feature.
 - Script `tutor-api/scripts/verify-flow-12-tutor-admin-ops.sh` đã chạy pass end-to-end ngày 2026-07-14.
+- Evidence Flow 12 dùng `ADMIN_TOKEN` được seed/grant trong môi trường verify để kiểm tra operations API. Email/password + refresh-cookie session của `AD-00` được phủ bởi 93 API tests và 15 admin tests ngày 2026-07-16; chưa đổi ngày Verified của script Flow 12 nếu chưa chạy lại toàn chuỗi.
 
 Precondition:
 

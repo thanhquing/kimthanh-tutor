@@ -6,6 +6,7 @@
 
 - Phụ huynh.
 - Gia sư.
+- Admin nội bộ nếu user được provision ở trạng thái `pending_consent`; role admin không được bypass legal gate trước khi vào console.
 
 Yêu cầu trải nghiệm người dùng:
 

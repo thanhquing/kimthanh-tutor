@@ -6,7 +6,7 @@ Tất cả task khởi tạo ở trạng thái `TODO`. Quy tắc chung: `09-fron
 
 | Thứ tự | Task | Phụ thuộc | Trạng thái |
 | --- | --- | --- | --- |
-| 1 | AD-00 Scaffold, workspace, auth/RBAC, shell/API client | — | TODO |
+| 1 | AD-00 Scaffold, workspace, auth/RBAC, shell/API client | — | DONE |
 | 2 | AD-01 Overview vận hành | AD-00 | TODO |
 | 3 | AD-02 Users/detail/suspend/reactivate | AD-00 | TODO |
 | 4 | AD-03 Paid feature entitlement/override | AD-02 | TODO |
@@ -21,17 +21,29 @@ Tất cả task khởi tạo ở trạng thái `TODO`. Quy tắc chung: `09-fron
 
 ## AD-00 — Scaffold, workspace, auth/RBAC và shell/API client
 
-- Trạng thái: TODO
-- Commit: —
+- Trạng thái: DONE
+- Owner: codex/root
+- Started: 2026-07-15
+- Completed: 2026-07-16
+- Commit lookup: `git log --oneline --grep='AD-00' -1`
+- Evidence: `pnpm install --frozen-lockfile`, root lint/test/build pass; hardening follow-up có 93 API tests, 15 admin tests, API/admin lint + build và contracts serialization pass; deep link `/users` trả `200` với `noindex`, `DENY`, `nosniff` và referrer policy; Flow 1 và Flow 12 pass trên Docker DB cô lập.
 - Mock: `admin/styles.css`, `admin/app.js`, `admin/mock-data.js`, `login.html`, `settings.html`, `index.html`.
 
 Scope:
 
 - Scaffold TypeScript/React app và thêm `tutor-admin` vào `pnpm-workspace.yaml`, root build/test/lint; route shell/sidebar/topbar/mobile nav/error boundary/404.
-- Đăng nhập qua auth thật, gọi `/auth/me`, yêu cầu role `admin`; OTP demo vẫn phải đi qua request/verify contract, không set localStorage boolean. Handle pending consent nếu admin account cũng chịu legal policy, suspended và token expiry.
+- Đăng nhập qua auth thật bằng email/password admin đã provision ngoài UI, gọi `/auth/me`, yêu cầu role `admin`; access token chỉ ở RAM và refresh cookie HttpOnly khôi phục phiên sau reload; không dùng OTP/OAuth hay set localStorage boolean trên console. Handle pending consent nếu admin account cũng chịu legal policy, suspended và token expiry.
 - Typed admin API client/contracts cho keyset lists, error/request ID, refresh, abort, reason mutations; production API base từ env.
 - Bỏ hiển thị token, clear demo state, đổi environment/API base ở production. Environment badge là build metadata read-only.
 - Security headers/deployment note: CSP/frame ancestors/noindex, không analytics session replay trên admin, idle/session timeout UX.
+
+Regression guardrails của AD-00 (task sau không được nới lỏng):
+
+- Failed-attempt admin phải cập nhật nguyên tử/CAS; không quay lại kiểu đọc `n` rồi ghi `n + 1` từ snapshot.
+- Refresh rotation phải claim token cũ trong transaction trước khi tạo token con. Xung đột multi-tab dùng grace ngắn + retry, không clear/revoke cookie của tab thắng; reuse ngoài grace thu hồi mọi refresh token active của user.
+- Rotate password admin phải revoke mọi refresh token đang hoạt động trong cùng transaction cập nhật credential.
+- Lỗi refresh 5xx/network chỉ clear state RAM, không gọi logout server hoặc xóa cookie HttpOnly còn hợp lệ.
+- Vite dev phải giữ proxy `/api` tới API local khi `VITE_API_BASE_URL` mặc định là `/api/v1`.
 
 Nghiệm thu và test:
 

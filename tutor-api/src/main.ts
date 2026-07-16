@@ -26,13 +26,16 @@ async function bootstrap(): Promise<void> {
     }),
   );
   app.useGlobalFilters(new AllExceptionsFilter());
-  app.enableCors();
+  const configuredOrigins = config.get<string[]>('corsOrigins') ?? [];
+  app.enableCors({
+    credentials: true,
+    origin:
+      configuredOrigins.length > 0 ? configuredOrigins : config.get<string>('env') !== 'production',
+  });
 
   const port = config.get<number>('port') ?? 3000;
   await app.listen(port);
-  new Logger('Bootstrap').log(
-    `tutor-api chạy tại http://localhost:${port}/${prefix}`,
-  );
+  new Logger('Bootstrap').log(`tutor-api chạy tại http://localhost:${port}/${prefix}`);
 }
 
 void bootstrap();

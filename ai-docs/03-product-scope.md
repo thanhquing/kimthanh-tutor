@@ -49,6 +49,16 @@ Tạo nền tảng hai mặt:
 - Legal consent.
 - Audit log tối thiểu.
 
+### `tutor-admin`
+
+- Đăng nhập email/password cho admin đã được provision ngoài UI; không có đăng ký/quên mật khẩu public.
+- RBAC, consent/status gate và phiên refresh cookie HttpOnly.
+- Dashboard vận hành, quản lý/trạng thái user, paid-feature override.
+- Kiểm duyệt tutor/media/review, tra cứu payment/refund, logs vận hành.
+- Cấu hình VietQR nền tảng và giá sản phẩm.
+
+`AD-00` mới hoàn tất scaffold/auth/shell; các màn nghiệp vụ trên vẫn được theo dõi bằng `AD-01`–`AD-09`, không được coi là hoàn tất chỉ vì API đã có.
+
 ## Ngoài phạm vi giai đoạn 1
 
 - Thu hộ học phí từ phụ huynh rồi chuyển cho gia sư.
@@ -57,14 +67,14 @@ Tạo nền tảng hai mặt:
 - Chat realtime đầy đủ trong ứng dụng.
 - Video call/lớp học online tích hợp.
 - AI matching tự động hoàn toàn.
-- CRM/bảng điều khiển quản trị phức tạp.
+- CRM/bảng điều khiển quản trị phức tạp ngoài console vận hành tối thiểu `tutor-admin`.
 - Ứng dụng mobile native riêng nếu web/PWA đã đủ đáp ứng.
 
 ## Giả định sản phẩm cần chốt sau
 
-- Mở khóa từng hồ sơ là vĩnh viễn hay có thời hạn.
-- Giá cụ thể cho mở khóa, VIP và theo dõi.
-- Provider thanh toán.
+- Giá thương mại cuối cùng, kỳ hạn/gia hạn và giới hạn chống scrape cho từng sản phẩm; backend hiện có cấu hình động và fallback kỹ thuật.
 - Provider SMS/email.
 - Mức kiểm duyệt thủ công hay tự động.
-- Có cần ứng dụng quản trị riêng trong giai đoạn 1 hay dùng thao tác phía máy chủ/no-code nội bộ.
+- Chính sách refund và xử lý trả thiếu/thừa/sai nội dung.
+
+Đã chốt: single unlock vĩnh viễn; VietQR + webhook biến động số dư cho doanh thu nền tảng; web/PWA cho app người dùng; có console `tutor-admin` tối thiểu trong giai đoạn 1.

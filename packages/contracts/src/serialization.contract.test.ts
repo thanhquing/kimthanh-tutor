@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import type {
   ApiErrorResponse,
+  AdminAuthResponse,
+  AdminPasswordLogin,
   AuthMeResponse,
+  AuthOtpRequest,
+  AuthOtpRequestResponse,
+  AuthOtpVerify,
+  AuthVerifyResponse,
+  AdminUserStatusMutation,
   DashboardOverview,
   PaymentSummary,
   Student,
@@ -66,6 +73,31 @@ assert.deepEqual(roundTrip(card), card);
 assert.deepEqual(roundTrip(me), me);
 assert.deepEqual(roundTrip(error), error);
 assert.deepEqual(roundTrip(payment), payment);
+
+const otpRequest = { channel: "email", destination: "admin@example.test" } satisfies AuthOtpRequest;
+const adminPassword = { email: "admin@example.test", password: "correct-password" } satisfies AdminPasswordLogin;
+const adminAuthenticated = {
+  access_token: "access-token",
+  user: me.user,
+  consent_required: false,
+} satisfies AdminAuthResponse;
+const otpRequestResponse = { request_id: "otp_01", expires_at: "2026-07-15T00:05:00.000Z" } satisfies AuthOtpRequestResponse;
+const otpVerify = { request_id: "otp_01", code: "272727" } satisfies AuthOtpVerify;
+const otpVerified = {
+  access_token: "access-token",
+  refresh_token: "refresh-token",
+  user: me.user,
+  consent_required: false,
+} satisfies AuthVerifyResponse;
+const suspendUser = { status: "suspended", reason: "Vi phạm chính sách" } satisfies AdminUserStatusMutation;
+
+assert.deepEqual(roundTrip(otpRequest), otpRequest);
+assert.deepEqual(roundTrip(adminPassword), adminPassword);
+assert.deepEqual(roundTrip(adminAuthenticated), adminAuthenticated);
+assert.deepEqual(roundTrip(otpRequestResponse), otpRequestResponse);
+assert.deepEqual(roundTrip(otpVerify), otpVerify);
+assert.deepEqual(roundTrip(otpVerified), otpVerified);
+assert.deepEqual(roundTrip(suspendUser), suspendUser);
 
 const student = {
   id: "student_01",

@@ -1,12 +1,17 @@
 # Luồng Nghiệp Vụ Giai Đoạn 1
 
+Snapshot triển khai 2026-07-16: API cho các hành trình Flow 1-12 đã có và giữ evidence cURL ngày 2026-07-14; ba frontend mới hoàn tất scaffold `TA-00`, `TM-00`, `AD-00`. Các bước UI trong tài liệu này là business target và chỉ được xem là hoàn tất theo task status trong `../ai-tasks/14-active-work.md`.
+
 ## 1. Tổng quan
 
-Hệ thống gồm 3 phần:
+Hệ thống gồm 4 ứng dụng runtime:
 
 - `tutor-api`: API phía máy chủ.
 - `tutor-market`: ứng dụng phụ huynh, gồm chợ gia sư và bảng điều khiển theo dõi học tập.
 - `tutor-app`: ứng dụng giáo viên/gia sư, gồm quản lý công việc và tạo dữ liệu học tập.
+- `tutor-admin`: console nội bộ cho vận hành user, moderation, payment/log và cấu hình nền tảng.
+
+`packages/contracts` chia sẻ enum/type/DTO giữa API và ba frontend nhưng không phải một bề mặt sản phẩm độc lập.
 
 Nền tảng không thu hộ học phí và không yêu cầu CCCD trong giai đoạn 1.
 

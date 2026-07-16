@@ -2,6 +2,7 @@ export interface AppConfig {
   env: string;
   port: number;
   apiPrefix: string;
+  corsOrigins: string[];
   jwt: {
     accessSecret: string;
     refreshSecret: string;
@@ -40,6 +41,10 @@ export default (): AppConfig => ({
   env: process.env.NODE_ENV ?? 'development',
   port: parseInt(process.env.PORT ?? '3000', 10),
   apiPrefix: process.env.API_PREFIX ?? 'api/v1',
+  corsOrigins: (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-access',
     refreshSecret: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh',

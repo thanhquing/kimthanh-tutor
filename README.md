@@ -7,7 +7,7 @@ Không gian làm việc cho hệ thống gia sư giai đoạn 1.
 - `tutor-api`: API phía máy chủ, xử lý nghiệp vụ, xác thực, thanh toán, mở khóa, lớp học, sổ đầu bài và thông báo.
 - `tutor-market`: ứng dụng dành cho phụ huynh, gồm chợ gia sư và bảng điều khiển theo dõi học tập.
 - `tutor-app`: ứng dụng dành cho giáo viên/gia sư, gồm hồ sơ, lịch dạy, yêu cầu dạy thử, sổ đầu bài và QR thanh toán.
-- `tutor-admin`: thư mục dành cho app quản trị vận hành nội bộ; hiện để trống để chủ dự án tự chọn stack/scaffold.
+- `tutor-admin`: SPA React/Vite cho vận hành nội bộ; có auth/RBAC admin, shell responsive và API client nền.
 - `packages/contracts`: DTO/type/enum dùng chung giữa API và các app.
 - `ai-docs`: tài liệu tham chiếu về sản phẩm, nghiệp vụ, mô hình miền nghiệp vụ, API, pháp lý và tiêu chí nghiệm thu.
 - `ai-tasks`: backlog, mốc triển khai và quy tắc làm việc cho AI/dev.
@@ -24,12 +24,19 @@ Xem checklist chi tiết ở `ai-tasks/06-verification.md`.
 
 Trạng thái API hiện tại: `tutor-api` đã có các module NestJS/Prisma cho auth, consent, search, tutor, parent, billing, trial, class, dashboard, review, QR và admin. Flow cURL 1-12 trong `ai-tasks/07-api-curl-user-flows.md` đã Verified ngày 2026-07-14.
 
+Snapshot code ngày 2026-07-16:
+
+- API: 16 suite / 93 test pass; lint và Nest build pass.
+- `tutor-app`: `TA-00` DONE, 15 test pass; `TA-01` là task hiện tại.
+- `tutor-market`: `TM-00` DONE, 17 test pass; nền SSR/ISR, canonical/robots/sitemap đã có, các màn business tiếp tục theo `TM-01` trở đi.
+- `tutor-admin`: `AD-00` DONE, 15 test pass; email/password admin, RBAC, refresh cookie an toàn và shell đã có, các route nghiệp vụ vẫn là placeholder theo `AD-01`–`AD-09`.
+
 ## Nguyên tắc giai đoạn 1
 
 - API backend đã qua bước tài liệu thuần túy; frontend apps/contracts và hạ tầng production tiếp tục được triển khai theo backlog.
 - Tài liệu trong `ai-docs` là nguồn tham chiếu chính cho luồng nghiệp vụ.
 - Tài liệu trong `ai-tasks` dùng để tách việc khi bắt đầu thiết kế và triển khai.
-- Đăng ký/đăng nhập chính dùng Google/Facebook OAuth; OTP SĐT chỉ là fallback/local với mã `272727` cho tới khi có provider gửi OTP thật.
+- Parent/tutor đăng ký/đăng nhập chính bằng Google/Facebook OAuth; OTP SĐT chỉ là fallback/local với mã `272727` cho tới khi có provider thật. Admin dùng email/password riêng được provision ngoài UI, không dùng chung password login với parent/tutor.
 - Hệ thống không thu hộ học phí, không yêu cầu CCCD.
 - Doanh thu đến từ mở khóa hồ sơ, gói VIP mở khóa hồ sơ, gói theo dõi bảng điều khiển và gói QR cho gia sư.
 

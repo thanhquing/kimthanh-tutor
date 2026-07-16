@@ -28,6 +28,7 @@ Tài liệu mô tả lược đồ dữ liệu giai đoạn 1 ở mức thiết 
 7. **`profile_unlocks` mặc định vĩnh viễn** (`expires_at = null`) theo quyết định sản phẩm.
 8. **Thêm `auth_accounts` và cho phép `users.phone` nullable**: Google/Facebook OAuth là đường đăng ký/đăng nhập chính; SĐT chỉ là fallback/local.
 9. **Thêm cấu hình vận hành cho `tutor-admin`**: `platform_payment_accounts`, `product_pricing`, `paid_feature_overrides` để chủ dự án cấu hình VietQR nền tảng, giá sản phẩm và quyền paid feature theo user.
+10. **Tách credential admin và phiên refresh**: `admin_credentials` quan hệ 1-1 với `users`, lưu scrypt hash/counter/lock/password-change time; `refresh_tokens` chỉ lưu token hash + rotation chain/revocation trong PostgreSQL. Parent/tutor vẫn dùng OAuth/OTP và không có password.
 
 ## 2. Sơ đồ ERD tổng thể
 
@@ -55,6 +56,27 @@ erDiagram
         string avatar_url "avatar từ OAuth provider, khác với tutor avatar media"
         datetime created_at
         datetime updated_at
+    }
+
+    ADMIN_CREDENTIALS {
+        char user_id PK,FK
+        string password_hash "scrypt hash"
+        int failed_attempts
+        datetime locked_until
+        datetime password_changed_at
+        datetime created_at
+        datetime updated_at
+    }
+
+    REFRESH_TOKENS {
+        char id PK
+        char user_id FK
+        string token_hash "unique"
+        datetime expires_at
+        datetime revoked_at
+        char rotated_to_id "token con khi rotate"
+        string created_ip "nullable"
+        datetime created_at
     }
 
     LEGAL_DOCUMENTS {
@@ -447,6 +469,8 @@ erDiagram
 
     USERS ||--o{ LEGAL_CONSENTS : dong_y
     USERS ||--o{ AUTH_ACCOUNTS : dang_nhap_bang
+    USERS ||--o| ADMIN_CREDENTIALS : credential_admin
+    USERS ||--o{ REFRESH_TOKENS : co_phien_refresh
     USERS ||--o| PARENT_PROFILES : co_the_la
     USERS ||--o| TUTOR_PROFILES : co_the_la
     USERS ||--o{ PAYMENTS : tao
@@ -534,7 +558,7 @@ Chi tiết chiến lược ở `12-non-functional-requirements.md`. Tối thiể
 | --- | --- | --- | --- |
 | Tìm kiếm gia sư công khai | `tutor_profiles` + bảng chuẩn hóa + `rating_avg` | Không ghi | Chỉ bản xem thử; **không** AGG review runtime (dùng cột denormalized); keyset pagination |
 | Chi tiết gia sư công khai | `tutor_profiles`, `profile_unlocks`, `subscriptions`, `reviews`, `media_assets` | Không ghi | Mở chi tiết khi có unlock/VIP hợp lệ; video chỉ trả signed URL khi có quyền |
-| Xác thực/consent | `users`, `auth_accounts`, `otp_requests`, `legal_documents`, `legal_consents` | như trái | Google/Facebook OAuth verify phía server là đường chính; OTP SĐT là fallback/local có rate limit + hash; chưa consent hợp lệ thì không kích hoạt |
+| Xác thực/consent | `users`, `auth_accounts`, `admin_credentials`, `refresh_tokens`, `otp_requests`, `legal_documents`, `legal_consents` | như trái | Parent/tutor dùng OAuth hoặc OTP fallback; admin dùng email/password scrypt + lock/rate limit; refresh hash/rotation/revocation nằm trong PostgreSQL; mọi nhánh vẫn kiểm tra status/role và consent ở server |
 | Hồ sơ phụ huynh | `parent_profiles`, `students` | như trái | Chỉ sửa dữ liệu của chính mình (ownership check) |
 | Hồ sơ gia sư | `tutor_profiles`, bảng chuẩn hóa, `tutor_availabilities`, `media_assets` | như trái | Chỉ sửa hồ sơ của mình; media qua signed upload + kiểm duyệt |
 | Payout account | `tutor_payout_accounts` | như trái | Chỉ gia sư sở hữu; số tài khoản là PII |

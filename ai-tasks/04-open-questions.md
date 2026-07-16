@@ -9,12 +9,14 @@ Cần chốt trước khi triển khai thật.
 - ✅ Stack `tutor-api`: **NestJS + PostgreSQL + Prisma**.
 - ✅ Chiến lược chịu tải: **PA2** (thiết kế đúng cho scale, bật hạ tầng theo ngưỡng) — xem `ai-docs/15`.
 - ✅ Thanh toán: **VietQR (miễn phí)**. Học phí gia sư tự đối chiếu; doanh thu nền tảng dùng VietQR + webhook biến động số dư (**SePay** free tier / Casso) để auto-unlock.
+- ✅ Có app quản trị tối thiểu `tutor-admin`; `AD-00` đã scaffold auth/RBAC/shell, màn nghiệp vụ theo AD-01–AD-09.
+- ✅ Ba frontend giai đoạn 1 là web responsive; `tutor-market` dùng Next.js SSR/ISR, `tutor-app`/`tutor-admin` dùng Vite SPA.
 
 ## Giá và quyền truy cập
 
 - VIP mở khóa hồ sơ có giới hạn số hồ sơ/ngày để tránh scrape không?
 - Gói QR 30k/tháng có tự động gia hạn không? (schema đã có `auto_renew`)
-- Giá cụ thể (đơn vị đồng) cho từng sản phẩm.
+- Giá thương mại cuối cùng (đơn vị đồng) cho từng sản phẩm. Backend đã có `product_pricing` do admin cấu hình và fallback kỹ thuật; UI luôn đọc giá server, không hard-code fallback thành quyết định kinh doanh.
 
 ## Provider thanh toán
 
@@ -45,8 +47,6 @@ Cần chốt trước khi triển khai thật.
 
 ## Chi tiết sản phẩm
 
-- Có cần bảng điều khiển quản trị trong giai đoạn 1 không?
-- Ứng dụng là web responsive/PWA hay mobile native? (mặc định PWA giai đoạn 1)
 - Gia sư có thể dạy nhiều học sinh trong cùng một lớp không?
 - Phụ huynh có thể có nhiều con trong một tài khoản không? Mặc định tài liệu đã thiết kế là có.
 

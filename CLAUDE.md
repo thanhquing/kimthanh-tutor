@@ -23,10 +23,10 @@ pnpm workspace (`pnpm-workspace.yaml`), Node ≥ 18.12 (dùng 20, xem `.nvmrc`),
 
 | Thư mục | Vai trò | Stack | Trạng thái |
 | --- | --- | --- | --- |
-| `tutor-api` | Backend: nghiệp vụ, auth, thanh toán, mở khóa, lớp, sổ đầu bài, thông báo | NestJS 10 + PostgreSQL 15+ + Prisma + Redis | Đã có module đầy đủ; flow cURL 1-12 Verified 2026-07-14 |
-| `tutor-market` | App **phụ huynh**: chợ gia sư + bảng điều khiển học tập | Web responsive/PWA | Mới có README, chưa scaffold code |
-| `tutor-app` | App **gia sư**: hồ sơ, lịch dạy, dạy thử, sổ đầu bài, QR | Web responsive/PWA | Mới có README, chưa scaffold code |
-| `tutor-admin` | App quản trị nội bộ (role `admin`) | Chủ dự án tự chọn stack | Trống, chỉ giữ chỗ |
+| `tutor-api` | Backend: nghiệp vụ, auth, thanh toán, mở khóa, lớp, sổ đầu bài, thông báo | NestJS 10 + PostgreSQL 15+ + Prisma | Đã có module đầy đủ; flow cURL 1-12 Verified 2026-07-14; 93 unit tests pass 2026-07-16 |
+| `tutor-market` | App **phụ huynh**: chợ gia sư + bảng điều khiển học tập | Next.js App Router, SSR/ISR + private client shell | `TM-00` DONE; business UI theo `TM-01`–`TM-13` |
+| `tutor-app` | App **gia sư**: hồ sơ, lịch dạy, dạy thử, sổ đầu bài, QR | Vite + React SPA | `TA-00` DONE; current task `TA-01` |
+| `tutor-admin` | App quản trị nội bộ (role `admin`) | Vite + React SPA | `AD-00` DONE: auth/RBAC, shell và API client; nghiệp vụ theo `AD-01`–`AD-09` |
 | `packages/contracts` | DTO/type/enum dùng chung API ↔ apps (`@kimthanh-tutor/contracts`) | TypeScript thuần | Có type nền tảng |
 | `ai-docs` | Tài liệu tham chiếu sản phẩm/nghiệp vụ/kỹ thuật | — | Nguồn chân lý nghiệp vụ |
 | `ai-tasks` | Backlog, mốc, quy tắc, catalog endpoint, verify | — | Nguồn chân lý triển khai |
@@ -47,6 +47,7 @@ pnpm lint             # lint tất cả
 pnpm dev:api          # tutor-api start:dev
 pnpm dev:market       # tutor-market dev
 pnpm dev:app          # tutor-app dev
+pnpm dev:admin        # tutor-admin dev
 ```
 
 `tutor-api` (chạy trong thư mục con hoặc `pnpm --filter tutor-api <script>`):
@@ -96,7 +97,7 @@ Chia module theo **bounded context** (miền nghiệp vụ), không theo tầng 
 
 - Layout mỗi module: `<name>.module.ts`, `<name>.controller.ts`, `<name>.service.ts`, `<name>.service.spec.ts`, `dto/`.
 - Cross-cutting ở `src/common` (auth/guard, errors, filters, middleware request-id, pagination, payments, shared, utils) và `src/prisma`.
-- API stateless: không giữ session trong RAM; JWT ngắn hạn + refresh, rotate/blacklist qua Redis.
+- API stateless giữa các request: JWT access ngắn hạn; refresh token hash/rotation/revocation hiện lưu trong PostgreSQL (`refresh_tokens`). Redis chưa là dependency runtime và chỉ được bật sau cho cache, distributed rate limit/lock và BullMQ.
 - Index đặc thù (GIN, partial, expression, FTS) và partitioning khai bằng raw SQL trong Prisma migration.
 
 Danh sách module & ranh giới đầy đủ: `ai-docs/15` §3. Catalog endpoint (I/O, quyền, thứ tự): `ai-tasks/05-api-endpoints.md`.
@@ -105,7 +106,7 @@ Danh sách module & ranh giới đầy đủ: `ai-docs/15` §3. Catalog endpoint
 
 ## 6. Guardrail sản phẩm (không được vi phạm)
 
-- **Auth**: Google/Facebook OAuth là đường đăng ký/đăng nhập **chính**. OTP SĐT chỉ là fallback/local, mã cố định `272727` ở non-production cho tới khi có provider OTP thật.
+- **Auth người dùng**: Google/Facebook OAuth là đường đăng ký/đăng nhập **chính**. OTP SĐT chỉ là fallback/local, mã cố định `272727` ở non-production cho tới khi có provider OTP thật. `tutor-admin` dùng credential email/password riêng đã provision ngoài UI; không mở đăng ký password cho parent/tutor.
 - **Không thu hộ học phí**: hệ thống chỉ tạo QR/link theo thông tin gia sư nhập và ghi trạng thái "gia sư đã đánh dấu đã thu". QR phải nhắc rõ hệ thống **không** xác nhận tiền vào ngân hàng.
 - **Không lưu CCCD** trong giai đoạn 1.
 - **Consent pháp lý** là bước chặn bắt buộc, không bỏ qua bằng giao diện; có versioning cho điều khoản/chính sách/consent.

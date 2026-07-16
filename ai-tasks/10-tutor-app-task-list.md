@@ -2,6 +2,8 @@
 
 Tất cả task khởi tạo ở trạng thái `TODO`. Quy tắc trạng thái, commit và Definition of Done: `09-frontend-task-governance.md`. Sai lệch mock cần xử lý: `13-mock-ui-ux-audit.md`.
 
+Snapshot 2026-07-16: `TA-00` DONE với 15 test/lint/build theo evidence bên dưới; `TA-01` là `Current task`. Placeholder route của TA-02–TA-13 không phải feature đã hoàn tất.
+
 ## Thứ tự đề xuất
 
 | Thứ tự | Task | Phụ thuộc | Trạng thái |

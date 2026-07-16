@@ -11,11 +11,12 @@ Tài liệu này liệt kê các mối đe dọa chính và biện pháp bắt b
 
 ## 2. Xác thực & phiên (auth/session)
 
-- Đăng nhập/đăng ký chính bằng **Google/Facebook OAuth**. Server phải verify token trực tiếp với provider (`GOOGLE_CLIENT_ID`, Facebook app id/secret), không tin profile client tự gửi. Không lưu mật khẩu giai đoạn 1.
+- Đăng nhập/đăng ký parent/tutor chính bằng **Google/Facebook OAuth**. Server phải verify token trực tiếp với provider (`GOOGLE_CLIENT_ID`, Facebook app id/secret), không tin profile client tự gửi. Không mở password login cho parent/tutor ở giai đoạn 1.
+- Console `tutor-admin` dùng email/password riêng đã provision ngoài UI. Chỉ lưu scrypt hash trong `admin_credentials`, kiểm tra role `admin` và trạng thái ở server, dùng thông báo sai credential chung, rate limit theo IP và khóa credential 15 phút sau 5 lần sai. Counter sai phải tăng bằng compare-and-swap/ghi nguyên tử để request song song không làm mất increment. Access token chỉ ở RAM; refresh token admin nằm trong cookie HttpOnly, `SameSite=Strict`, `Secure` ở production, quay vòng nguyên tử mỗi lần khôi phục và bị thu hồi khi logout. Rotation chỉ một request được claim token cũ; xung đột multi-tab trong grace ngắn không được revoke/clear token con của request thắng, còn reuse sau grace phải thu hồi mọi refresh token đang hoạt động của user. Rotate password cũng phải thu hồi mọi refresh token đang hoạt động. Không có đăng ký/quên mật khẩu public cho admin.
 - **OTP qua SĐT** chỉ là fallback/local cho tới khi chốt được provider gửi OTP thật. Non-production dùng mã cố định `272727`; production không bật rộng nếu chưa có provider gửi OTP và chính sách chống lạm dụng.
 - **OTP fallback**: chỉ lưu **hash** mã (không plaintext), có `expires_at` ngắn (vd 5 phút), giới hạn số lần nhập (`attempts`), khóa tạm sau nhiều lần sai. Bảng `otp_requests`.
 - **Chống lạm dụng OTP**: rate limit theo SĐT + theo IP + theo thiết bị; cooldown giữa các lần gửi; CAPTCHA khi vượt ngưỡng. Ngăn kẻ xấu đốt tiền SMS và brute-force khi fallback này được bật thật.
-- **Token**: JWT access ngắn hạn (vd 15 phút) + refresh token quay vòng (rotation) lưu/thu hồi qua Redis. API stateless.
+- **Token**: JWT access ngắn hạn (vd 15 phút) + refresh token quay vòng. Token thô chỉ trả cho client/cookie; server lưu hash, liên kết `rotated_to_id` và trạng thái revoke trong PostgreSQL `refresh_tokens`. Redis không phải nguồn chân lý phiên và hiện chưa là dependency runtime.
 - **Consent gating**: user `pending_consent` không được thực hiện hành động chính thức (`08-legal-consent-and-privacy.md`).
 
 ## 3. Phân quyền (authorization) — mô hình có hệ thống
@@ -86,12 +87,14 @@ Cơ sở dữ liệu gia sư là tài sản; đối thủ có thể cào để s
 | Đối tượng | Lý do | Chiến lược |
 | --- | --- | --- |
 | Gửi/nhập OTP | Chống brute-force + đốt tiền SMS | Theo SĐT + IP + thiết bị, cooldown, CAPTCHA |
-| Search/chi tiết công khai | Chống scraping/DoS | Theo IP + fingerprint, token bucket ở Redis |
+| Search/chi tiết công khai | Chống scraping/DoS | Theo IP + fingerprint; token bucket Redis khi bật shared limiter |
 | Tạo trial request (guest) | Chống spam gia sư | Theo IP + SĐT lead, giới hạn/giờ |
 | Tạo phiên thanh toán | Chống lạm dụng | Theo user + idempotency key |
 | API ghi nói chung | Ổn định | Giới hạn theo user/tenant |
 
 Trả mã lỗi chuẩn `RATE_LIMITED` + `Retry-After`.
+
+Trạng thái 2026-07-16: limiter hiện dùng `@nestjs/throttler` in-memory. Phải thay/bổ sung store dùng chung trước khi scale ngang trên một instance; Redis trong bảng trên là target deployment, không phải capability đang chạy.
 
 ## 10. Bí mật & cấu hình
 

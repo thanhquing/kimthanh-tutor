@@ -37,6 +37,8 @@ Giai đoạn 1 có thể dùng:
 - Review bị báo cáo.
 - Thanh toán bất thường/hoàn tiền.
 
+Đây là danh sách sự kiện mục tiêu. Tại snapshot 2026-07-16, notification in-app cho parent/tutor và outbox emit đã có, nhưng worker email/SMS/push chưa wire; operational notification inbox riêng cho admin chưa có endpoint và đang chờ quyết định `AD-08`. Admin hiện theo dõi qua moderation/log/payment screens/API.
+
 ## Luồng trạng thái `TrialRequest`
 
 Trạng thái:

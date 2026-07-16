@@ -45,3 +45,7 @@ pnpm --filter tutor-market build
 
 Thiết lập `API_BASE_URL` và `NEXT_PUBLIC_SITE_URL` từ `.env.example`. Không có
 UI production để đổi API base hoặc bật mock mode.
+
+## Trạng thái triển khai
+
+`TM-00` đã DONE: scaffold Next.js, public/private shell, canonical/robots/sitemap và nền SSR/ISR đã có; 17 test, lint, typecheck và production build pass theo evidence của task. Search, tutor detail và các khu vực private hiện mới là foundation/placeholder; business behavior được triển khai từ `TM-01` trở đi, không xem scaffold là đã hoàn thành toàn bộ phạm vi ở trên.

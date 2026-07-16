@@ -35,10 +35,17 @@ Compose dựng PostgreSQL, build API image, chạy `prisma db push`, sau đó sc
 
 - Đã có cấu hình dự án, **Prisma schema đầy đủ theo ERD** (`prisma/schema.prisma`) và hạ tầng cross-cutting: config, PrismaModule, guard JWT + vai trò, filter lỗi chuẩn, keyset pagination, request-id, util ULID/hash, health.
 - Các module nghiệp vụ trong catalog đã có service/controller/test trọng yếu: `auth`, `consent`, `search`, `tutors`, `parents`, `billing`, `trials`, `classes`, `dashboard`, `reviews`, `qr`, `notifications`, `admin`.
-- Flow cURL 1-12 trong `../ai-tasks/07-api-curl-user-flows.md` đã Verified ngày 2026-07-14; full unit test API pass 79/79.
-- Auth hiện dùng Google/Facebook OAuth làm đường chính; OTP SĐT là fallback/local với mã `272727` cho tới khi chốt provider gửi OTP production.
+- Flow cURL 1-12 trong `../ai-tasks/07-api-curl-user-flows.md` đã Verified ngày 2026-07-14. Lần chạy unit gần nhất ngày 2026-07-16: 16 suite / 93 test pass; lint và Nest build pass.
+- Auth parent/tutor dùng Google/Facebook OAuth làm đường chính; OTP SĐT là fallback/local với mã `272727` cho tới khi chốt provider gửi OTP production. Admin dùng email/password scrypt được provision ngoài UI, access token ở RAM phía client và refresh token hash quay vòng trong PostgreSQL qua cookie HttpOnly.
+- Admin refresh rotation chạy transaction với claim nguyên tử và grace 5 giây cho xung đột multi-tab; reuse sau grace thu hồi mọi refresh token còn hoạt động của user. Rotate password bằng `pnpm admin:set-password` cũng thu hồi toàn bộ phiên refresh còn hoạt động.
 - Side-effect nền như gửi OTP thật, worker outbox/notification, object storage thật, provider OAuth production hardening và provider webhook thật vẫn là phần tích hợp hạ tầng.
 - Danh mục endpoint chi tiết, quyền và quy tắc nghiệm thu nằm ở `../ai-tasks/05-api-endpoints.md`.
+
+Provision hoặc rotate password cho user đã có role `admin`:
+
+```bash
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD='mật-khẩu-tối-thiểu-12-ký-tự' pnpm admin:set-password
+```
 
 ## Quy ước code (bắt buộc)
 

@@ -8,15 +8,21 @@ import { newId } from '../../common/utils/id.util';
 import {
   generateOtpCode,
   hashOtp,
+  hashPassword,
   randomToken,
   safeEqualHex,
   sha256,
+  verifyPassword,
 } from '../../common/utils/hash.util';
 
 export interface TokenPair {
   access_token: string;
   refresh_token: string;
 }
+
+type RefreshRotationResult =
+  | { tokens: TokenPair }
+  | { code: ErrorCode; error: string };
 
 type OAuthProvider = 'google' | 'facebook';
 
@@ -32,12 +38,89 @@ interface VerifiedOAuthProfile {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private dummyAdminPasswordHash: Promise<string> | null = null;
+  private readonly adminLockThreshold = 5;
+  private readonly adminLockDurationMs = 15 * 60_000;
+  private readonly refreshConcurrencyGraceMs = 5_000;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
   ) {}
+
+  async adminPasswordLogin(email: string, password: string, ip?: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      include: { adminCredential: true },
+    });
+    const credential = user?.adminCredential ?? null;
+    if (!credential && !this.dummyAdminPasswordHash) this.dummyAdminPasswordHash = hashPassword(randomToken());
+    const passwordMatches = await verifyPassword(
+      password,
+      credential?.passwordHash ?? (await this.dummyAdminPasswordHash!),
+    );
+
+    if (credential?.lockedUntil && credential.lockedUntil.getTime() > Date.now()) {
+      throw new AppException(ErrorCode.RATE_LIMITED, 'Đăng nhập tạm khóa, vui lòng thử lại sau');
+    }
+    if (!user || !credential || !passwordMatches) {
+      if (credential) {
+        await this.recordAdminLoginFailure(credential.userId);
+      }
+      throw new AppException(ErrorCode.AUTH_REQUIRED, 'Email hoặc mật khẩu không đúng');
+    }
+    if (user.deletedAt || user.status === 'deleted' || user.status === 'suspended') {
+      throw new AppException(ErrorCode.AUTH_REQUIRED, 'Tài khoản không khả dụng');
+    }
+    if (!user.roles.includes('admin')) {
+      throw new AppException(ErrorCode.FORBIDDEN_ROLE, 'Tài khoản không có quyền admin');
+    }
+
+    await this.prisma.adminCredential.update({
+      where: { userId: user.id },
+      data: { failedAttempts: 0, lockedUntil: null },
+    });
+    const tokens = await this.issueTokens(user.id, ip);
+    return {
+      ...tokens,
+      user: { id: user.id, phone: user.phone, email: user.email, status: user.status },
+      consent_required: user.status === 'pending_consent',
+    };
+  }
+
+  /**
+   * Không ghi `failedAttempts = snapshot + 1`: nhiều request song song sẽ làm
+   * mất increment. CAS buộc request thua phải đọc lại và cộng trên giá trị mới.
+   */
+  private async recordAdminLoginFailure(userId: string): Promise<void> {
+    for (;;) {
+      const current = await this.prisma.adminCredential.findUnique({
+        where: { userId },
+        select: { failedAttempts: true, lockedUntil: true },
+      });
+      if (!current) return;
+      if (current.lockedUntil && current.lockedUntil.getTime() > Date.now()) return;
+
+      const nextAttempts = current.failedAttempts + 1;
+      const updated = await this.prisma.adminCredential.updateMany({
+        where: {
+          userId,
+          failedAttempts: current.failedAttempts,
+          lockedUntil: current.lockedUntil,
+        },
+        data: {
+          failedAttempts: nextAttempts,
+          lockedUntil:
+            nextAttempts >= this.adminLockThreshold
+              ? new Date(Date.now() + this.adminLockDurationMs)
+              : null,
+        },
+      });
+      if (updated.count === 1) return;
+    }
+  }
 
   // POST /auth/otp/request — tạo OTP, lưu hash (13-security: không plaintext).
   async requestOtp(channel: 'sms' | 'email', destination: string, ip?: string) {
@@ -364,76 +447,151 @@ export class AuthService {
   // Access token JWT chỉ mang `sub` (userId) + typ. Roles/status guard đọc từ DB.
   // Refresh token: chuỗi ngẫu nhiên, lưu HASH trong bảng refresh_tokens (thu hồi được).
   async issueTokens(userId: string, ip?: string): Promise<TokenPair> {
-    const access = await this.jwt.signAsync(
+    const prepared = await this.prepareTokenIssue(userId, ip);
+    await this.prisma.refreshToken.create({
+      data: prepared.refreshRecord,
+    });
+    return prepared.tokens;
+  }
+
+  // POST /auth/refresh — xoay vòng token, phát hiện tái sử dụng (13-security).
+  async refresh(refreshToken: string, ip?: string): Promise<TokenPair> {
+    return this.rotateRefreshToken(refreshToken, ip, false);
+  }
+
+  async refreshAdmin(refreshToken: string, ip?: string): Promise<TokenPair> {
+    return this.rotateRefreshToken(refreshToken, ip, true);
+  }
+
+  private async rotateRefreshToken(
+    refreshToken: string,
+    ip: string | undefined,
+    requireAdmin: boolean,
+  ): Promise<TokenPair> {
+    const tokenHash = sha256(refreshToken);
+    const result: RefreshRotationResult = await this.prisma.$transaction(async (tx) => {
+      const record = await tx.refreshToken.findUnique({
+        where: { tokenHash },
+        include: {
+          user: {
+            select: { id: true, roles: true, status: true, deletedAt: true },
+          },
+        },
+      });
+      if (!record) {
+        return {
+          code: ErrorCode.AUTH_REQUIRED,
+          error: 'Refresh token không hợp lệ',
+        } as const;
+      }
+
+      // Token đã bị thu hồi mà vẫn được dùng lại: thu hồi cả token-family.
+      if (record.revokedAt) {
+        // Hai tab có thể gửi cùng cookie gần như đồng thời. Token đã rotate rất
+        // gần đây bị từ chối nhưng không được revoke/clear token con của tab thắng.
+        if (
+          record.rotatedToId &&
+          Date.now() - record.revokedAt.getTime() <= this.refreshConcurrencyGraceMs
+        ) {
+          return {
+            code: ErrorCode.CONFLICT,
+            error: 'Phiên đang được làm mới ở yêu cầu khác',
+          } as const;
+        }
+        await tx.refreshToken.updateMany({
+          where: { userId: record.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        return {
+          code: ErrorCode.AUTH_REQUIRED,
+          error: 'Phiên bị thu hồi, đăng nhập lại',
+        } as const;
+      }
+      if (record.expiresAt.getTime() < Date.now()) {
+        await tx.refreshToken.updateMany({
+          where: { id: record.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        return { code: ErrorCode.AUTH_REQUIRED, error: 'Phiên đã hết hạn' } as const;
+      }
+      if (
+        record.user.deletedAt ||
+        record.user.status === 'deleted' ||
+        record.user.status === 'suspended'
+      ) {
+        await tx.refreshToken.updateMany({
+          where: { id: record.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        return {
+          code: ErrorCode.AUTH_REQUIRED,
+          error: 'Tài khoản không khả dụng',
+        } as const;
+      }
+      if (requireAdmin && !record.user.roles.includes('admin')) {
+        await tx.refreshToken.updateMany({
+          where: { id: record.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        return {
+          code: ErrorCode.AUTH_REQUIRED,
+          error: 'Phiên admin không hợp lệ',
+        } as const;
+      }
+
+      // Claim token cũ trước khi tạo token con. Chỉ một request đồng thời thắng.
+      const claimedAt = new Date();
+      const claimed = await tx.refreshToken.updateMany({
+        where: { id: record.id, revokedAt: null },
+        data: { revokedAt: claimedAt },
+      });
+      if (claimed.count !== 1) {
+        return {
+          code: ErrorCode.CONFLICT,
+          error: 'Phiên đang được làm mới ở yêu cầu khác',
+        } as const;
+      }
+
+      const prepared = await this.prepareTokenIssue(record.user.id, ip);
+      await tx.refreshToken.create({ data: prepared.refreshRecord });
+      await tx.refreshToken.update({
+        where: { id: record.id },
+        data: { rotatedToId: prepared.refreshRecord.id },
+      });
+      return { tokens: prepared.tokens } as const;
+    });
+
+    if ('tokens' in result) return result.tokens;
+    throw new AppException(result.code, result.error);
+  }
+
+  private async prepareTokenIssue(userId: string, ip?: string) {
+    const accessToken = await this.jwt.signAsync(
       { sub: userId, typ: 'access' },
       {
         secret: this.config.get<string>('jwt.accessSecret'),
         expiresIn: this.config.get<number>('jwt.accessTtl'),
       },
     );
-
-    const refreshRaw = randomToken();
+    const refreshToken = randomToken();
     const refreshTtl = this.config.get<number>('jwt.refreshTtl') ?? 1_209_600;
-    await this.prisma.refreshToken.create({
-      data: {
+    return {
+      tokens: { access_token: accessToken, refresh_token: refreshToken },
+      refreshRecord: {
         id: newId(),
         userId,
-        tokenHash: sha256(refreshRaw),
+        tokenHash: sha256(refreshToken),
         expiresAt: new Date(Date.now() + refreshTtl * 1000),
         createdIp: ip ?? null,
       },
-    });
-
-    return { access_token: access, refresh_token: refreshRaw };
+    };
   }
 
-  // POST /auth/refresh — xoay vòng token, phát hiện tái sử dụng (13-security).
-  async refresh(refreshToken: string, ip?: string): Promise<TokenPair> {
-    const hash = sha256(refreshToken);
-    const record = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash: hash },
+  async revokeRefreshToken(refreshToken: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { tokenHash: sha256(refreshToken), revokedAt: null },
+      data: { revokedAt: new Date() },
     });
-    if (!record) {
-      throw new AppException(ErrorCode.AUTH_REQUIRED, 'Refresh token không hợp lệ');
-    }
-
-    // Token đã bị thu hồi mà vẫn được dùng lại → nghi bị đánh cắp: thu hồi toàn bộ.
-    if (record.revokedAt) {
-      await this.prisma.refreshToken.updateMany({
-        where: { userId: record.userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
-      throw new AppException(
-        ErrorCode.AUTH_REQUIRED,
-        'Phiên bị thu hồi, đăng nhập lại',
-      );
-    }
-    if (record.expiresAt.getTime() < Date.now()) {
-      throw new AppException(ErrorCode.AUTH_REQUIRED, 'Phiên đã hết hạn');
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: record.userId },
-    });
-    if (!user || user.deletedAt || user.status === 'suspended') {
-      await this.prisma.refreshToken.update({
-        where: { id: record.id },
-        data: { revokedAt: new Date() },
-      });
-      throw new AppException(ErrorCode.AUTH_REQUIRED, 'Tài khoản không khả dụng');
-    }
-
-    const next = await this.issueTokens(user.id, ip);
-    const nextHash = sha256(next.refresh_token);
-    const nextRecord = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash: nextHash },
-      select: { id: true },
-    });
-    await this.prisma.refreshToken.update({
-      where: { id: record.id },
-      data: { revokedAt: new Date(), rotatedToId: nextRecord?.id ?? null },
-    });
-    return next;
   }
 
   async me(userId: string) {

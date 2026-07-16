@@ -1,9 +1,10 @@
 # Các Mốc Triển Khai
 
-Trạng thái API ngày 2026-07-14:
+Trạng thái code ngày 2026-07-16:
 
-- Backend `tutor-api` đã có NestJS/Prisma modules cho Flow 1-12 và đã verify end-to-end bằng cURL theo `07-api-curl-user-flows.md`.
-- Các mốc dưới đây vẫn dùng để theo dõi sản phẩm tổng thể; phần frontend/CI/hạ tầng provider thật có thể chưa hoàn tất dù API contract đã pass.
+- Backend `tutor-api` có module cho Flow 1-12 và giữ evidence E2E ngày 2026-07-14; unit mới nhất 93 test.
+- Ba frontend đã hoàn tất scaffold (`TA-00`, `TM-00`, `AD-00`); business UI phần lớn còn theo queue, hiện tại là `TA-01`.
+- Các mốc dưới đây theo dõi sản phẩm tổng thể; API contract pass không đồng nghĩa frontend/provider/worker/production infrastructure đã hoàn tất.
 
 ## Mốc 0: Tài liệu sẵn sàng
 
@@ -13,7 +14,7 @@ Mục tiêu:
 
 Hoàn tất khi:
 
-- Có `tutor-api`, `tutor-market`, `tutor-app`.
+- Có `tutor-api`, `tutor-market`, `tutor-app`, `tutor-admin`, `packages/contracts` trong pnpm workspace.
 - Có `ai-docs`, `ai-tasks`.
 - Có checklist verify bằng Docker Compose cho API/schema/database/cURL (`ai-tasks/06-verification.md`).
 - Luồng nghiệp vụ đã được chuẩn hóa.
@@ -21,6 +22,8 @@ Hoàn tất khi:
 - Backlog và câu hỏi mở đã có.
 
 ## Mốc 1: Nền tảng kỹ thuật
+
+Trạng thái: **đã có nền code/scaffold**, còn Redis/BullMQ, provider thật, CI benchmark và production observability.
 
 Mục tiêu:
 
@@ -37,6 +40,8 @@ Công việc:
 
 ## Mốc 2: Xác thực và cổng pháp lý
 
+Trạng thái: API parent/tutor đã có; admin auth/session `AD-00` đã có; UI tutor/market consent/auth còn `TA-01`/`TM-03`.
+
 Mục tiêu:
 
 - Tạo tài khoản nhưng bị chặn bởi consent đúng business rule.
@@ -50,6 +55,8 @@ Công việc:
 - Lưu audit consent.
 
 ## Mốc 3: MVP chợ gia sư
+
+Trạng thái: API đã có; `TM-00` mới hoàn tất nền SSR/SEO, business UI bắt đầu từ `TM-01`.
 
 Mục tiêu:
 
@@ -107,6 +114,8 @@ Công việc:
 - Đánh dấu đã thu.
 
 ## Mốc 7: Làm chắc sản phẩm
+
+Trạng thái: API operations và admin auth/shell đã có; các màn `AD-01`–`AD-09`, worker/provider thật và hardening xuyên app còn TODO.
 
 Mục tiêu:
 

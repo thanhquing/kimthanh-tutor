@@ -2,4 +2,5 @@ packages:
   - "tutor-api"
   - "tutor-market"
   - "tutor-app"
+  - "tutor-admin"
   - "packages/*"

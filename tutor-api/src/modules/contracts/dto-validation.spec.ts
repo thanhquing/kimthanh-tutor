@@ -21,6 +21,7 @@ import {
   RefundDto,
 } from "../admin/dto/admin.dto";
 import { SearchQueryDto } from "../search/dto/search-query.dto";
+import { AdminPasswordLoginDto } from "../auth/dto/auth.dto";
 
 function errorsFor<T extends object>(Cls: new () => T, payload: object) {
   const instance = plainToInstance(Cls, payload);
@@ -31,6 +32,10 @@ function errorsFor<T extends object>(Cls: new () => T, payload: object) {
 }
 
 describe("DTO validation contracts", () => {
+  it("requires a valid admin email and a 12-128 character password", () => {
+    expect(errorsFor(AdminPasswordLoginDto, { email: "invalid", password: "short" })).not.toEqual([]);
+    expect(errorsFor(AdminPasswordLoginDto, { email: "admin@example.test", password: "correct-password" })).toEqual([]);
+  });
   it("coerces numeric form values for tutor profile inputs", () => {
     const instance = plainToInstance(TutorProfileDto, {
       display_name: "Tutor One",

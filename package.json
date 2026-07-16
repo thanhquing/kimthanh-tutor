@@ -14,6 +14,7 @@
     "lint": "pnpm -r --if-present lint",
     "dev:api": "pnpm --filter tutor-api start:dev",
     "dev:market": "pnpm --filter tutor-market dev",
-    "dev:app": "pnpm --filter tutor-app dev"
+    "dev:app": "pnpm --filter tutor-app dev",
+    "dev:admin": "pnpm --filter tutor-admin dev"
   }
 }

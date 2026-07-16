@@ -2,6 +2,8 @@
 
 Dùng 3 prompt dưới đây cho Lovable. Mục tiêu là tạo **prototype nhiều file HTML**, mỗi màn hình là một file `.html` riêng, bấm qua lại như app thật, có mock data đầy đủ và tương tác bằng vanilla JS.
 
+> **Trạng thái 2026-07-16:** file này là artifact lịch sử để tạo mock tĩnh, không phải hướng dẫn implement production. `TA-00`, `TM-00`, `AD-00` đã thay mock bằng scaffold thật; mọi `localStorage`, fake login, API switch, hard-coded price và claim marketing trong prompt chỉ phục vụ demo, tuyệt đối không copy vào code. Nguồn chân lý hiện tại là `09-frontend-task-governance.md`, `13-mock-ui-ux-audit.md`, task list và API/contracts đang chạy.
+
 Quy tắc chung cho cả 3 app:
 
 - Chỉ dùng HTML/CSS/vanilla JavaScript. Không React, Vue, Angular, npm, build tool.

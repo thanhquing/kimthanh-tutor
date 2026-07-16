@@ -78,14 +78,18 @@ Không được phép:
 - Ẩn/hiện/tạm khóa hồ sơ.
 - Kiểm duyệt đánh giá/video/nội dung.
 - Xử lý báo cáo.
-- Xem bản ghi thanh toán và mở khóa/gói định kỳ.
+- Xem dashboard vận hành, danh sách/detail user đã mask PII; suspend/reactivate account có lý do.
+- Xem bản ghi thanh toán, mở khóa/gói định kỳ và trạng thái paid feature.
+- Cấu hình tài khoản VietQR nền tảng, giá/bật tắt sản phẩm và override paid feature theo user.
 - Xử lý hoàn tiền theo chính sách.
-- Xem nhật ký kiểm toán.
+- Xem nhật ký kiểm toán, webhook/outbox/notification event đã redaction.
 
 Cần giới hạn:
 
 - Mọi hành động admin quan trọng phải có nhật ký kiểm toán.
+- Mọi mutation nhạy cảm phải có `reason`; response/log không unmask PII.
 - Không dùng admin để sửa dữ liệu học tập tùy tiện nếu không có lý do.
+- Admin đăng nhập bằng credential riêng đã provision ngoài UI; không dùng OAuth/OTP/password flow của parent/tutor.
 
 ## Ma trận quyền rút gọn
 

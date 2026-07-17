@@ -27,6 +27,16 @@ MVP gồm TM-00 đến TM-10. TM-11 đến TM-13 bao phủ các màn mock ngoài
 
 ---
 
+## Checklist bắt buộc — Performance & Bảo mật (áp dụng mọi task)
+
+Danh mục hạng mục chuẩn (OWASP Top 10/ASVS, OWASP API Security Top 10, Core Web Vitals, NĐ 13/2023, `ai-docs/12`–`14`) và trạng thái 3 màu được theo dõi tập trung tại **`15-perf-security-checklist.md`** (cột `mkt` = `tutor-market`). Task list này không lặp lại danh sách để tránh lệch nguồn.
+
+**Cổng `DONE` (từ `TM-01` trở đi):** khi hoàn thành task, cập nhật cột `mkt` trong `15-perf-security-checklist.md` cho **mọi hạng mục mà scope task chạm tới** sang 🟢 kèm evidence; task **không được `DONE`** nếu còn hạng mục liên quan ở 🟡/⚪. `tutor-market` chú ý đặc biệt các hạng mục rò rỉ qua SSR/SEO (`A02`, `A05`, `A09`, `C3`, `C5`) và Core Web Vitals (`D1`–`D8`). Phần `Nghiệm thu và test` của mỗi task phải trỏ mã hạng mục đã đạt.
+
+**Task cũ:** `TM-00` đã `DONE` trước khi có checklist nên chưa được chứng nhận; trạng thái trong tracker là tạm tính, chủ dự án sẽ chốt cách xử lý — không tự ý nâng trạng thái khi chưa có evidence mới.
+
+---
+
 ## TM-00 — Scaffold, contracts, shell và API client
 
 - Trạng thái: DONE

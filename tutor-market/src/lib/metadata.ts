@@ -28,3 +28,10 @@ export function tutorJsonLd(tutor: TutorPublicDetail, path: string) {
     knowsAbout: tutor.subjects,
   };
 }
+
+// Serialize JSON-LD an toàn cho thẻ script: escape dấu nhỏ hơn thành dạng
+// unicode escape để dữ liệu tự khai (display_name/bio) không thể phá khung
+// script khi chứa chuỗi đóng thẻ. Xem ai-tasks/15 mục A03.
+export function jsonLdHtml(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}

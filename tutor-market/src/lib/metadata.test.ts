@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TutorPublicDetail } from "@kimthanh-tutor/contracts";
-import { publicSearchMetadata, tutorJsonLd, tutorMetadata } from "./metadata";
+import { jsonLdHtml, publicSearchMetadata, tutorJsonLd, tutorMetadata } from "./metadata";
 
 const lockedTutor: TutorPublicDetail = {
   id: "tutor-1",
@@ -42,5 +42,18 @@ describe("public metadata", () => {
     const serialized = JSON.stringify(tutorJsonLd(lockedTutor, "/tutors/tutor-1"));
     expect(serialized).toContain("Gia sư Minh Anh");
     expect(serialized).not.toContain("Nội dung khóa riêng tư");
+  });
+
+  it("escapes '<' so JSON-LD injected into <script> cannot break out", () => {
+    const malicious: TutorPublicDetail = {
+      ...lockedTutor,
+      display_name: "Evil</script><script>alert(1)</script>",
+    };
+    const html = jsonLdHtml(tutorJsonLd(malicious, "/tutors/tutor-1"));
+    // Không còn ký tự "<" thô nào lọt ra khung script.
+    expect(html).not.toContain("<");
+    expect(html).toContain("\\u003c");
+    // Nội dung tên vẫn được giữ (chỉ khác cách encode "<").
+    expect(JSON.parse(html).name).toBe(malicious.display_name);
   });
 });

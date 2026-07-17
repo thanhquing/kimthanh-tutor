@@ -127,3 +127,20 @@ Ghi chú trạng thái code ngày 2026-07-16:
 - ✅ Test chặn/mở bảng điều khiển theo gói định kỳ.
 - ✅ Test chặn tạo tài khoản bằng legal consent.
 - CI chạy full unit test + cURL Flow 1-12 trên DB sạch.
+
+## Nhóm việc 10: Hạ tầng & hardening (cuối hàng đợi, cần explicit approval)
+
+Gom từ nợ kỹ thuật performance/bảo mật trong `15-perf-security-checklist.md` (mục "Nợ kỹ thuật đã biết"). Đặt **cuối hàng đợi**: chỉ nhận sau khi MVP FE/BE ổn định và có phê duyệt, vì cần hạ tầng thật (Redis, object storage, scanner, secret/CI provider). Mỗi task hoàn tất phải kéo các hạng mục checklist tương ứng sang 🟢 kèm evidence. Không nhét các task này vào một task feature.
+
+| Task | Phạm vi | Hạng mục `15` | Phụ thuộc |
+| --- | --- | --- | --- |
+| INFRA-01 | Redis foundation: bật Redis là runtime dep (cache, distributed lock, hàng đợi BullMQ), config + `readyz` kiểm Redis | tiền đề E7/E8 | — |
+| INFRA-02 | Outbox worker (BullMQ): dispatch `outbox_events` → notification/đồng bộ search/gọi provider; retry/backoff, DLQ, idempotent | E7, A08 | INFRA-01 |
+| INFRA-03 | Distributed rate-limit + hardening request: Throttler dùng Redis storage, giới hạn payload size + timeout, khóa theo IP/user | E8, API4 | INFRA-01 |
+| INFRA-04 | Media pipeline: object storage upload thật + worker quét virus/malware trước khi public, siết validate MIME/size, `scan_status` thật (bỏ `clean` cứng) | A10, API7 | INFRA-01 |
+| INFRA-05 | Payment provider production: verify chữ ký provider thật (SePay/Casso), API key + IP allowlist prod, xử lý trả thiếu/thừa/sai nội dung, refund + thu hồi entitlement | API10, A08 | — |
+| INFRA-06 | Data retention & quyền chủ thể dữ liệu (NĐ 13/2023): chính sách retention, ẩn danh khi xóa user, luồng truy cập/xóa/rút consent | C4, C6 | — |
+| INFRA-07 | Perf benchmark & observability: `EXPLAIN ANALYZE` hot-path search/webhook trong CI, metric p95, cảnh báo | E2, E1 | — |
+| INFRA-08 | Security process: dependency audit (`pnpm audit`/renovate) trong CI, threat-model review theo feature | A06, A04 | — |
+
+Ghi chú: INFRA-05 bao trùm các mục còn mở của Nhóm việc 5 (trả thiếu/thừa/sai, hoàn tiền/thu hồi quyền); INFRA-02 bao trùm outbox của Nhóm việc 1b và worker thông báo của Nhóm việc 8; INFRA-06 bao trùm retention của Nhóm việc 1b.

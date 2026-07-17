@@ -25,6 +25,16 @@ Snapshot 2026-07-17: `TA-00` và `TA-01` DONE theo evidence bên dưới; `TA-02
 
 ---
 
+## Checklist bắt buộc — Performance & Bảo mật (áp dụng mọi task)
+
+Danh mục hạng mục chuẩn (OWASP Top 10/ASVS, OWASP API Security Top 10, Core Web Vitals, NĐ 13/2023, `ai-docs/12`–`14`) và trạng thái 3 màu được theo dõi tập trung tại **`15-perf-security-checklist.md`** (cột `app` = `tutor-app`). Task list này không lặp lại danh sách để tránh lệch nguồn.
+
+**Cổng `DONE` (từ `TA-02` trở đi):** khi hoàn thành task, cập nhật cột `app` trong `15-perf-security-checklist.md` cho **mọi hạng mục mà scope task chạm tới** sang 🟢 kèm evidence; task **không được `DONE`** nếu còn hạng mục liên quan ở 🟡/⚪. Phần `Nghiệm thu và test` của mỗi task phải trỏ mã hạng mục đã đạt (vd `A01`, `A07`, `E5`).
+
+**Task cũ:** `TA-00`, `TA-01` đã `DONE` trước khi có checklist nên chưa được chứng nhận; trạng thái trong tracker là tạm tính, chủ dự án sẽ chốt cách xử lý — không tự ý nâng trạng thái khi chưa có evidence mới.
+
+---
+
 ## TA-00 — Scaffold, contracts, shell và API client
 
 - Trạng thái: DONE

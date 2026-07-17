@@ -19,6 +19,16 @@ Tất cả task khởi tạo ở trạng thái `TODO`. Quy tắc chung: `09-fron
 
 ---
 
+## Checklist bắt buộc — Performance & Bảo mật (áp dụng mọi task)
+
+Danh mục hạng mục chuẩn (OWASP Top 10/ASVS, OWASP API Security Top 10, Core Web Vitals, NĐ 13/2023, `ai-docs/12`–`14`) và trạng thái 3 màu được theo dõi tập trung tại **`15-perf-security-checklist.md`** (cột `adm` = `tutor-admin`). Task list này không lặp lại danh sách để tránh lệch nguồn.
+
+**Cổng `DONE` (từ `AD-01` trở đi):** khi hoàn thành task, cập nhật cột `adm` trong `15-perf-security-checklist.md` cho **mọi hạng mục mà scope task chạm tới** sang 🟢 kèm evidence; task **không được `DONE`** nếu còn hạng mục liên quan ở 🟡/⚪. Admin là bề mặt rủi ro cao nhất nên chú ý đặc biệt `A01`/`API1`/`API5` (RBAC/BOLA), `A09` (audit + reason mutation nhạy cảm), `A02`/`A05` (session/cookie + header/CSP), `C5` (masking PII). Phần `Nghiệm thu và test` của mỗi task phải trỏ mã hạng mục đã đạt.
+
+**Task cũ:** `AD-00` đã `DONE` trước khi có checklist nên chưa được chứng nhận; trạng thái trong tracker là tạm tính (regression guardrails của AD-00 vẫn phải giữ), chủ dự án sẽ chốt cách xử lý — không tự ý nâng trạng thái khi chưa có evidence mới.
+
+---
+
 ## AD-00 — Scaffold, workspace, auth/RBAC và shell/API client
 
 - Trạng thái: DONE

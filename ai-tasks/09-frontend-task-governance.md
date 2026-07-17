@@ -73,6 +73,7 @@ Một task chỉ được đánh dấu `DONE` khi cùng một commit logic đã 
 - cURL hoặc script `verify-flow-*` cho happy path và ít nhất một lỗi quyền/validation liên quan.
 - `pnpm lint`, `pnpm test`, `pnpm build` của package bị chạm đều pass.
 - Không chứa secret, raw PII, token hay dữ liệu trẻ em trong log/snapshot.
+- Cập nhật **`15-perf-security-checklist.md`**: đưa mọi hạng mục performance/bảo mật (theo OWASP/Web Vitals/NĐ 13/`ai-docs 12`–`14`) mà scope task chạm tới sang 🟢 kèm evidence ở cột app tương ứng; task còn hạng mục liên quan ở 🟡/⚪ **không được** đánh `DONE`. Task đã `DONE` trước khi checklist được thêm ở trạng thái "chưa xác nhận" cho tới khi chủ dự án chốt cách xử lý.
 - Cập nhật task status và tài liệu contract/flow nếu hành vi thay đổi.
 
 Tên commit đề xuất: `feat(<app>): <TASK-ID> <phạm vi ngắn>`; fix hậu kiểm: `fix(<app>): <TASK-ID> ...` nhưng vẫn squash thành một commit task trước khi đánh dấu `DONE`.

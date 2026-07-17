@@ -126,6 +126,7 @@ Danh sách module & ranh giới đầy đủ: `ai-docs/15` §3. Catalog endpoint
 - Có test hoặc checklist verify.
 - Có cập nhật docs nếu business rule thay đổi.
 - Nếu feature dùng trong mock UI/UX: flow tương ứng trong `ai-tasks/07-api-curl-user-flows.md` phải chạy end-to-end hoặc ghi rõ blocker. Test fail → refactor/improve API cho đạt business flow rồi cập nhật MD.
+- Đưa mọi hạng mục performance/bảo mật (OWASP Top 10/ASVS, OWASP API Security Top 10, Core Web Vitals, NĐ 13/2023, `ai-docs/12`–`14`) mà task chạm tới sang 🟢 kèm evidence trong `ai-tasks/15-perf-security-checklist.md`; còn hạng mục liên quan ở 🟡/⚪ thì chưa `DONE`. Mục tiêu: mỗi task hoàn thành không để lại nợ kỹ thuật security/performance.
 
 ---
 
@@ -135,7 +136,7 @@ Danh sách module & ranh giới đầy đủ: `ai-docs/15` §3. Catalog endpoint
 `01` business flow · `02` improvements · `03` product scope · `04` roles & permissions · `05` domain model · `06` API contract · `07` payments & monetization · `08` legal/consent/privacy · `09` notification & state machine · `10` acceptance criteria · `11` database ERD · `12` NFR/chịu tải · `13` security & threat model · `14` data privacy (NĐ 13/2023) · **`15` architecture & tech stack (tài liệu sống còn — mọi doc khác tham chiếu)**.
 
 **`ai-tasks/`** (triển khai — đọc theo `ai-tasks/00-index.md`):
-`01` backlog · `02` milestones · `03` AI working rules · `04` open questions · `05` API endpoints catalog · `06` verification checklist · `07` cURL user flows · `08` mock prompts · `09` frontend governance · `10` tutor-app tasks · `11` tutor-market tasks · `12` tutor-admin tasks · `13` mock audit · **`14` active work/current task**.
+`01` backlog · `02` milestones · `03` AI working rules · `04` open questions · `05` API endpoints catalog · `06` verification checklist · `07` cURL user flows · `08` mock prompts · `09` frontend governance · `10` tutor-app tasks · `11` tutor-market tasks · `12` tutor-admin tasks · `13` mock audit · **`14` active work/current task** · `15` checklist chuẩn hóa performance & bảo mật (cổng `DONE`).
 
 ---
 

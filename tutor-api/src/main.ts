@@ -1,9 +1,11 @@
 import 'reflect-metadata';
+import helmet from 'helmet';
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { resolveCorsOrigin } from './common/security/cors';
 
 // BigInt (tiền VND) không serialize được mặc định → toJSON = string.
 // (an toàn cho VND vì client đọc dạng số nguyên trong chuỗi khi cần độ chính xác).
@@ -15,6 +17,10 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: false });
   const config = app.get(ConfigService);
   const prefix = config.get<string>('apiPrefix') ?? 'api/v1';
+
+  // Security headers (nosniff, frame, HSTS, referrer, ẩn X-Powered-By) — A05/API8.
+  // API trả JSON nên CSP mặc định của helmet vô hại; giữ default cho đơn giản.
+  app.use(helmet());
 
   // Health check ở root (/healthz, /readyz) cho probe LB/K8s — 15-architecture.
   app.setGlobalPrefix(prefix, { exclude: ['healthz', 'readyz'] });
@@ -29,8 +35,7 @@ async function bootstrap(): Promise<void> {
   const configuredOrigins = config.get<string[]>('corsOrigins') ?? [];
   app.enableCors({
     credentials: true,
-    origin:
-      configuredOrigins.length > 0 ? configuredOrigins : config.get<string>('env') !== 'production',
+    origin: resolveCorsOrigin(config.get<string>('env'), configuredOrigins),
   });
 
   const port = config.get<number>('port') ?? 3000;

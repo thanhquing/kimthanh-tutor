@@ -295,6 +295,42 @@ export interface TutorProfileResponse {
   offline_areas: Array<{ province_code: string; district_code: string }>;
 }
 
+export interface TutorProfilePublishResponse {
+  status: TutorProfileStatus;
+}
+
+export type MediaKind = "avatar" | "intro_video" | "other";
+
+export type ScanStatus = "pending" | "clean" | "infected";
+
+/** Body cho `POST /media/upload-url`; `size` là số nguyên byte. */
+export interface MediaUploadRequest {
+  kind: MediaKind;
+  content_type: string;
+  size: number;
+}
+
+export interface MediaUploadResponse {
+  media_id: string;
+  upload_url: string;
+  expires_at: string;
+}
+
+/**
+ * `GET /media/:id` — trạng thái media của chính chủ sở hữu.
+ * `url` là signed read URL ngắn hạn để chủ sở hữu xem trước kể cả khi
+ * `scan_status`/`moderation_status` còn `pending`.
+ */
+export interface MediaAssetStatus {
+  media_id: string;
+  kind: MediaKind;
+  content_type: string;
+  moderation_status: ModerationStatus;
+  scan_status: ScanStatus;
+  url: string | null;
+  created_at: string;
+}
+
 export type AvailabilityType = "available" | "busy";
 
 export interface TutorAvailability {

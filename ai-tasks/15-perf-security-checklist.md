@@ -37,7 +37,7 @@ Cột: **app** = `tutor-app`, **mkt** = `tutor-market`, **adm** = `tutor-admin`,
 
 | # | Hạng mục | Chuẩn | app | mkt | adm | api | Ghi chú / evidence & gap |
 | --- | --- | --- | :-: | :-: | :-: | :-: | --- |
-| A01 | Access control fail-closed, ownership/IDOR, capability/RBAC enforce ở server | A01, ASVS V4 | 🟢 | 🟡 | 🟢 | 🟢 | api: role guard `jwt-auth.guard.ts:120` + ownership tests (parents/trials/qr); app: `decideRouteAccess` + App/AppShell tests; adm: non-admin 403 tested; mkt: `(private)/layout.tsx` guard, màn business chưa dựng. |
+| A01 | Access control fail-closed, ownership/IDOR, capability/RBAC enforce ở server | A01, ASVS V4 | 🟢 | 🟡 | 🟢 | 🟢 | api: role guard `jwt-auth.guard.ts:120` + ownership tests (parents/trials/qr); **TA-02: `GET /media/:id` fail-closed theo owner + suspended profile khóa edit**; app: `decideRouteAccess` + App/AppShell tests + `ProfilePage` bootstrap/suspended gate; adm: non-admin 403 tested; mkt: `(private)/layout.tsx` guard, màn business chưa dựng. |
 | A02 | Token/PII không lộ (không localStorage/log/URL); cookie HttpOnly/Secure/SameSite; TLS; no secret client | A02, ASVS V3/V6 | 🟢 | 🟢 | 🟢 | 🟢 | Không có token trong localStorage/sessionStorage ở cả 3 FE (memory-only); adm refresh cookie HttpOnly SameSite=Strict (`auth.controller.spec.ts:62`); api refresh hash sha256 (`auth.service.ts:591`). Gap: TLS/secret-manager thuộc hạ tầng deploy. |
 | A03 | Injection & XSS: query tham số hóa (Prisma), output encoding, no unsafe HTML, CSP | A03, ASVS V5 | 🟢 | 🟢 | 🟢 | 🟢 | api: chỉ Prisma tham số hóa, raw duy nhất `SELECT 1` (`health.controller.ts:19`) + ValidationPipe; mkt: JSON-LD escape qua `jsonLdHtml` (`lib/metadata.ts`) + test `metadata.test.ts` (chuỗi `</script>` bị escape); app/adm không render HTML ngoài. |
 | A04 | Insecure design: threat model `ai-docs/13`, abuse case (spam trial, paywall bypass, guest lead) | A04 | ⚪ | ⚪ | ⚪ | 🟡 | Có throttler + idempotency nhưng **chưa có threat-model review chính thức per feature**. |
@@ -46,7 +46,7 @@ Cột: **app** = `tutor-app`, **mkt** = `tutor-market`, **adm** = `tutor-admin`,
 | A07 | Auth failures: refresh rotation/single-flight, idle/session timeout, failed-attempt CAS, OTP cooldown/rate-limit, logout revoke | A07, ASVS V2 | 🟢 | 🟡 | 🟢 | 🟢 | api: rotation CAS + reuse revoke-all (`auth.service.ts:501-559`), failed-attempt CAS (`:107`), OTP lockout (`:174`); app: logout revoke tested; adm: giữ cookie khi lỗi 5xx (`auth.controller.ts:119`); mkt: auth TM-03 chưa dựng. |
 | A08 | Software/data integrity: webhook verify chữ ký + idempotency + đối chiếu số tiền; side-effect qua outbox; no untrusted deserialization | A08 | — | 🟡 | 🟡 | 🟡 | api: IP allowlist (`billing.service.ts:567`) + dedupe (`webhook_events`) + idempotency; **outbox chỉ ghi trong tx (`outbox.service.ts:21`), chưa có worker dispatch**; chữ ký provider prod còn stub. |
 | A09 | Logging & monitoring: `audit_logs` hành động nhạy cảm, `request_id`, redaction (no secret/token/IP/PII raw), **không log dữ liệu trẻ em** | A09, ASVS V7 | 🟡 | 🟡 | 🟡 | 🟢 | api: `audit.service.ts` + `request-id.middleware.ts` + redact ở `all-exceptions.filter.ts`; FE: chưa thấy log PII nhưng chưa audit snapshot từng màn. |
-| A10 | SSRF: signed upload/URL validate, không fetch URL do user cung cấp ngoài allowlist | A10 | ⚪ | ⚪ | — | 🟡 | api: `media.validate` + `signedReadUrl` (`tutors.service.ts:355,562`) nhưng **`scanStatus` set cứng `clean` (`:558`), chưa có worker quét virus**. |
+| A10 | SSRF: signed upload/URL validate, không fetch URL do user cung cấp ngoài allowlist | A10 | 🟢 | ⚪ | — | 🟡 | app (TA-02): FE chỉ PUT lên signed URL do API cấp và chỉ render URL do server ký (`lib/api/tutors.ts`, `ProfilePage`), không fetch URL người dùng nhập; MIME/size validate client mirror server (`lib/profile/media.ts` + test). api: `media.validate` + `signedReadUrl` (`tutors.service.ts:355,562`); owner-safe `GET /media/:id` fail-closed theo owner (`tutors.service.spec.ts`). Gap còn lại: **`scanStatus` stub `clean`, worker quét virus = INFRA-04**. |
 
 ## B. Bảo mật API/BE — OWASP API Security Top 10 (2023)
 
@@ -54,7 +54,7 @@ Cột chính là **api**; cột FE chỉ 🟢 khi FE cũng enforce (không thay 
 
 | # | Hạng mục | Chuẩn | app | mkt | adm | api | Ghi chú / evidence & gap |
 | --- | --- | --- | :-: | :-: | :-: | :-: | --- |
-| API1 | BOLA — object-level authorization mọi resource theo id | API1 | — | — | — | 🟢 | Ownership check + test flow ✅; giữ fail-closed cho endpoint mới. |
+| API1 | BOLA — object-level authorization mọi resource theo id | API1 | — | — | — | 🟢 | Ownership check + test flow ✅; TA-02: `getMediaStatus` lọc `ownerUserId` + test fail-closed (`tutors.service.spec.ts`); giữ fail-closed cho endpoint mới. |
 | API2 | Broken authentication — JWT ngắn hạn, refresh hash/rotation/revocation | API2 | — | — | — | 🟢 | `refresh_tokens` hash/rotation/revocation ✅. |
 | API3 | BOPLA / mass assignment — DTO whitelist, không nhận field thừa (vd `amount`, `class_id`) | API3 | — | — | — | 🟢 | `ValidationPipe` `whitelist: true, forbidNonWhitelisted: true` (`main.ts:23-24`) + `dto-validation.spec.ts`. |
 | API4 | Unrestricted resource consumption — rate limit, pagination bắt buộc (keyset), payload size/timeout | API4 | — | — | — | 🟡 | `ThrottlerGuard` global (`app.module.ts:38,67`) **in-memory** + keyset; distributed (Redis) + payload/timeout policy TODO. |
@@ -87,7 +87,7 @@ Cột chính là **api**; cột FE chỉ 🟢 khi FE cũng enforce (không thay 
 | D3 | INP < 200ms — tương tác không block | Web Vitals | ⚪ | ⚪ | ⚪ | — | Chưa đo. |
 | D4 | TTFB / SSR cache + revalidation | Web Vitals | — | 🟡 | — | — | mkt: cache/revalidation scaffold; chưa đo. |
 | D5 | JS bundle budget + code-split theo route + lazy-load màn nặng | Perf budget | ⚪ | 🟡 | ⚪ | — | **Không có `React.lazy`/route split ở app/adm**; Next tự split route cho mkt; chưa đặt bundle budget. |
-| D6 | Ảnh tối ưu (kích thước/định dạng, lazy-load), **không N+1 signed URL** | Perf budget | ⚪ | ⚪ | ⚪ | — | Màn media/search chưa dựng. |
+| D6 | Ảnh tối ưu (kích thước/định dạng, lazy-load), **không N+1 signed URL** | Perf budget | 🟢 | ⚪ | ⚪ | — | app (TA-02): avatar/video fetch signed URL **bounded (đúng 2 lời gọi, không AGG/N+1)**, `<img object-fit:cover>` (`ProfilePage`/`global.css`); mkt/adm màn media chưa dựng. |
 | D7 | Fetch: query song song + failure isolation, abort request cũ, `staleTime`/dedupe | Perf budget | 🟢 | 🟡 | 🟡 | — | app: `@tanstack/react-query` + `AbortController` (`lib/api/client.ts`); mkt: client có abort; adm: chưa thấy react-query. |
 | D8 | Keyset pagination FE (no offset, no fake total) | `ai-docs/12` | 🟡 | 🟡 | ⚪ | — | app/mkt: client hỗ trợ cursor; áp dụng khi dựng list; adm list chưa dựng. |
 

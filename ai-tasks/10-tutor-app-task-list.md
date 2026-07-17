@@ -2,7 +2,7 @@
 
 Tất cả task khởi tạo ở trạng thái `TODO`. Quy tắc trạng thái, commit và Definition of Done: `09-frontend-task-governance.md`. Sai lệch mock cần xử lý: `13-mock-ui-ux-audit.md`.
 
-Snapshot 2026-07-17: `TA-00` và `TA-01` DONE theo evidence bên dưới; `TA-02` là `Current task`. Placeholder route của TA-03–TA-13 không phải feature đã hoàn tất.
+Snapshot 2026-07-17: `TA-00`, `TA-01` và `TA-02` DONE theo evidence bên dưới; `TA-03` là `Current task`. Placeholder route của TA-04–TA-13 không phải feature đã hoàn tất.
 
 ## Thứ tự đề xuất
 
@@ -10,7 +10,7 @@ Snapshot 2026-07-17: `TA-00` và `TA-01` DONE theo evidence bên dưới; `TA-02
 | --- | --- | --- | --- |
 | 1 | TA-00 Scaffold, contracts, shell và API client | — | DONE |
 | 2 | TA-01 Auth, role và legal consent | TA-00 | DONE |
-| 3 | TA-02 Hồ sơ, media và publish | TA-01 | TODO |
+| 3 | TA-02 Hồ sơ, media và publish | TA-01 | DONE |
 | 4 | TA-03 Lịch available/busy | TA-01 | TODO |
 | 5 | TA-04 Dashboard công việc | TA-02, TA-03 | TODO |
 | 6 | TA-05 Inbox yêu cầu học thử | TA-01 | TODO |
@@ -86,8 +86,12 @@ Nghiệm thu và test:
 
 ## TA-02 — Hồ sơ gia sư, media và publish
 
-- Trạng thái: TODO
-- Commit: —
+- Trạng thái: DONE
+- Owner: `codex/root`
+- Started: 2026-07-17
+- Completed: 2026-07-17
+- Commit lookup: `git log --oneline --grep='TA-02' -1`
+- Evidence: `pnpm --filter tutor-app lint` + `test` (59 tests, thêm `profile-form`, `media`, `ProfilePage`) + `build` xanh; `pnpm --filter @kimthanh-tutor/contracts test` pass (thêm media/publish shapes); `pnpm --filter tutor-api lint`+`build`+`test` (99 tests, thêm 2 test media status owner-safe/fail-closed) pass. Backend bổ sung owner-safe `GET /media/:id` (status scan/moderation + signed read URL). `verify-flow-02-tutor-profile.sh` pass end-to-end trên Docker DB cô lập (`kt-ta02-flow02`, đã dọn container/network/volume): create profile → GET own profile → **reject fee min>max `400 VALIDATION_ERROR`** → media upload-url `201` → media status `pending/pending` → **foreign media `404 RESOURCE_NOT_FOUND`** → attach avatar → availability/payout → publish `published`. `verify-flow-11-admin-moderation-ops.sh` pass end-to-end (moderation queue thấy media của flow-02, admin approve tutor + audit log); webhook IP allowlist nới cho lần chạy verify cô lập (gap infra, không thuộc TA-02). Browser visual skill không khả dụng trong phiên; hành vi phủ bằng component/integration tests + HTTP flow. Hạng mục checklist đạt 🟢: **A01, A10, D6 (app)**, **API1 (api)** — xem `15-perf-security-checklist.md`. Nợ còn lại (worker quét virus) thuộc INFRA-04.
 - Mock: `profile.html`. API: Tutors + media. Flow 2, 11.
 
 Scope:
@@ -102,6 +106,7 @@ Nghiệm thu và test:
 - Không publish khi thiếu field bắt buộc; offline bắt buộc area; fee min <= max; numeric enums map đúng; lỗi moderation có hướng sửa.
 - Test form mapper, completeness, upload failure/expired URL, publish validation và hidden/suspended states; API ownership/media test nếu refactor.
 - `verify-flow-02-tutor-profile.sh` và moderation phần tutor/media của Flow 11 pass.
+- Hạng mục checklist đã đạt 🟢: `A01`, `A10`, `D6` (app), `API1` (api). Nợ còn lại: worker quét virus (`A10`/`API7` api) thuộc INFRA-04.
 
 ## TA-03 — Lịch available/busy theo tuần
 

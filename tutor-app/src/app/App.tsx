@@ -3,6 +3,7 @@ import { AccountUnavailablePage, ForbiddenPage } from "../pages/AccessStatePages
 import { ConsentPage } from "../pages/ConsentPage";
 import { LoginPage } from "../pages/LoginPage";
 import { PlaceholderPage } from "../pages/PlaceholderPage";
+import { ProfilePage } from "../pages/ProfilePage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { AuthProvider } from "./AuthContext";
 import { AppShell } from "./AppShell";
@@ -18,7 +19,8 @@ export function App() {
       <Route path="/account-unavailable" element={<AccountUnavailablePage />} />
       <Route element={<TutorAccessGate><AppShell /></TutorAccessGate>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        {navigation.map((item) => <Route key={item.path} path={`${item.path}/*`} element={<PlaceholderPage item={item} />} />)}
+        <Route path="/profile/*" element={<ProfilePage />} />
+        {navigation.filter((item) => item.path !== "/profile").map((item) => <Route key={item.path} path={`${item.path}/*`} element={<PlaceholderPage item={item} />} />)}
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes></AuthProvider>

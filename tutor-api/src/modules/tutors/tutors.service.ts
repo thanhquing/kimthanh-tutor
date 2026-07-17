@@ -373,6 +373,36 @@ export class TutorsService {
     };
   }
 
+  // GET /media/:id — trạng thái media của chính chủ sở hữu (fail closed theo owner).
+  // Cho phép xem trước media của mình kể cả khi còn pending/rejected; URL đọc là
+  // signed URL ngắn hạn. Không lộ media của người khác (trả 404).
+  async getMediaStatus(userId: string, mediaId: string) {
+    const asset = await this.prisma.mediaAsset.findFirst({
+      where: { id: mediaId, ownerUserId: userId },
+      select: {
+        id: true,
+        kind: true,
+        contentType: true,
+        moderationStatus: true,
+        scanStatus: true,
+        storageKey: true,
+        createdAt: true,
+      },
+    });
+    if (!asset) {
+      throw new AppException(ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy media');
+    }
+    return {
+      media_id: asset.id,
+      kind: asset.kind,
+      content_type: asset.contentType,
+      moderation_status: asset.moderationStatus,
+      scan_status: asset.scanStatus,
+      url: this.media.signedReadUrl(asset.storageKey),
+      created_at: asset.createdAt.toISOString(),
+    };
+  }
+
   // ---------- helpers ----------
   private scalarData(dto: ProfileInput): TutorScalarData {
     const d: TutorScalarData = {};

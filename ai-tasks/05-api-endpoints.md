@@ -65,6 +65,7 @@ Snapshot 2026-07-16: catalog endpoint đã implement; 16 suite / 93 unit test AP
 | GET | `/tutors/me/payout-accounts` | tutor | — | `{ items:[{ id, bank_code, account_number_masked, account_holder, is_default, created_at, updated_at }] }` | `tutor_payout_accounts` | Của mình; không trả số tài khoản đầy đủ để tránh rò PII ✅ |
 | POST | `/tutors/me/payout-accounts` | tutor | `{ bank_code, account_number, account_holder, is_default?: boolean }` | account masked + `account_holder`, timestamps | `tutor_payout_accounts` | PII; của mình; default account reset các account cũ; không trả số tài khoản đầy đủ; `is_default` phải là boolean, không dùng chuỗi ✅ |
 | POST | `/media/upload-url` | tutor/parent | `{ kind, content_type, size }` | `{ upload_url, media_id, expires_at }` | `media_assets` | Signed upload; validate type/size; scan+moderation trước public ✅ |
+| GET | `/media/:id` | tutor/parent | — | `{ media_id, kind, content_type, moderation_status, scan_status, url, created_at }` | `media_assets` | Trạng thái + signed read URL của media **chính chủ sở hữu** (owner-safe, fail-closed 404 nếu media của người khác); cho FE hiển thị scan/moderation/pending/rejected và preview avatar/video của mình kể cả khi chưa duyệt ✅ |
 
 ## 3. Parents & Students
 

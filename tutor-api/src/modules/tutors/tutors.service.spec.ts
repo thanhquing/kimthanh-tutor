@@ -568,4 +568,62 @@ describe('TutorsService', () => {
       expires_at: '2026-01-01T00:05:00.000Z',
     });
   });
+
+  it('returns owner media status with a signed read URL for own asset', async () => {
+    const prisma = {
+      mediaAsset: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'media-1',
+          kind: 'avatar',
+          contentType: 'image/png',
+          moderationStatus: 'pending',
+          scanStatus: 'pending',
+          storageKey: 'avatar/user-1/media-1',
+          createdAt: now,
+        }),
+      },
+    };
+    const media = { signedReadUrl: jest.fn().mockReturnValue('signed-read-url') };
+    const service = new TutorsService(
+      prisma as any,
+      {} as any,
+      media as any,
+      {} as any,
+    );
+
+    const result = await service.getMediaStatus('user-1', 'media-1');
+
+    expect(prisma.mediaAsset.findFirst).toHaveBeenCalledWith({
+      where: { id: 'media-1', ownerUserId: 'user-1' },
+      select: expect.objectContaining({ storageKey: true }),
+    });
+    expect(media.signedReadUrl).toHaveBeenCalledWith('avatar/user-1/media-1');
+    expect(result).toEqual({
+      media_id: 'media-1',
+      kind: 'avatar',
+      content_type: 'image/png',
+      moderation_status: 'pending',
+      scan_status: 'pending',
+      url: 'signed-read-url',
+      created_at: now.toISOString(),
+    });
+  });
+
+  it('fails closed when the media asset belongs to another owner', async () => {
+    const prisma = {
+      mediaAsset: { findFirst: jest.fn().mockResolvedValue(null) },
+    };
+    const media = { signedReadUrl: jest.fn() };
+    const service = new TutorsService(
+      prisma as any,
+      {} as any,
+      media as any,
+      {} as any,
+    );
+
+    await expect(
+      service.getMediaStatus('user-1', 'media-of-someone-else'),
+    ).rejects.toMatchObject({ code: ErrorCode.RESOURCE_NOT_FOUND });
+    expect(media.signedReadUrl).not.toHaveBeenCalled();
+  });
 });

@@ -107,6 +107,56 @@ require_json_value /tmp/flow02-profile.json display_name "Co Linh"
 require_json_value /tmp/flow02-profile.json status draft
 TUTOR_PROFILE_ID="$(json_get /tmp/flow02-profile.json id)"
 
+echo "== Flow 2 Step 1b: reload own profile (GET matches POST shape) =="
+me_http="$(curl -sS -o /tmp/flow02-me-profile.json -w "%{http_code}" \
+  "$API/tutors/me/profile" -H "$AUTH")"
+require_code "$me_http" "200" "Get own tutor profile" /tmp/flow02-me-profile.json
+require_json_value /tmp/flow02-me-profile.json display_name "Co Linh"
+require_json_value /tmp/flow02-me-profile.json subjects.0 "math"
+
+echo "== Flow 2 Step 1c: negative — impossible fee range rejected (validation) =="
+badfee_http="$(curl -sS -o /tmp/flow02-badfee.json -w "%{http_code}" \
+  -X PATCH "$API/tutors/me/profile" \
+  -H "Content-Type: application/json" -H "$AUTH" \
+  --data '{ "expected_fee_min": 400000, "expected_fee_max": 100000 }')"
+require_code "$badfee_http" "400" "Reject impossible fee range" /tmp/flow02-badfee.json
+require_json_value /tmp/flow02-badfee.json code "VALIDATION_ERROR"
+
+echo "== Flow 2 Step 1d: request signed avatar upload URL =="
+media_http="$(curl -sS -o /tmp/flow02-media.json -w "%{http_code}" \
+  -X POST "$API/media/upload-url" \
+  -H "Content-Type: application/json" -H "$AUTH" \
+  --data '{ "kind": "avatar", "content_type": "image/png", "size": 20480 }')"
+cat /tmp/flow02-media.json
+echo
+require_code "$media_http" "201" "Create media upload URL" /tmp/flow02-media.json
+MEDIA_ID="$(json_get /tmp/flow02-media.json media_id)"
+json_get /tmp/flow02-media.json upload_url >/dev/null
+
+echo "== Flow 2 Step 1e: read owner media status (pending scan/moderation) =="
+mstatus_http="$(curl -sS -o /tmp/flow02-media-status.json -w "%{http_code}" \
+  "$API/media/$MEDIA_ID" -H "$AUTH")"
+cat /tmp/flow02-media-status.json
+echo
+require_code "$mstatus_http" "200" "Get media status" /tmp/flow02-media-status.json
+require_json_value /tmp/flow02-media-status.json kind "avatar"
+require_json_value /tmp/flow02-media-status.json scan_status "pending"
+require_json_value /tmp/flow02-media-status.json moderation_status "pending"
+
+echo "== Flow 2 Step 1f: negative — foreign/unknown media fails closed (404) =="
+foreign_http="$(curl -sS -o /tmp/flow02-media-foreign.json -w "%{http_code}" \
+  "$API/media/01KXNOTMYMEDIA000000000000" -H "$AUTH")"
+require_code "$foreign_http" "404" "Media ownership fail-closed" /tmp/flow02-media-foreign.json
+require_json_value /tmp/flow02-media-foreign.json code "RESOURCE_NOT_FOUND"
+
+echo "== Flow 2 Step 1g: attach avatar to profile =="
+attach_http="$(curl -sS -o /tmp/flow02-attach.json -w "%{http_code}" \
+  -X PATCH "$API/tutors/me/profile" \
+  -H "Content-Type: application/json" -H "$AUTH" \
+  --data "{ \"avatar_media_id\": \"$MEDIA_ID\" }")"
+require_code "$attach_http" "200" "Attach avatar media" /tmp/flow02-attach.json
+require_json_value /tmp/flow02-attach.json avatar_media_id "$MEDIA_ID"
+
 echo "== Flow 2 Step 2: add availability =="
 availability_http="$(curl -sS -o /tmp/flow02-availability.json -w "%{http_code}" \
   -X POST "$API/tutors/me/availabilities" \

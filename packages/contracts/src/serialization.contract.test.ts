@@ -10,8 +10,12 @@ import type {
   AuthVerifyResponse,
   AdminUserStatusMutation,
   DashboardOverview,
+  MediaAssetStatus,
+  MediaUploadRequest,
+  MediaUploadResponse,
   PaymentSummary,
   Student,
+  TutorProfilePublishResponse,
   TutorPublicDetail,
   TutorSearchCard,
 } from "./index";
@@ -149,3 +153,25 @@ const overview = {
 assert.deepEqual(roundTrip(student), student);
 assert.deepEqual(roundTrip(lockedDetail), lockedDetail);
 assert.deepEqual(roundTrip(overview), overview);
+
+const publishResponse = { status: "published" } satisfies TutorProfilePublishResponse;
+const mediaUploadRequest = { kind: "avatar", content_type: "image/png", size: 20_480 } satisfies MediaUploadRequest;
+const mediaUploadResponse = {
+  media_id: "media_02",
+  upload_url: "https://storage.example/avatar/user_01/media_02?sig=abc",
+  expires_at: "2026-07-15T00:10:00.000Z",
+} satisfies MediaUploadResponse;
+const mediaStatus = {
+  media_id: "media_02",
+  kind: "avatar",
+  content_type: "image/png",
+  moderation_status: "pending",
+  scan_status: "pending",
+  url: "https://storage.example/avatar/user_01/media_02?expires=1",
+  created_at: "2026-07-15T00:00:00.000Z",
+} satisfies MediaAssetStatus;
+
+assert.deepEqual(roundTrip(publishResponse), publishResponse);
+assert.deepEqual(roundTrip(mediaUploadRequest), mediaUploadRequest);
+assert.deepEqual(roundTrip(mediaUploadResponse), mediaUploadResponse);
+assert.deepEqual(roundTrip(mediaStatus), mediaStatus);

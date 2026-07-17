@@ -8,9 +8,9 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-02` |
+| Task | `TA-03` |
 | App | `tutor-app` |
-| Title | Hồ sơ gia sư, media và publish |
+| Title | Lịch available/busy theo tuần |
 | Source | `ai-tasks/10-tutor-app-task-list.md` |
 | Status | `TODO` |
 | Owner | — |
@@ -18,15 +18,15 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 | Branch/worktree | — |
 | Blocker | — |
 
-Lệnh cho AI mới: nhận đúng `TA-02`; không tự chuyển sang task khác.
+Lệnh cho AI mới: nhận đúng `TA-03`; không tự chuyển sang task khác.
 
 ## Last completed
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-01` — Auth, role tutor và legal consent gate |
-| Commit | Tra bằng `git log --oneline --grep='TA-01' -1` |
-| Evidence | 29 unit/integration test `tutor-app` pass (OAuth mapper, OTP two-step/sai mã, open-redirect allowlist, pending consent, wrong role, suspended, đổi version, scroll gate); tutor-app lint/test/build + contracts serialization pass; backend `auth.controller` 6 tests (logout revoke) pass; `verify-flow-01-auth-consent.sh` pass end-to-end trên Docker cô lập (`kt-ta01-flow01`, đã dọn sạch): OTP → reject consent khi chưa scroll (`400`) → consent → `/auth/me` active → logout `204` → refresh cũ `401`; deep-link `/login` `/consent` `/profile` `/dashboard` trả `200` qua vite preview; Browser visual skill không khả dụng trong phiên nên phủ bằng tests + HTTP smoke |
+| Task | `TA-02` — Hồ sơ gia sư, media và publish |
+| Commit | Tra bằng `git log --oneline --grep='TA-02' -1` |
+| Evidence | tutor-app lint + test (59, thêm `profile-form`/`media`/`ProfilePage`) + build xanh; contracts test pass (thêm media/publish shapes); tutor-api lint+build+test (99, thêm 2 test media status owner-safe/fail-closed) pass. Backend thêm owner-safe `GET /media/:id` (scan/moderation + signed read URL). `verify-flow-02-tutor-profile.sh` pass end-to-end trên Docker cô lập (`kt-ta02-flow02`, đã dọn sạch): create profile → GET own → reject fee min>max `400` → media upload-url `201` → media status pending → foreign media `404` → attach avatar → availability/payout → publish `published`. `verify-flow-11` pass (moderation queue thấy media flow-02, admin approve + audit). Checklist 🟢: A01/A10/D6 (app), API1 (api); nợ worker quét virus thuộc INFRA-04. Lưu ý: đã đồng bộ `tutor-api/package-lock.json` (thiếu `helmet@8.3.0` từ commit trước) để Docker verify build được. Browser visual skill không khả dụng trong phiên |
 
 ## Global queue
 

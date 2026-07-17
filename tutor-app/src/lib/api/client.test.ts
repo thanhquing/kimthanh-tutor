@@ -73,4 +73,31 @@ describe("ApiClient", () => {
     await expect(client.request("/cancelled", { skipAuth: true, signal: controller.signal })).rejects.toMatchObject({ kind: "aborted", code: "REQUEST_ABORTED" });
     expect(fetcher).not.toHaveBeenCalled();
   });
+
+  it("keeps the refresh token on a transient refresh failure", async () => {
+    const store = createMemoryTokenStore({ access_token: "expired", refresh_token: "still-valid" });
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/auth/refresh")) throw new TypeError("network down");
+      return json({ code: "AUTH_REQUIRED", message: "Hết phiên" }, 401);
+    });
+    const expired = vi.fn();
+    const client = new ApiClient({ baseUrl: "https://api.test", fetcher: fetcher as typeof fetch, tokenStore: store, onSessionExpired: expired });
+
+    await expect(client.request("/auth/me")).rejects.toMatchObject({ code: "NETWORK_ERROR" });
+    expect(store.get()).toEqual({ access_token: "expired", refresh_token: "still-valid" });
+    expect(expired).not.toHaveBeenCalled();
+  });
+
+  it("clears the session after the server rejects refresh", async () => {
+    const store = createMemoryTokenStore({ access_token: "expired", refresh_token: "revoked" });
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => String(input).endsWith("/auth/refresh")
+      ? json({ code: "AUTH_REQUIRED", message: "Phiên bị thu hồi" }, 401)
+      : json({ code: "AUTH_REQUIRED", message: "Hết phiên" }, 401));
+    const expired = vi.fn();
+    const client = new ApiClient({ baseUrl: "https://api.test", fetcher: fetcher as typeof fetch, tokenStore: store, onSessionExpired: expired });
+
+    await expect(client.request("/auth/me")).rejects.toMatchObject({ code: "AUTH_REQUIRED" });
+    expect(store.get()).toBeNull();
+    expect(expired).toHaveBeenCalledOnce();
+  });
 });

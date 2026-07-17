@@ -1,11 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
+import { AuthProvider } from "./AuthContext";
 import { AppShell } from "./AppShell";
 
 function renderShell(path = "/dashboard") {
-  return render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[path]}><Routes><Route element={<AppShell />}><Route path="*" element={<h1>Nội dung route</h1>} /></Route></Routes></MemoryRouter>);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={queryClient}><MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[path]}><AuthProvider><Routes><Route element={<AppShell />}><Route path="*" element={<h1>Nội dung route</h1>} /></Route></Routes></AuthProvider></MemoryRouter></QueryClientProvider>);
 }
 
 describe("AppShell", () => {

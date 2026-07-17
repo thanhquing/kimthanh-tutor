@@ -68,6 +68,7 @@ Dữ liệu ra:
 
 - Đăng nhập/đăng ký bằng Google/Facebook OAuth, server verify token với provider.
 - Gửi/xác minh OTP SĐT fallback/local; non-production dùng mã cố định `272727`.
+- Parent/tutor giữ access/refresh token trong RAM; `/auth/refresh` quay vòng refresh token và `/auth/logout` thu hồi refresh token hiện tại. Lỗi refresh 5xx/network tạm thời không được tự xóa token còn dùng được; `AUTH_REQUIRED` mới kết thúc phiên local.
 - Admin đăng nhập qua endpoint riêng bằng email/password đã provision; server kiểm tra scrypt hash, status và role `admin`, tăng failed-attempt bằng compare-and-swap, khóa 15 phút sau 5 lần sai. Access token chỉ giữ trong RAM; refresh token hash nằm trong PostgreSQL và token thô chỉ ở cookie HttpOnly `SameSite=Strict`. `/auth/admin/refresh` claim/rotate trong transaction, cho grace 5 giây với xung đột multi-tab; reuse sau grace thu hồi mọi refresh token còn hoạt động của user. `/auth/admin/logout` thu hồi phiên và rotate password thu hồi mọi refresh token của admin.
 - Tạo tài khoản ở trạng thái chờ consent.
 - Lấy version pháp lý hiện tại.

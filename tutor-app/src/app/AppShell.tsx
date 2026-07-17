@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Bell, Menu, NotebookPen, X } from "lucide-react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { navigation, navigationFor } from "./navigation";
+import { useAuth } from "./AuthContext";
 
 function Navigation({ onNavigate }: { onNavigate?: () => void }) {
   return (
@@ -28,6 +29,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function AppShell() {
+  const { logout } = useAuth();
   const location = useLocation();
   const current = navigationFor(location.pathname);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -60,7 +62,7 @@ export function AppShell() {
           <div className="topbar-spacer" />
           <NavLink className="quick-action" to="/lesson-logs"><NotebookPen size={16} />Ghi sổ đầu bài</NavLink>
           <NavLink className="icon-button" to="/notifications" aria-label="Thông báo"><Bell size={19} /></NavLink>
-          <div className="avatar" aria-label="Tài khoản gia sư">GS</div>
+          <button className="avatar" type="button" aria-label="Đăng xuất" title="Đăng xuất" onClick={logout}>GS</button>
         </header>
         <main id="main-content" className="content" tabIndex={-1}><Outlet /></main>
       </div>

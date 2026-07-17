@@ -44,6 +44,7 @@ Snapshot 2026-07-16: catalog endpoint đã implement; 16 suite / 93 unit test AP
 | POST | `/auth/admin/refresh` | guest + admin cookie | — | `{ access_token }` + rotated refresh cookie | `users`,`refresh_tokens` | Kiểm tra lại role/status; claim/rotate trong PostgreSQL transaction; xung đột multi-tab trong grace 5 giây trả `CONFLICT` mà không revoke token con, reuse sau grace revoke mọi refresh token active của user ✅ |
 | POST | `/auth/admin/logout` | guest + admin cookie | — | `204` | `refresh_tokens` | Thu hồi refresh token hiện tại và xóa cookie ✅ |
 | POST | `/auth/refresh` | any | `{ refresh_token }` | `{ access_token, refresh_token }` | `refresh_tokens` | Token hash lưu PostgreSQL; rotation + revoke-on-reuse ✅ |
+| POST | `/auth/logout` | any | `{ refresh_token }` | `204` | `refresh_tokens` | Thu hồi refresh token user hiện tại; client xóa access/refresh trong RAM và cache protected ✅ |
 | GET | `/auth/me` | authenticated | — | `{ user, roles, profiles }` | `users` | Cho phép `pending_consent` để FE biết trạng thái sau login/OTP ✅ |
 | GET | `/legal/documents/active` | guest | — | `{ terms, privacy }` (version, content_url, checksum) | `legal_documents` | ✅ |
 | POST | `/legal/consents` | pending_consent | `{ terms_document_id, privacy_document_id, scroll_reached_bottom, consent_method }` | `{ ok, user_status }` | `legal_consents`,`users` | scroll phải true; kích hoạt user; ghi IP/UA nếu cho phép ✅ |

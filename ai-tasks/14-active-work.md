@@ -8,9 +8,9 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-01` |
+| Task | `TA-02` |
 | App | `tutor-app` |
-| Title | Auth, role tutor và legal consent gate |
+| Title | Hồ sơ gia sư, media và publish |
 | Source | `ai-tasks/10-tutor-app-task-list.md` |
 | Status | `TODO` |
 | Owner | — |
@@ -18,15 +18,15 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 | Branch/worktree | — |
 | Blocker | — |
 
-Lệnh cho AI mới: nhận đúng `TA-01`; không tự chuyển sang task khác.
+Lệnh cho AI mới: nhận đúng `TA-02`; không tự chuyển sang task khác.
 
 ## Last completed
 
 | Field | Value |
 | --- | --- |
-| Task | `AD-00` — Scaffold, workspace, auth/RBAC và shell/API client |
-| Commit | Tra bằng `git log --oneline --grep='AD-00' -1` |
-| Evidence | Frozen install; hardening follow-up pass 93 API tests, 15 admin tests, API/admin lint + build; regression phủ atomic failed-attempt, refresh CAS/multi-tab grace, cookie 5xx và revoke session khi rotate password; contracts serialization; deep-link/security headers; Flow 1 và Flow 12 trên Docker DB cô lập pass |
+| Task | `TA-01` — Auth, role tutor và legal consent gate |
+| Commit | Tra bằng `git log --oneline --grep='TA-01' -1` |
+| Evidence | 29 unit/integration test `tutor-app` pass (OAuth mapper, OTP two-step/sai mã, open-redirect allowlist, pending consent, wrong role, suspended, đổi version, scroll gate); tutor-app lint/test/build + contracts serialization pass; backend `auth.controller` 6 tests (logout revoke) pass; `verify-flow-01-auth-consent.sh` pass end-to-end trên Docker cô lập (`kt-ta01-flow01`, đã dọn sạch): OTP → reject consent khi chưa scroll (`400`) → consent → `/auth/me` active → logout `204` → refresh cũ `401`; deep-link `/login` `/consent` `/profile` `/dashboard` trả `200` qua vite preview; Browser visual skill không khả dụng trong phiên nên phủ bằng tests + HTTP smoke |
 
 ## Global queue
 

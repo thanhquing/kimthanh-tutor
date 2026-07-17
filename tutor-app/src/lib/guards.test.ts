@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { decideRouteAccess } from "./guards";
 
-const activeTutor = { authenticated: true, status: "active" as const, roles: ["tutor" as const], acceptedLegalVersion: "v1" };
+const activeTutor = { authenticated: true, status: "active" as const, roles: ["tutor" as const] };
 
 describe("capability route guard", () => {
   it("fails closed for anonymous, consent and wrong role", () => {
@@ -10,7 +10,7 @@ describe("capability route guard", () => {
     expect(decideRouteAccess(activeTutor, { authenticated: true, roles: ["admin"] })).toMatchObject({ allowed: false, reason: "role" });
   });
 
-  it("allows a tutor with the required legal version", () => {
-    expect(decideRouteAccess(activeTutor, { authenticated: true, roles: ["tutor"], legalVersion: "v1" })).toEqual({ allowed: true });
+  it("allows an active tutor for a tutor-only route", () => {
+    expect(decideRouteAccess(activeTutor, { authenticated: true, roles: ["tutor"] })).toEqual({ allowed: true });
   });
 });

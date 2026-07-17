@@ -144,6 +144,13 @@ export class AuthController {
     return this.auth.refresh(dto.refresh_token, ip);
   }
 
+  @Public()
+  @HttpCode(204)
+  @Post('logout')
+  logout(@Body() dto: RefreshDto) {
+    return this.auth.revokeRefreshToken(dto.refresh_token);
+  }
+
   // Cho phép cả user chưa consent để client biết trạng thái sau verify.
   @AllowStatus('pending_consent', 'active')
   @Get('me')

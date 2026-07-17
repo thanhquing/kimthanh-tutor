@@ -143,3 +143,14 @@ describe('AuthController admin cookie session', () => {
     );
   });
 });
+
+describe('AuthController user session', () => {
+  it('revokes the user refresh token on logout', async () => {
+    const auth = { revokeRefreshToken: jest.fn() } as unknown as AuthService;
+    const controller = new AuthController(auth, config());
+
+    await controller.logout({ refresh_token: 'user-refresh-token' });
+
+    expect(auth.revokeRefreshToken).toHaveBeenCalledWith('user-refresh-token');
+  });
+});

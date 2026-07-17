@@ -62,6 +62,7 @@ echo
 require_code "$verify_http" "201" "OTP verify" /tmp/flow01-otp-verify.json
 require_json_value /tmp/flow01-otp-verify.json consent_required true
 ACCESS_TOKEN="$(json_get /tmp/flow01-otp-verify.json access_token)"
+REFRESH_TOKEN="$(json_get /tmp/flow01-otp-verify.json refresh_token)"
 
 echo "== Flow 1 Step 3: load active legal documents =="
 docs_http="$(curl -sS -o /tmp/flow01-legal-docs.json -w "%{http_code}" "$API/legal/documents/active")"
@@ -71,7 +72,16 @@ require_code "$docs_http" "200" "Legal documents" /tmp/flow01-legal-docs.json
 TERMS_ID="$(json_get /tmp/flow01-legal-docs.json terms.id)"
 PRIVACY_ID="$(json_get /tmp/flow01-legal-docs.json privacy.id)"
 
-echo "== Flow 1 Step 4: record consent =="
+echo "== Flow 1 Step 4A: reject consent before scroll reaches bottom =="
+early_consent_http="$(curl -sS -o /tmp/flow01-consent-too-early.json -w "%{http_code}" \
+  -X POST "$API/legal/consents" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  --data "{\"terms_document_id\":\"$TERMS_ID\",\"privacy_document_id\":\"$PRIVACY_ID\",\"scroll_reached_bottom\":false,\"consent_method\":\"scroll_and_click\"}")"
+require_code "$early_consent_http" "400" "Consent before scroll" /tmp/flow01-consent-too-early.json
+require_json_value /tmp/flow01-consent-too-early.json code VALIDATION_ERROR
+
+echo "== Flow 1 Step 4B: record consent =="
 consent_http="$(curl -sS -o /tmp/flow01-consent.json -w "%{http_code}" \
   -X POST "$API/legal/consents" \
   -H "Content-Type: application/json" \
@@ -92,4 +102,18 @@ echo
 require_code "$me_http" "200" "Auth me" /tmp/flow01-auth-me.json
 require_json_value /tmp/flow01-auth-me.json user.status active
 
-echo "OK: Flow 1 OTP + Consent Gate verified end-to-end for phone $PHONE"
+echo "== Flow 1 Step 6: logout and revoke refresh token =="
+logout_http="$(curl -sS -o /tmp/flow01-logout.json -w "%{http_code}" \
+  -X POST "$API/auth/logout" \
+  -H "Content-Type: application/json" \
+  --data "{\"refresh_token\":\"$REFRESH_TOKEN\"}")"
+require_code "$logout_http" "204" "Logout" /tmp/flow01-logout.json
+
+refresh_http="$(curl -sS -o /tmp/flow01-refresh-after-logout.json -w "%{http_code}" \
+  -X POST "$API/auth/refresh" \
+  -H "Content-Type: application/json" \
+  --data "{\"refresh_token\":\"$REFRESH_TOKEN\"}")"
+require_code "$refresh_http" "401" "Refresh after logout" /tmp/flow01-refresh-after-logout.json
+require_json_value /tmp/flow01-refresh-after-logout.json code AUTH_REQUIRED
+
+echo "OK: Flow 1 OTP + Consent Gate + Logout verified end-to-end for phone $PHONE"

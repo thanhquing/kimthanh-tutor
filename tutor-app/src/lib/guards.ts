@@ -4,13 +4,11 @@ export interface AuthSnapshot {
   authenticated: boolean;
   status?: UserStatus;
   roles: ApiRole[];
-  acceptedLegalVersion?: string | null;
 }
 
 export interface RouteCapability {
   authenticated?: boolean;
   roles?: ApiRole[];
-  legalVersion?: string;
 }
 
 export type GuardDecision =
@@ -20,7 +18,10 @@ export type GuardDecision =
 export function decideRouteAccess(auth: AuthSnapshot, capability: RouteCapability): GuardDecision {
   if (capability.authenticated && !auth.authenticated) return { allowed: false, reason: "auth", redirectTo: "/login" };
   if (auth.status === "suspended" || auth.status === "deleted") return { allowed: false, reason: "suspended", redirectTo: "/account-unavailable" };
-  if (auth.status === "pending_consent" || (capability.legalVersion && auth.acceptedLegalVersion !== capability.legalVersion)) {
+  // Consent là gate một lần theo status; backend không revert active → pending khi
+  // đổi version (xem consent.service + /auth/me không trả legal version). Version
+  // drift được xử lý lúc submit consent (VALIDATION_ERROR), không phải ở gate.
+  if (auth.status === "pending_consent") {
     return { allowed: false, reason: "consent", redirectTo: "/consent" };
   }
   if (capability.roles?.length && !capability.roles.some((role) => auth.roles.includes(role))) {

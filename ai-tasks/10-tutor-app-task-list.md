@@ -2,14 +2,14 @@
 
 Tất cả task khởi tạo ở trạng thái `TODO`. Quy tắc trạng thái, commit và Definition of Done: `09-frontend-task-governance.md`. Sai lệch mock cần xử lý: `13-mock-ui-ux-audit.md`.
 
-Snapshot 2026-07-16: `TA-00` DONE với 15 test/lint/build theo evidence bên dưới; `TA-01` là `Current task`. Placeholder route của TA-02–TA-13 không phải feature đã hoàn tất.
+Snapshot 2026-07-17: `TA-00` và `TA-01` DONE theo evidence bên dưới; `TA-02` là `Current task`. Placeholder route của TA-03–TA-13 không phải feature đã hoàn tất.
 
 ## Thứ tự đề xuất
 
 | Thứ tự | Task | Phụ thuộc | Trạng thái |
 | --- | --- | --- | --- |
 | 1 | TA-00 Scaffold, contracts, shell và API client | — | DONE |
-| 2 | TA-01 Auth, role và legal consent | TA-00 | TODO |
+| 2 | TA-01 Auth, role và legal consent | TA-00 | DONE |
 | 3 | TA-02 Hồ sơ, media và publish | TA-01 | TODO |
 | 4 | TA-03 Lịch available/busy | TA-01 | TODO |
 | 5 | TA-04 Dashboard công việc | TA-02, TA-03 | TODO |
@@ -51,8 +51,13 @@ Nghiệm thu và test:
 
 ## TA-01 — Auth, role tutor và legal consent gate
 
-- Trạng thái: TODO
-- Commit: —
+- Trạng thái: DONE
+- Owner: `codex/root`
+- Started: 2026-07-17
+- Completed: 2026-07-17
+- Commit lookup: `git log --oneline --grep='TA-01' -1`
+- Evidence: 29 unit/integration test `tutor-app` pass (OAuth callback mapper, OTP two-step/sai mã, open-redirect `next` allowlist, pending consent, wrong role parent-only, suspended, document đổi version, scroll gate); `pnpm --filter tutor-app lint`, `test`, `build` xanh; `pnpm --filter @kimthanh-tutor/contracts test` pass; backend `auth.controller.spec.ts` 6 tests pass (logout thu hồi refresh token). `verify-flow-01-auth-consent.sh` pass end-to-end trên Docker DB cô lập (`kt-ta01-flow01`, đã dọn sạch container/network/volume): OTP → từ chối consent khi `scroll_reached_bottom=false` (`400 VALIDATION_ERROR`) → consent hợp lệ → `/auth/me` active → logout `204` → refresh cũ `401 AUTH_REQUIRED`. Deep-link smoke qua `vite preview`: `/`, `/login`, `/consent`, `/profile`, `/dashboard` đều `200` (SPA fallback). Browser visual skill không khả dụng trong phiên (`browsers.list=[]`); hành vi được phủ bằng component/integration tests + HTTP smoke thay cho ảnh chụp.
+- Blocker: —
 - Mock: `login.html`, `consent.html`. API: Auth & Consent. Flow 1.
 
 Scope:

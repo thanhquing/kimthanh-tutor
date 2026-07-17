@@ -146,6 +146,8 @@ export interface AuthOtpRequest {
 export interface AuthOtpRequestResponse {
   request_id: string;
   expires_at: string;
+  /** Chỉ có ở non-production để kiểm thử local; không được giả định luôn tồn tại. */
+  dev_code?: string;
 }
 
 export interface AuthOtpVerify {
@@ -155,6 +157,10 @@ export interface AuthOtpVerify {
 
 export interface AuthGoogleOAuth {
   id_token: string;
+}
+
+export interface AuthFacebookOAuth {
+  access_token: string;
 }
 
 export interface AdminPasswordLogin {
@@ -191,6 +197,33 @@ export interface AuthMeResponse {
     parent: { id: string } | null;
     tutor: { id: string } | null;
   };
+}
+
+export interface LegalDocument {
+  id: string;
+  doc_type: "terms" | "privacy";
+  version: string;
+  title: string;
+  content_url: string;
+  checksum: string;
+  published_at: string;
+}
+
+export interface ActiveLegalDocumentsResponse {
+  terms: LegalDocument | null;
+  privacy: LegalDocument | null;
+}
+
+export interface RecordLegalConsent {
+  terms_document_id: string;
+  privacy_document_id: string;
+  scroll_reached_bottom: boolean;
+  consent_method: "scroll_and_click" | "reaccept";
+}
+
+export interface RecordLegalConsentResponse {
+  ok: true;
+  user_status: "active";
 }
 
 /** Nền hợp đồng cho console vận hành; mọi mutation nhạy cảm phải kèm lý do. */

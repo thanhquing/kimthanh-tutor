@@ -18,6 +18,7 @@ export interface ApiClientOptions {
   fetcher?: Fetcher;
   tokenStore?: TokenStore;
   timeoutMs?: number;
+  onSessionExpired?: () => void;
 }
 
 function requestId(): string {
@@ -32,6 +33,7 @@ export class ApiClient {
   private readonly fetcher: Fetcher;
   private readonly tokenStore: TokenStore;
   private readonly timeoutMs: number;
+  private readonly onSessionExpired?: () => void;
   private refreshPromise: Promise<AuthTokens> | null = null;
 
   constructor(options: ApiClientOptions = {}) {
@@ -39,6 +41,7 @@ export class ApiClient {
     this.fetcher = options.fetcher ?? fetch;
     this.tokenStore = options.tokenStore ?? createMemoryTokenStore();
     this.timeoutMs = options.timeoutMs ?? 15_000;
+    this.onSessionExpired = options.onSessionExpired;
   }
 
   async request<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
@@ -119,7 +122,13 @@ export class ApiClient {
 
     this.refreshPromise = this.perform<AuthTokens>("/auth/refresh", { method: "POST", body: { refresh_token: refreshToken }, skipAuth: true }, false)
       .then((tokens) => { this.tokenStore.set(tokens); return tokens; })
-      .catch((error: unknown) => { this.tokenStore.clear(); throw error; })
+      .catch((error: unknown) => {
+        if (error instanceof ApiClientError && (error.status === 401 || error.code === "AUTH_REQUIRED")) {
+          this.tokenStore.clear();
+          this.onSessionExpired?.();
+        }
+        throw error;
+      })
       .finally(() => { this.refreshPromise = null; });
     return this.refreshPromise;
   }
@@ -133,4 +142,13 @@ export class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient();
+export const appTokenStore = createMemoryTokenStore();
+let sessionExpiredHandler: (() => void) | undefined;
+export const apiClient = new ApiClient({
+  tokenStore: appTokenStore,
+  onSessionExpired: () => sessionExpiredHandler?.(),
+});
+
+export function setSessionExpiredHandler(handler?: () => void) {
+  sessionExpiredHandler = handler;
+}

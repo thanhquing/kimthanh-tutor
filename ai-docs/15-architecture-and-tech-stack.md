@@ -38,7 +38,7 @@ Chia theo miền nghiệp vụ, không chia theo tầng kỹ thuật. Mỗi modu
 
 Đây là **bản đồ bounded context mục tiêu**. Một số context nhỏ hiện được gộp vào module lân cận trong `tutor-api/src/modules` để tránh chia nhỏ sớm; khi phình to sẽ tách thành module riêng mà không đổi ranh giới nghiệp vụ. Cột "code" ghi trạng thái thực tế.
 
-- `auth` — Google/Facebook OAuth, OTP fallback/local, phiên, JWT, vai trò. *(code: `auth`, gồm luôn context `users`)*
+- `auth` — email + password (register/verify email/login/forgot/reset), Google/Facebook OAuth (đích lâu dài), phiên, JWT, vai trò; module `mail` gửi email verify/reset qua Resend. *(code: `auth`, `mail`, gồm luôn context `users`)*
 - `consent` — legal documents versioning, ghi nhận đồng ý. *(code: `consent`)*
 - `users` — `users`, hồ sơ vai trò gốc. *(code: gộp trong `auth`)*
 - `parents` — parent profile, students. *(code: `parents`)*

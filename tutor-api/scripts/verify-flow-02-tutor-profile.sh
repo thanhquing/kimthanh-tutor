@@ -172,7 +172,37 @@ availability_http="$(curl -sS -o /tmp/flow02-availability.json -w "%{http_code}"
 cat /tmp/flow02-availability.json
 echo
 require_code "$availability_http" "201" "Add availability" /tmp/flow02-availability.json
-json_get /tmp/flow02-availability.json id >/dev/null
+AVAIL_ID="$(json_get /tmp/flow02-availability.json id)"
+
+echo "== Flow 2 Step 2b: negative — availability with end before start rejected (validation) =="
+bad_avail_http="$(curl -sS -o /tmp/flow02-availability-bad.json -w "%{http_code}" \
+  -X POST "$API/tutors/me/availabilities" \
+  -H "Content-Type: application/json" \
+  -H "$AUTH" \
+  --data '{"day_of_week":2,"start_time":"21:00","end_time":"19:00","type":"available"}')"
+cat /tmp/flow02-availability-bad.json
+echo
+[ "$bad_avail_http" = "400" ] || [ "$bad_avail_http" = "422" ] || {
+  cat /tmp/flow02-availability-bad.json >&2
+  fail "Invalid availability expected HTTP 400/422, got $bad_avail_http"
+}
+
+echo "== Flow 2 Step 2c: negative — delete unknown/foreign availability fails closed (404) =="
+foreign_del_http="$(curl -sS -o /tmp/flow02-availability-foreign.json -w "%{http_code}" \
+  -X DELETE "$API/tutors/me/availabilities/01KXFOREIGNAVAIL0000000000" \
+  -H "$AUTH")"
+require_code "$foreign_del_http" "404" "Delete foreign availability" /tmp/flow02-availability-foreign.json
+
+echo "== Flow 2 Step 2d: delete own availability succeeds =="
+del_http="$(curl -sS -o /tmp/flow02-availability-del.json -w "%{http_code}" \
+  -X DELETE "$API/tutors/me/availabilities/$AVAIL_ID" \
+  -H "$AUTH")"
+require_code "$del_http" "200" "Delete own availability" /tmp/flow02-availability-del.json
+require_json_value /tmp/flow02-availability-del.json ok true
+# Re-add so downstream steps keep a valid weekly availability on the profile.
+curl -sS -o /dev/null -X POST "$API/tutors/me/availabilities" \
+  -H "Content-Type: application/json" -H "$AUTH" \
+  --data '{"day_of_week":2,"start_time":"19:00","end_time":"21:00","type":"available","note":"Day online hoac quanh Cau Giay"}'
 
 echo "== Flow 2 Step 3: add payout account =="
 payout_http="$(curl -sS -o /tmp/flow02-payout.json -w "%{http_code}" \

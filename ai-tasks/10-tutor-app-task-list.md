@@ -2,7 +2,7 @@
 
 Tất cả task khởi tạo ở trạng thái `TODO`. Quy tắc trạng thái, commit và Definition of Done: `09-frontend-task-governance.md`. Sai lệch mock cần xử lý: `13-mock-ui-ux-audit.md`.
 
-Snapshot 2026-07-17: `TA-00`, `TA-01` và `TA-02` DONE theo evidence bên dưới; `TA-03` là `Current task`. Placeholder route của TA-04–TA-13 không phải feature đã hoàn tất.
+Snapshot 2026-07-18: `TA-00`, `TA-01`, `TA-02` và `TA-03` DONE theo evidence bên dưới; `TA-04` là `Current task`. Placeholder route của TA-05–TA-13 không phải feature đã hoàn tất.
 
 ## Thứ tự đề xuất
 
@@ -11,7 +11,7 @@ Snapshot 2026-07-17: `TA-00`, `TA-01` và `TA-02` DONE theo evidence bên dướ
 | 1 | TA-00 Scaffold, contracts, shell và API client | — | DONE |
 | 2 | TA-01 Auth, role và legal consent | TA-00 | DONE |
 | 3 | TA-02 Hồ sơ, media và publish | TA-01 | DONE |
-| 4 | TA-03 Lịch available/busy | TA-01 | TODO |
+| 4 | TA-03 Lịch available/busy | TA-01 | DONE |
 | 5 | TA-04 Dashboard công việc | TA-02, TA-03 | TODO |
 | 6 | TA-05 Inbox yêu cầu học thử | TA-01 | TODO |
 | 7 | TA-06 Lớp và state machine | TA-05 | TODO |
@@ -110,9 +110,10 @@ Nghiệm thu và test:
 
 ## TA-03 — Lịch available/busy theo tuần
 
-- Trạng thái: TODO
-- Commit: —
+- Trạng thái: DONE (thanh.nguyen, 2026-07-18)
+- Commit: tra bằng `git log --oneline --grep='TA-03' -1`
 - Mock: `availability.html`. API: tutor availabilities. Flow 2.
+- Evidence: tutor-app lint sạch + build xanh + test 87 pass (thêm `lib/availability/availability` mapper/overlap/grid/validation, `AvailabilityPage` create/delete/overlap/optimistic-rollback, regression `ApiClient` fetch-binding). Dựng grid tuần (bảng giờ × 7 ngày) + list responsive, modal thêm khung giờ, optimistic UI có rollback qua react-query. **Chốt quy ước `day_of_week` 0=T2..6=CN và loại lịch available/busy (bỏ online/offline của mock)** — cập nhật `ai-docs/05`, `ai-tasks/05`. **E2E smoke browser thật (Playwright + Chrome, API dockerized)**: `e2e/availability.e2e.ts` đăng nhập OTP → thêm khung Thứ Sáu 07:00–08:00 (POST 201) → thấy trong list → xóa (DELETE 200); `e2e/profile.e2e.ts` (TA-02) tải hồ sơ — cả hai xanh, thỏa DoD browser-smoke mới. `verify-flow-02` pass end-to-end trên Docker gồm case mới 2b (end<start → `VALIDATION_ERROR` 400/422), 2c (xóa slot lạ → 404 fail-closed), 2d (xóa slot của mình → 200). Checklist 🟢: A01/API1 bổ sung evidence availability; A03/D7 (app) đã đạt từ trước. Backend không đổi behavior (endpoint đã có). Kèm foundational fix R-01 (`fetch.bind`) cho tutor-app + tutor-market.
 
 Scope:
 

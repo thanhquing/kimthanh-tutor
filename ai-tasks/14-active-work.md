@@ -8,9 +8,9 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-03` |
+| Task | `TA-04` |
 | App | `tutor-app` |
-| Title | Lịch available/busy theo tuần |
+| Title | Dashboard "việc cần làm hôm nay" |
 | Source | `ai-tasks/10-tutor-app-task-list.md` |
 | Status | `TODO` |
 | Owner | — |
@@ -18,15 +18,15 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 | Branch/worktree | — |
 | Blocker | — |
 
-Lệnh cho AI mới: nhận đúng `TA-03`; không tự chuyển sang task khác.
+Lệnh cho AI mới: nhận đúng `TA-04`; không tự chuyển sang task khác.
 
 ## Last completed
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-02` — Hồ sơ gia sư, media và publish |
-| Commit | Tra bằng `git log --oneline --grep='TA-02' -1` |
-| Evidence | tutor-app lint + test (59, thêm `profile-form`/`media`/`ProfilePage`) + build xanh; contracts test pass (thêm media/publish shapes); tutor-api lint+build+test (99, thêm 2 test media status owner-safe/fail-closed) pass. Backend thêm owner-safe `GET /media/:id` (scan/moderation + signed read URL). `verify-flow-02-tutor-profile.sh` pass end-to-end trên Docker cô lập (`kt-ta02-flow02`, đã dọn sạch): create profile → GET own → reject fee min>max `400` → media upload-url `201` → media status pending → foreign media `404` → attach avatar → availability/payout → publish `published`. `verify-flow-11` pass (moderation queue thấy media flow-02, admin approve + audit). Checklist 🟢: A01/A10/D6 (app), API1 (api); nợ worker quét virus thuộc INFRA-04. Lưu ý: đã đồng bộ `tutor-api/package-lock.json` (thiếu `helmet@8.3.0` từ commit trước) để Docker verify build được. Browser visual skill không khả dụng trong phiên |
+| Task | `TA-03` — Lịch available/busy theo tuần |
+| Commit | Tra bằng `git log --oneline --grep='TA-03' -1` |
+| Evidence | tutor-app lint sạch + build xanh + test 87 pass; **E2E smoke browser thật (Playwright + Chrome, API dockerized) xanh**: `e2e/availability.e2e.ts` (TA-03: login→thêm/xóa khung giờ, POST 201/DELETE 200) + `e2e/profile.e2e.ts` (TA-02: tải hồ sơ). Dựng `lib/availability` mapper/overlap/grid/validation + `AvailabilityPage` (grid tuần + list + modal, optimistic rollback). Chốt quy ước `day_of_week` 0=T2..6=CN và loại lịch available/busy — cập nhật `ai-docs/05`, `ai-tasks/05`. `verify-flow-02` pass gồm case mới 2b/2c/2d. **Kèm foundational fix R-01** (`ApiClient` bind native fetch, tutor-app + tutor-market) + harness Playwright (R-02/R-03 phần tutor-app) — xem `16-remediation-backlog.md`. 3 commit: process (`b931f31`), backlog (`9721b49`), rồi fix + harness + TA-03. Browser visual skill không khả dụng nên dùng Playwright/Chrome headless làm bằng chứng |
 
 ## Global queue
 

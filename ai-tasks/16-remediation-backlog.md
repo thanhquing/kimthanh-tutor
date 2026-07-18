@@ -12,10 +12,10 @@ Các task frontend được chứng nhận `DONE` bằng **unit/component test (
 
 | ID | Ưu tiên | Vấn đề | Phạm vi / task chạm | Trạng thái |
 | --- | --- | --- | --- | --- |
-| R-01 | P0 | `ApiClient` lưu native `fetch` vào field rồi gọi `this.fetcher(...)` → `this = ApiClient` → `TypeError: Illegal invocation`, **hỏng mọi API call trên browser**, không có entry Network | `tutor-app` (TA-00 client, dùng bởi TA-01/02/03); `tutor-market` (TM-00 client) | tutor-app: ✅ fixed (chờ commit TA-03/foundational); **tutor-market: ❌ OPEN**; tutor-admin: ✅ đúng sẵn (chuẩn tham chiếu) |
-| R-02 | P1 | Không có E2E smoke browser thật cho bất kỳ màn FE nào; task `DONE` chỉ bằng unit test + cURL | TA-00, TA-01, TA-02, TA-03, TM-00, AD-00 | ⚪ OPEN — cần smoke hồi tố |
-| R-03 | P1 | Chưa có harness Playwright trong 3 app (chạy headless với API dockerized) | `tutor-app`, `tutor-market`, `tutor-admin` | ⚪ OPEN (hạ tầng test) |
-| R-04 | P1 | Thiếu test ranh giới bằng implementation thật cho `ApiClient` (bắt lỗi unbound `fetch`) | tutor-app: ✅ đã thêm regression; tutor-market/tutor-admin: cần test tương đương | 🟡 một phần |
+| R-01 | P0 | `ApiClient` lưu native `fetch` vào field rồi gọi `this.fetcher(...)` → `this = ApiClient` → `TypeError: Illegal invocation`, **hỏng mọi API call trên browser**, không có entry Network | `tutor-app` (TA-00 client, dùng bởi TA-01/02/03); `tutor-market` (TM-00 client) | ✅ **DONE** — tutor-app + tutor-market fix `fetch.bind(globalThis)` + regression test; tutor-admin đúng sẵn (chuẩn tham chiếu) |
+| R-02 | P1 | Không có E2E smoke browser thật cho bất kỳ màn FE nào; task `DONE` chỉ bằng unit test + cURL | TA-00, TA-01, TA-02, TA-03, TM-00, AD-00 | 🟡 tutor-app: smoke TA-02 (profile) + TA-03 (availability) ✅; **tutor-market/tutor-admin còn OPEN** |
+| R-03 | P1 | Chưa có harness Playwright trong 3 app (chạy headless với API dockerized) | `tutor-app`, `tutor-market`, `tutor-admin` | 🟡 tutor-app: ✅ harness (`playwright.config.ts` + `e2e/`, Chrome hệ thống, seed API); tutor-market/tutor-admin còn OPEN |
+| R-04 | P1 | Thiếu test ranh giới bằng implementation thật cho `ApiClient` (bắt lỗi unbound `fetch`) | tutor-app ✅ + tutor-market ✅ regression; tutor-admin đúng sẵn nhưng chưa có test khẳng định | 🟡 gần xong (thiếu test khẳng định cho tutor-admin) |
 | R-05 | P2 | Chưa chốt chiến lược phiên đăng nhập: memory-only (reload = login lại) vs refresh cookie HttpOnly cho tutor/parent | `tutor-app`, `tutor-market`, `tutor-api` auth | ⚪ OPEN — quyết định sản phẩm (`04-open-questions.md`) |
 | R-06 | P2 | Chạy dev local dính CORS + IPv4/IPv6 (Vite bind `::1`, API IPv4, CORS thiếu `localhost`) | tutor-app: ✅ dev proxy; tutor-market/tutor-admin: cần cùng ergonomics + README | 🟡 một phần |
 

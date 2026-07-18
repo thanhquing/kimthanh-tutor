@@ -99,11 +99,10 @@ Trường chính:
 
 - `id`
 - `tutor_profile_id`
-- `day_of_week`
-- `start_time`
-- `end_time`
-- `type`: busy, available
-- `note`
+- `day_of_week`: số nguyên 0..6, quy ước **0 = Thứ Hai (T2) … 5 = Thứ Bảy (T7), 6 = Chủ Nhật (CN)** (tuần bắt đầu từ Thứ Hai theo lịch VN). Mọi client hiển thị theo quy ước này; không dùng `Date.getDay()` (Chủ Nhật = 0) làm giá trị lưu.
+- `start_time`, `end_time`: chuỗi `HH:mm` (24h), ràng buộc `start_time < end_time`.
+- `type`: `available` (rảnh, có thể nhận dạy) | `busy` (bận: lịch học ở trường, lớp đang dạy…). Đây là hai loại lịch; KHÔNG dùng `online`/`offline` làm loại lịch (hình thức dạy thuộc hồ sơ gia sư).
+- `note`: ghi chú tùy chọn ≤ 200 ký tự.
 
 ### ProfileUnlock
 

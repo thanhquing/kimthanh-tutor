@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ToastProvider } from "@/components/primitives";
+import { AuthProvider } from "@/lib/auth/AuthProvider";
 import { absoluteUrl } from "@/lib/config";
 
 export const metadata: Metadata = {
@@ -21,10 +22,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" />
       </head>
       <body>
-        <ToastProvider>
-          <SiteHeader />
-          <main className="site-main">{children}</main>
-        </ToastProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <SiteHeader />
+            <main className="site-main">{children}</main>
+          </ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );

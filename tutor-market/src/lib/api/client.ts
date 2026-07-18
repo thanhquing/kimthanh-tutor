@@ -84,4 +84,10 @@ export class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient();
+// Token phiên giữ trong bộ nhớ (không localStorage — chống XSS đọc trộm).
+export const appTokenStore = createMemoryTokenStore();
+
+// Trên browser gọi cùng-origin `/api/v1` (Next rewrite → API), tránh cross-origin.
+// Trên server (SSR) dùng base tuyệt đối từ config.
+const browserApiBase = typeof window !== "undefined" ? "/api/v1" : marketConfig.apiBaseUrl;
+export const apiClient = new ApiClient({ baseUrl: browserApiBase, tokenStore: appTokenStore });

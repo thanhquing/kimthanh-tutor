@@ -5,6 +5,7 @@ import { apiRaw } from "./api";
 
 // Định danh TÀI KHOẢN test (không phải thông tin DB). Override qua env khi cần.
 export const E2E_TUTOR_EMAIL = process.env.E2E_TUTOR_EMAIL || "tutor.e2e@gmail.com";
+export const E2E_PARENT_EMAIL = process.env.E2E_PARENT_EMAIL || "parent.e2e@gmail.com";
 export const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || "admin.e2e@example.com";
 // id char(26) cố định cho tài khoản admin (không cần đúng ULID; upsert theo email).
 const ADMIN_ID = "e2eadmin000000000000000000";
@@ -90,6 +91,40 @@ export async function ensureTutorAccount(password: string, email = E2E_TUTOR_EMA
       },
     });
   }
+}
+
+/** Đăng ký + verify + reset password (đưa về run hiện tại) + login + consent → token. */
+async function registerVerifyLoginConsent(email: string, password: string): Promise<string> {
+  await apiRaw("/auth/register", { method: "POST", body: { email, password } });
+  const resend = await apiRaw("/auth/email/verify/resend", { method: "POST", body: { email } });
+  const verifyToken = tokenFromLink(resend.body.dev_verification_link);
+  if (verifyToken) await apiRaw("/auth/email/verify", { method: "POST", body: { token: verifyToken } });
+  const forgot = await apiRaw("/auth/password/forgot", { method: "POST", body: { email } });
+  const resetToken = tokenFromLink(forgot.body.dev_reset_link);
+  if (resetToken) await apiRaw("/auth/password/reset", { method: "POST", body: { token: resetToken, password } });
+
+  const login = await apiRaw("/auth/login", { method: "POST", body: { email, password } });
+  const token = String(login.body.access_token ?? "");
+
+  const docs = await apiRaw("/legal/documents/active");
+  const terms = docs.body.terms as { id: string };
+  const privacy = docs.body.privacy as { id: string };
+  await apiRaw("/legal/consents", {
+    method: "POST",
+    token,
+    body: {
+      terms_document_id: terms.id,
+      privacy_document_id: privacy.id,
+      scroll_reached_bottom: true,
+      consent_method: "scroll_and_click",
+    },
+  });
+  return token;
+}
+
+/** Phụ huynh đã verify + đúng password + đã consent (status active) để vào khu vực private. */
+export async function ensureParentAccount(password: string, email = E2E_PARENT_EMAIL): Promise<void> {
+  await registerVerifyLoginConsent(email, password);
 }
 
 /**

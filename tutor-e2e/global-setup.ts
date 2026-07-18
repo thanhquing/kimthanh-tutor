@@ -1,6 +1,6 @@
 import { API_HEALTH } from "./e2e/lib/api";
 import { provisionSecrets } from "./e2e/lib/secrets";
-import { ensureAdminAccount, ensureTutorAccount, seedLegalDocs } from "./e2e/lib/seed";
+import { ensureAdminAccount, ensureParentAccount, ensureTutorAccount, seedLegalDocs } from "./e2e/lib/seed";
 
 export default async function globalSetup() {
   const health = await fetch(API_HEALTH).catch(() => null);
@@ -14,5 +14,6 @@ export default async function globalSetup() {
     // Không seed được qua docker (vd container khác tên) → giả định đã seed sẵn.
   }
   await ensureTutorAccount(userPassword);
+  await ensureParentAccount(userPassword);
   await ensureAdminAccount(adminPassword);
 }

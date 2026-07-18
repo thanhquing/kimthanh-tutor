@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsNotEmpty, IsString, Length, MaxLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, Length, MaxLength } from 'class-validator';
 
 export class AdminPasswordLoginDto {
   @IsEmail()
@@ -10,23 +10,55 @@ export class AdminPasswordLoginDto {
   password!: string;
 }
 
-export class RequestOtpDto {
-  @IsIn(['sms', 'email'])
-  channel!: 'sms' | 'email';
+export class RegisterDto {
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
 
   @IsString()
-  @IsNotEmpty()
-  destination!: string; // SĐT hoặc email
+  @Length(8, 128)
+  password!: string;
 }
 
-export class VerifyOtpDto {
-  @IsString()
-  @IsNotEmpty()
-  request_id!: string;
+export class LoginDto {
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
 
   @IsString()
-  @Length(6, 6)
-  code!: string;
+  @IsNotEmpty()
+  @MaxLength(128)
+  password!: string;
+}
+
+export class VerifyEmailDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(256)
+  token!: string;
+}
+
+export class ResendVerificationDto {
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
+}
+
+export class ForgotPasswordDto {
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
+}
+
+export class ResetPasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(256)
+  token!: string;
+
+  @IsString()
+  @Length(8, 128)
+  password!: string;
 }
 
 export class RefreshDto {

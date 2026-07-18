@@ -8,10 +8,14 @@ import { ErrorCode } from '../../common/errors/error-codes';
 import {
   AdminPasswordLoginDto,
   FacebookOAuthDto,
+  ForgotPasswordDto,
   GoogleOAuthDto,
+  LoginDto,
   RefreshDto,
-  RequestOtpDto,
-  VerifyOtpDto,
+  RegisterDto,
+  ResendVerificationDto,
+  ResetPasswordDto,
+  VerifyEmailDto,
 } from './dto/auth.dto';
 import { AllowStatus, Public } from '../../common/auth/roles.decorator';
 import { CurrentUser, AuthUser } from '../../common/auth/auth-user';
@@ -60,18 +64,46 @@ export class AuthController {
   }
 
   @Public()
-  // Chống SMS-pumping/spam OTP: siết theo IP (13-security). 5 lần / 5 phút.
+  // Chống spam đăng ký/gửi email: siết theo IP (13-security). 5 lần / 5 phút.
   @Throttle({ default: { ttl: 300_000, limit: 5 } })
-  @Post('otp/request')
-  requestOtp(@Body() dto: RequestOtpDto, @Ip() ip: string) {
-    return this.auth.requestOtp(dto.channel, dto.destination, ip);
+  @Post('register')
+  register(@Body() dto: RegisterDto) {
+    return this.auth.register(dto.email, dto.password);
   }
 
   @Public()
   @Throttle({ default: { ttl: 300_000, limit: 10 } })
-  @Post('otp/verify')
-  verifyOtp(@Body() dto: VerifyOtpDto, @Ip() ip: string) {
-    return this.auth.verifyOtp(dto.request_id, dto.code, ip);
+  @Post('login')
+  login(@Body() dto: LoginDto, @Ip() ip: string) {
+    return this.auth.login(dto.email, dto.password, ip);
+  }
+
+  @Public()
+  @Throttle({ default: { ttl: 300_000, limit: 30 } })
+  @Post('email/verify')
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.auth.verifyEmail(dto.token);
+  }
+
+  @Public()
+  @Throttle({ default: { ttl: 300_000, limit: 5 } })
+  @Post('email/verify/resend')
+  resendVerification(@Body() dto: ResendVerificationDto) {
+    return this.auth.resendVerification(dto.email);
+  }
+
+  @Public()
+  @Throttle({ default: { ttl: 300_000, limit: 5 } })
+  @Post('password/forgot')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.forgotPassword(dto.email);
+  }
+
+  @Public()
+  @Throttle({ default: { ttl: 300_000, limit: 10 } })
+  @Post('password/reset')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto.token, dto.password);
   }
 
   @Public()

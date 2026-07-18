@@ -14,6 +14,7 @@ datasource db {
 
 // ---------- Enums ----------
 enum UserStatus {
+  pending_verification
   pending_consent
   active
   suspended
@@ -161,14 +162,15 @@ enum PaidFeature {
 
 // ---------- Core ----------
 model User {
-  id        String     @id @db.Char(26)
-  phone     String?    @unique
-  email     String?    @unique
-  roles     String[]   @default([])
-  status    UserStatus @default(pending_consent)
-  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt DateTime?  @map("deleted_at") @db.Timestamptz
+  id              String     @id @db.Char(26)
+  phone           String?    @unique
+  email           String?    @unique
+  emailVerifiedAt DateTime?  @map("email_verified_at") @db.Timestamptz
+  roles           String[]   @default([])
+  status          UserStatus @default(pending_consent)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime?  @map("deleted_at") @db.Timestamptz
 
   parentProfile        ParentProfile?
   tutorProfile         TutorProfile?
@@ -180,10 +182,45 @@ model User {
   refreshTokens        RefreshToken[]
   authAccounts         AuthAccount[]
   adminCredential      AdminCredential?
+  userCredential       UserCredential?
+  emailTokens          EmailToken[]
   paidFeatureOverrides PaidFeatureOverride[]
 
   @@index([status])
   @@map("users")
+}
+
+// Mật khẩu parent/tutor (email + password). Cùng scrypt như admin nhưng bảng
+// riêng để không lẫn credential quản trị. Đăng nhập chính lâu dài là OAuth.
+model UserCredential {
+  userId            String    @id @map("user_id") @db.Char(26)
+  passwordHash      String    @map("password_hash")
+  failedAttempts    Int       @default(0) @map("failed_attempts")
+  lockedUntil       DateTime? @map("locked_until") @db.Timestamptz
+  passwordChangedAt DateTime  @default(now()) @map("password_changed_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_credentials")
+}
+
+// Token gửi qua email cho xác thực email (type=verify) và đặt lại mật khẩu
+// (type=reset). Lưu HASH, hết hạn, dùng một lần (13-security).
+model EmailToken {
+  id         String    @id @db.Char(26)
+  userId     String    @map("user_id") @db.Char(26)
+  type       String // verify | reset
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz
+  consumedAt DateTime? @map("consumed_at") @db.Timestamptz
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@map("email_tokens")
 }
 
 model AdminCredential {

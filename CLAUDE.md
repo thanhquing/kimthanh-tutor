@@ -110,7 +110,7 @@ Danh sách module & ranh giới đầy đủ: `ai-docs/15` §3. Catalog endpoint
 
 ## 6. Guardrail sản phẩm (không được vi phạm)
 
-- **Auth người dùng**: Google/Facebook OAuth là đường đăng ký/đăng nhập **chính**. OTP SĐT chỉ là fallback/local, mã cố định `272727` ở non-production cho tới khi có provider OTP thật. `tutor-admin` dùng credential email/password riêng đã provision ngoài UI; không mở đăng ký password cho parent/tutor.
+- **Auth người dùng**: Google/Facebook OAuth là đích **chính về lâu dài** (bật đầy đủ khi có app client). Hiện chưa có client id nên phương thức **hoạt động là email + password**: đăng ký `POST /auth/register` (chỉ email `@gmail.com` hoặc domain chứa `edu`), **bắt buộc verify email qua link** trước khi active (`pending_verification → pending_consent → active`), đăng nhập `POST /auth/login`, quên mật khẩu qua email (`/auth/password/forgot` → `/auth/password/reset`, token hash/hết hạn/dùng-một-lần). **SĐT chỉ để liên hệ, KHÔNG đăng nhập** (đã bỏ OTP-SMS để giảm chi phí infra). Email giao dịch gửi qua **Resend** (`RESEND_API_KEY`); non-prod thiếu key → trả `dev_verification_link`/`dev_reset_link` để test. `tutor-admin` vẫn dùng credential email/password provision ngoài UI (bảng riêng `admin_credentials`).
 - **Không thu hộ học phí**: hệ thống chỉ tạo QR/link theo thông tin gia sư nhập và ghi trạng thái "gia sư đã đánh dấu đã thu". QR phải nhắc rõ hệ thống **không** xác nhận tiền vào ngân hàng.
 - **Không lưu CCCD** trong giai đoạn 1.
 - **Consent pháp lý** là bước chặn bắt buộc, không bỏ qua bằng giao diện; có versioning cho điều khoản/chính sách/consent.

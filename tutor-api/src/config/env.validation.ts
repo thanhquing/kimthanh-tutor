@@ -31,6 +31,17 @@ const base = {
   FACEBOOK_APP_ID: z.string().default(''),
   FACEBOOK_APP_SECRET: z.string().default(''),
 
+  PASSWORD_MIN_LENGTH: z.coerce.number().int().positive().default(8),
+  PASSWORD_MAX_LENGTH: z.coerce.number().int().positive().default(128),
+
+  // Email giao dịch (Resend). Ở production bắt buộc có API key + from; dev/test
+  // thiếu key → fallback trả link trực tiếp (dev) để test.
+  RESEND_API_KEY: z.string().default(''),
+  MAIL_FROM: z.string().default('Kim Thành Tutor <no-reply@kimthanh.tutor>'),
+  APP_BASE_URL: z.string().default('http://localhost:5173'),
+  MAIL_VERIFY_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),
+  MAIL_RESET_TTL_SECONDS: z.coerce.number().int().positive().default(3_600),
+
   CONSENT_STORE_IP: z.enum(['true', 'false']).default('true'),
   CONSENT_STORE_USER_AGENT: z.enum(['true', 'false']).default('true'),
 

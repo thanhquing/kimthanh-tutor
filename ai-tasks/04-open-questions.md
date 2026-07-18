@@ -4,6 +4,7 @@ Cần chốt trước khi triển khai thật.
 
 ## Đã chốt (không mở nữa)
 
+- ✅ **Auth parent/tutor**: OAuth Google/Facebook là đích chính lâu dài; hiện chưa có app client nên **email + password** là phương thức hoạt động. Chỉ nhận email `@gmail.com` hoặc domain chứa `edu`. **Bắt buộc verify email** trước khi active. Quên mật khẩu qua email link (Resend). **SĐT chỉ để liên hệ, bỏ đăng nhập OTP-SMS** (giảm chi phí infra). Chi tiết endpoint: `05-api-endpoints.md`.
 - ✅ Mở khóa từng hồ sơ: **vĩnh viễn** với hồ sơ đó (`expires_at = null`).
 - ✅ Gói theo dõi tính theo **từng học sinh** (`scope_ref_id = student_id`).
 - ✅ Stack `tutor-api`: **NestJS + PostgreSQL + Prisma**.

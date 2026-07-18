@@ -6,14 +6,12 @@ import { AppException } from '../../common/errors/app.exception';
 import { ErrorCode } from '../../common/errors/error-codes';
 import { newId } from '../../common/utils/id.util';
 import {
-  generateOtpCode,
-  hashOtp,
   hashPassword,
   randomToken,
-  safeEqualHex,
   sha256,
   verifyPassword,
 } from '../../common/utils/hash.util';
+import { MailService } from '../mail/mail.service';
 
 export interface TokenPair {
   access_token: string;
@@ -39,14 +37,18 @@ interface VerifiedOAuthProfile {
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private dummyAdminPasswordHash: Promise<string> | null = null;
+  private dummyUserPasswordHash: Promise<string> | null = null;
   private readonly adminLockThreshold = 5;
   private readonly adminLockDurationMs = 15 * 60_000;
+  private readonly userLockThreshold = 10;
+  private readonly userLockDurationMs = 15 * 60_000;
   private readonly refreshConcurrencyGraceMs = 5_000;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {}
 
   async adminPasswordLogin(email: string, password: string, ip?: string) {
@@ -122,85 +124,269 @@ export class AuthService {
     }
   }
 
-  // POST /auth/otp/request — tạo OTP, lưu hash (13-security: không plaintext).
-  async requestOtp(channel: 'sms' | 'email', destination: string, ip?: string) {
-    const ttl = this.config.get<number>('otp.ttlSeconds') ?? 300;
-    const id = newId();
-    const code =
-      this.config.get<string>('env') === 'production' ? generateOtpCode() : '272727';
-    const expiresAt = new Date(Date.now() + ttl * 1000);
-    const normalized = destination.trim().toLowerCase();
+  // ---- Email + password auth (đăng nhập chính hiện tại; OAuth là đích lâu dài) ----
 
-    await this.prisma.otpRequest.create({
-      data: {
-        id,
-        channel,
-        destination: normalized,
-        codeHash: hashOtp(code, id),
-        expiresAt,
-        requestIp: ip ?? null,
-      },
-    });
-
-    // TODO(worker): gửi OTP qua provider SMS/email. Dev: log để test.
-    if (this.config.get<string>('env') !== 'production') {
-      this.logger.warn(`[DEV] OTP ${channel} cho ${normalized} = ${code}`);
-    }
-
-    return {
-      request_id: id,
-      expires_at: expiresAt.toISOString(),
-      ...(this.config.get<string>('env') !== 'production'
-        ? { dev_code: code }
-        : {}),
-    };
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
   }
 
-  // POST /auth/otp/verify — kiểm tra OTP, tạo/lấy user, cấp token.
-  async verifyOtp(requestId: string, code: string, ip?: string) {
-    const otp = await this.prisma.otpRequest.findUnique({
-      where: { id: requestId },
+  // Chỉ chấp nhận Gmail hoặc email trường học (domain chứa nhãn `edu`).
+  private assertAllowedEmailDomain(email: string): void {
+    const domain = email.split('@')[1] ?? '';
+    const allowed = domain === 'gmail.com' || /(^|\.)edu(\.|$)/.test(domain);
+    if (!allowed) {
+      throw new AppException(
+        ErrorCode.VALIDATION_ERROR,
+        'Chỉ chấp nhận email Gmail hoặc email trường học (.edu).',
+      );
+    }
+  }
+
+  private assertPasswordPolicy(password: string): void {
+    const min = this.config.get<number>('password.minLength') ?? 8;
+    const max = this.config.get<number>('password.maxLength') ?? 128;
+    if (password.length < min || password.length > max) {
+      throw new AppException(
+        ErrorCode.VALIDATION_ERROR,
+        `Mật khẩu phải từ ${min} đến ${max} ký tự.`,
+      );
+    }
+  }
+
+  private buildEmailLink(kind: 'verify' | 'reset', token: string): string {
+    const base = this.config.get<string>('mail.appBaseUrl')!;
+    const path = kind === 'verify' ? 'verify-email' : 'reset-password';
+    return `${base}/${path}?token=${encodeURIComponent(token)}`;
+  }
+
+  // Non-prod trả link trực tiếp để test khi chưa có SMTP thật.
+  private devLink(kind: 'verify' | 'reset', token: string): string | undefined {
+    if (this.config.get<string>('env') === 'production') return undefined;
+    return this.buildEmailLink(kind, token);
+  }
+
+  private async createEmailToken(userId: string, type: 'verify' | 'reset'): Promise<string> {
+    const token = randomToken();
+    const ttl =
+      type === 'verify'
+        ? this.config.get<number>('mail.verifyTtlSeconds') ?? 86_400
+        : this.config.get<number>('mail.resetTtlSeconds') ?? 3_600;
+    // Vô hiệu token cùng loại chưa dùng: mỗi lúc chỉ một link còn sống.
+    await this.prisma.emailToken.updateMany({
+      where: { userId, type, consumedAt: null },
+      data: { consumedAt: new Date() },
     });
-    if (!otp) {
-      throw new AppException(ErrorCode.RESOURCE_NOT_FOUND, 'OTP không tồn tại');
-    }
-    if (otp.consumedAt) {
-      throw new AppException(ErrorCode.VALIDATION_ERROR, 'OTP đã dùng');
-    }
-    if (otp.expiresAt.getTime() < Date.now()) {
-      throw new AppException(ErrorCode.VALIDATION_ERROR, 'OTP đã hết hạn');
-    }
-    const maxAttempts = this.config.get<number>('otp.maxAttempts') ?? 5;
-    if (otp.attempts >= maxAttempts) {
-      throw new AppException(ErrorCode.RATE_LIMITED, 'Nhập sai quá số lần');
-    }
+    await this.prisma.emailToken.create({
+      data: {
+        id: newId(),
+        userId,
+        type,
+        tokenHash: sha256(token),
+        expiresAt: new Date(Date.now() + ttl * 1000),
+      },
+    });
+    return token;
+  }
 
-    const ok = safeEqualHex(otp.codeHash, hashOtp(code, otp.id));
-    if (!ok) {
-      await this.prisma.otpRequest.update({
-        where: { id: otp.id },
-        data: { attempts: { increment: 1 } },
-      });
-      throw new AppException(ErrorCode.VALIDATION_ERROR, 'OTP sai');
+  // Tiêu thụ token email nguyên tử (chống double-redeem); kiểm loại + hạn.
+  private async consumeEmailToken(token: string, type: 'verify' | 'reset') {
+    const record = await this.prisma.emailToken.findUnique({
+      where: { tokenHash: sha256(token) },
+    });
+    if (!record || record.type !== type) {
+      throw new AppException(ErrorCode.VALIDATION_ERROR, 'Liên kết không hợp lệ.');
     }
-
-    // Tiêu thụ OTP nguyên tử: chỉ 1 request thắng (chống double-redeem race).
-    const consumed = await this.prisma.otpRequest.updateMany({
-      where: { id: otp.id, consumedAt: null },
+    if (record.consumedAt) {
+      throw new AppException(ErrorCode.VALIDATION_ERROR, 'Liên kết đã được sử dụng.');
+    }
+    if (record.expiresAt.getTime() < Date.now()) {
+      throw new AppException(ErrorCode.VALIDATION_ERROR, 'Liên kết đã hết hạn.');
+    }
+    const consumed = await this.prisma.emailToken.updateMany({
+      where: { id: record.id, consumedAt: null },
       data: { consumedAt: new Date() },
     });
     if (consumed.count !== 1) {
-      throw new AppException(ErrorCode.VALIDATION_ERROR, 'OTP đã dùng');
+      throw new AppException(ErrorCode.VALIDATION_ERROR, 'Liên kết đã được sử dụng.');
+    }
+    return record;
+  }
+
+  // POST /auth/register
+  async register(email: string, password: string) {
+    const normalizedEmail = this.normalizeEmail(email);
+    this.assertAllowedEmailDomain(normalizedEmail);
+    this.assertPasswordPolicy(password);
+
+    const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing && !existing.deletedAt) {
+      throw new AppException(ErrorCode.CONFLICT, 'Email đã được đăng ký.');
     }
 
-    const user = await this.resolveUser(otp.channel, otp.destination);
+    const passwordHash = await hashPassword(password);
+    const user = existing
+      ? await this.prisma.user.update({
+          where: { id: existing.id },
+          data: { status: 'pending_verification', emailVerifiedAt: null, deletedAt: null },
+        })
+      : await this.prisma.user.create({
+          data: {
+            id: newId(),
+            email: normalizedEmail,
+            roles: [],
+            status: 'pending_verification',
+          },
+        });
+    await this.prisma.userCredential.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, passwordHash },
+      update: { passwordHash, failedAttempts: 0, lockedUntil: null, passwordChangedAt: new Date() },
+    });
 
+    const token = await this.createEmailToken(user.id, 'verify');
+    await this.mail.sendVerificationEmail(normalizedEmail, this.buildEmailLink('verify', token));
+    const devLink = this.devLink('verify', token);
+    return {
+      user: { id: user.id, email: user.email, status: user.status },
+      verification_required: true,
+      ...(devLink ? { dev_verification_link: devLink } : {}),
+    };
+  }
+
+  // POST /auth/email/verify
+  async verifyEmail(token: string) {
+    const record = await this.consumeEmailToken(token, 'verify');
+    const user = await this.prisma.user.findUnique({ where: { id: record.userId } });
+    if (!user || user.deletedAt) {
+      throw new AppException(ErrorCode.RESOURCE_NOT_FOUND, 'Tài khoản không tồn tại');
+    }
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
+        status: user.status === 'pending_verification' ? 'pending_consent' : user.status,
+      },
+    });
+    return { verified: true };
+  }
+
+  // POST /auth/email/verify/resend — luôn 200 (chống dò email tồn tại).
+  async resendVerification(email: string) {
+    const normalizedEmail = this.normalizeEmail(email);
+    const user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
+    let devLink: string | undefined;
+    if (user && !user.deletedAt && user.status === 'pending_verification') {
+      const token = await this.createEmailToken(user.id, 'verify');
+      await this.mail.sendVerificationEmail(normalizedEmail, this.buildEmailLink('verify', token));
+      devLink = this.devLink('verify', token);
+    }
+    return { ok: true, ...(devLink ? { dev_verification_link: devLink } : {}) };
+  }
+
+  // POST /auth/login
+  async login(email: string, password: string, ip?: string) {
+    const normalizedEmail = this.normalizeEmail(email);
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      include: { userCredential: true },
+    });
+    const credential = user?.userCredential ?? null;
+    if (!credential && !this.dummyUserPasswordHash) {
+      this.dummyUserPasswordHash = hashPassword(randomToken());
+    }
+    const passwordMatches = await verifyPassword(
+      password,
+      credential?.passwordHash ?? (await this.dummyUserPasswordHash!),
+    );
+
+    if (credential?.lockedUntil && credential.lockedUntil.getTime() > Date.now()) {
+      throw new AppException(ErrorCode.RATE_LIMITED, 'Đăng nhập tạm khóa, vui lòng thử lại sau');
+    }
+    if (!user || !credential || !passwordMatches) {
+      if (credential) await this.recordUserLoginFailure(credential.userId);
+      throw new AppException(ErrorCode.AUTH_REQUIRED, 'Email hoặc mật khẩu không đúng');
+    }
+    if (user.deletedAt || user.status === 'deleted' || user.status === 'suspended') {
+      throw new AppException(ErrorCode.AUTH_REQUIRED, 'Tài khoản không khả dụng');
+    }
+    if (!user.emailVerifiedAt || user.status === 'pending_verification') {
+      throw new AppException(ErrorCode.EMAIL_NOT_VERIFIED, 'Email chưa được xác thực.');
+    }
+
+    await this.prisma.userCredential.update({
+      where: { userId: user.id },
+      data: { failedAttempts: 0, lockedUntil: null },
+    });
     const tokens = await this.issueTokens(user.id, ip);
     return {
       ...tokens,
       user: { id: user.id, phone: user.phone, email: user.email, status: user.status },
       consent_required: user.status === 'pending_consent',
     };
+  }
+
+  private async recordUserLoginFailure(userId: string): Promise<void> {
+    for (;;) {
+      const current = await this.prisma.userCredential.findUnique({
+        where: { userId },
+        select: { failedAttempts: true, lockedUntil: true },
+      });
+      if (!current) return;
+      if (current.lockedUntil && current.lockedUntil.getTime() > Date.now()) return;
+      const nextAttempts = current.failedAttempts + 1;
+      const updated = await this.prisma.userCredential.updateMany({
+        where: { userId, failedAttempts: current.failedAttempts, lockedUntil: current.lockedUntil },
+        data: {
+          failedAttempts: nextAttempts,
+          lockedUntil:
+            nextAttempts >= this.userLockThreshold
+              ? new Date(Date.now() + this.userLockDurationMs)
+              : null,
+        },
+      });
+      if (updated.count === 1) return;
+    }
+  }
+
+  // POST /auth/password/forgot — luôn 200 (chống account enumeration).
+  async forgotPassword(email: string) {
+    const normalizedEmail = this.normalizeEmail(email);
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      include: { userCredential: true },
+    });
+    let devLink: string | undefined;
+    if (user && !user.deletedAt && user.userCredential) {
+      const token = await this.createEmailToken(user.id, 'reset');
+      await this.mail.sendPasswordResetEmail(normalizedEmail, this.buildEmailLink('reset', token));
+      devLink = this.devLink('reset', token);
+    }
+    return { ok: true, ...(devLink ? { dev_reset_link: devLink } : {}) };
+  }
+
+  // POST /auth/password/reset
+  async resetPassword(token: string, newPassword: string) {
+    this.assertPasswordPolicy(newPassword);
+    const record = await this.consumeEmailToken(token, 'reset');
+    const passwordHash = await hashPassword(newPassword);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.userCredential.upsert({
+        where: { userId: record.userId },
+        create: { userId: record.userId, passwordHash },
+        update: {
+          passwordHash,
+          failedAttempts: 0,
+          lockedUntil: null,
+          passwordChangedAt: new Date(),
+        },
+      });
+      // Đổi mật khẩu là sự kiện thu hồi: hủy mọi refresh token đang sống.
+      await tx.refreshToken.updateMany({
+        where: { userId: record.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    });
+    return { ok: true };
   }
 
   async oauthLogin(provider: OAuthProvider, token: string, ip?: string) {
@@ -222,45 +408,6 @@ export class AuthService {
       auth_provider: provider,
       consent_required: user.status === 'pending_consent',
     };
-  }
-
-  // Định danh user theo kênh OTP fallback. SMS = tạo/đăng nhập bằng SĐT;
-  // email chỉ đăng nhập tài khoản đã liên kết email. Chặn user đã xóa.
-  private async resolveUser(channel: string, destination: string) {
-    if (channel === 'email') {
-      const existing = await this.prisma.user.findUnique({
-        where: { email: destination },
-      });
-      if (!existing) {
-        throw new AppException(
-          ErrorCode.VALIDATION_ERROR,
-          'Email chưa liên kết tài khoản. Vui lòng đăng ký bằng SĐT (SMS).',
-        );
-      }
-      if (existing.deletedAt) {
-        throw new AppException(ErrorCode.FORBIDDEN_ROLE, 'Tài khoản đã bị xóa');
-      }
-      return existing;
-    }
-
-    // channel === 'sms'
-    const existing = await this.prisma.user.findUnique({
-      where: { phone: destination },
-    });
-    if (existing) {
-      if (existing.deletedAt) {
-        throw new AppException(ErrorCode.FORBIDDEN_ROLE, 'Tài khoản đã bị xóa');
-      }
-      return existing;
-    }
-    return this.prisma.user.create({
-      data: {
-        id: newId(),
-        phone: destination,
-        roles: [],
-        status: 'pending_consent',
-      },
-    });
   }
 
   private async resolveOAuthUser(profile: VerifiedOAuthProfile) {

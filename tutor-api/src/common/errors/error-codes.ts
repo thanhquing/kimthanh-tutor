@@ -1,6 +1,7 @@
 // Mã lỗi chuẩn — đối chiếu ai-docs/06-api-contract.md
 export enum ErrorCode {
   AUTH_REQUIRED = 'AUTH_REQUIRED',
+  EMAIL_NOT_VERIFIED = 'EMAIL_NOT_VERIFIED',
   CONSENT_REQUIRED = 'CONSENT_REQUIRED',
   PAYMENT_REQUIRED = 'PAYMENT_REQUIRED',
   SUBSCRIPTION_EXPIRED = 'SUBSCRIPTION_EXPIRED',
@@ -19,6 +20,7 @@ export enum ErrorCode {
 
 export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   [ErrorCode.AUTH_REQUIRED]: 401,
+  [ErrorCode.EMAIL_NOT_VERIFIED]: 403,
   [ErrorCode.CONSENT_REQUIRED]: 403,
   [ErrorCode.PAYMENT_REQUIRED]: 402,
   [ErrorCode.SUBSCRIPTION_EXPIRED]: 403,

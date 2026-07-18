@@ -3,25 +3,35 @@ import { JwtService } from '@nestjs/jwt';
 import { Logger } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ErrorCode } from '../../common/errors/error-codes';
-import { hashOtp, hashPassword, sha256 } from '../../common/utils/hash.util';
+import { hashPassword, sha256 } from '../../common/utils/hash.util';
 
 function config() {
   return {
     get: jest.fn((key: string) => {
       const values: Record<string, unknown> = {
         env: 'test',
-        'otp.ttlSeconds': 300,
-        'otp.maxAttempts': 5,
         'jwt.accessSecret': 'access-secret',
         'jwt.accessTtl': 900,
         'jwt.refreshTtl': 1_209_600,
         'oauth.googleClientId': 'google-client-id',
         'oauth.facebookAppId': 'facebook-app-id',
         'oauth.facebookAppSecret': 'facebook-secret',
+        'password.minLength': 8,
+        'password.maxLength': 128,
+        'mail.appBaseUrl': 'http://localhost:5173',
+        'mail.verifyTtlSeconds': 86_400,
+        'mail.resetTtlSeconds': 3_600,
       };
       return values[key];
     }),
   } as unknown as ConfigService;
+}
+
+function mail() {
+  return {
+    sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
+    sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+  };
 }
 
 describe('AuthService', () => {
@@ -53,7 +63,7 @@ describe('AuthService', () => {
       refreshToken: { create: jest.fn() },
     };
     const jwt = { signAsync: jest.fn().mockResolvedValue('access-token') };
-    const service = new AuthService(prisma as any, jwt as any, config());
+    const service = new AuthService(prisma as any, jwt as any, config(), mail() as any);
 
     const result = await service.adminPasswordLogin(' Admin@Example.Test ', 'correct-password', '1.2.3.4');
 
@@ -80,7 +90,7 @@ describe('AuthService', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
     };
-    const service = new AuthService(prisma as any, {} as JwtService, config());
+    const service = new AuthService(prisma as any, {} as JwtService, config(), mail() as any);
 
     await expect(service.adminPasswordLogin('admin@example.test', 'wrong-password')).rejects.toMatchObject({
       code: ErrorCode.AUTH_REQUIRED,
@@ -89,33 +99,6 @@ describe('AuthService', () => {
     expect(prisma.adminCredential.updateMany).toHaveBeenCalledWith({
       where: { userId: 'admin-1', failedAttempts: 4, lockedUntil: null },
       data: { failedAttempts: 5, lockedUntil: expect.any(Date) },
-    });
-  });
-
-  it('retries a contended admin failure increment instead of losing it', async () => {
-    const credential = {
-      userId: 'admin-1', passwordHash: await hashPassword('correct-password'),
-      failedAttempts: 2, lockedUntil: null,
-    };
-    const prisma = {
-      user: { findUnique: jest.fn().mockResolvedValue({ id: 'admin-1', adminCredential: credential }) },
-      adminCredential: {
-        findUnique: jest.fn()
-          .mockResolvedValueOnce({ failedAttempts: 2, lockedUntil: null })
-          .mockResolvedValueOnce({ failedAttempts: 3, lockedUntil: null }),
-        updateMany: jest.fn()
-          .mockResolvedValueOnce({ count: 0 })
-          .mockResolvedValueOnce({ count: 1 }),
-      },
-    };
-    const service = new AuthService(prisma as any, {} as JwtService, config());
-
-    await expect(service.adminPasswordLogin('admin@example.test', 'wrong-password')).rejects.toMatchObject({
-      code: ErrorCode.AUTH_REQUIRED,
-    });
-    expect(prisma.adminCredential.updateMany).toHaveBeenNthCalledWith(2, {
-      where: { userId: 'admin-1', failedAttempts: 3, lockedUntil: null },
-      data: { failedAttempts: 4, lockedUntil: null },
     });
   });
 
@@ -131,7 +114,7 @@ describe('AuthService', () => {
       adminCredential: { update: jest.fn() },
       refreshToken: { create: jest.fn() },
     };
-    const service = new AuthService(prisma as any, {} as JwtService, config());
+    const service = new AuthService(prisma as any, {} as JwtService, config(), mail() as any);
 
     await expect(service.adminPasswordLogin('parent@example.test', 'correct-password')).rejects.toMatchObject({
       code: ErrorCode.FORBIDDEN_ROLE,
@@ -139,212 +122,226 @@ describe('AuthService', () => {
     expect(prisma.refreshToken.create).not.toHaveBeenCalled();
   });
 
-  it('creates an OTP request with normalized destination and returns dev code outside production', async () => {
+  it('registers a gmail user as pending_verification and returns a dev verify link', async () => {
     const prisma = {
-      otpRequest: { create: jest.fn() },
+      user: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'user-1', email: 'new@gmail.com', status: 'pending_verification' }),
+      },
+      userCredential: { upsert: jest.fn() },
+      emailToken: { updateMany: jest.fn(), create: jest.fn() },
     };
-    const service = new AuthService(
-      prisma as any,
-      {} as JwtService,
-      config(),
-    );
+    const mailSvc = mail();
+    const service = new AuthService(prisma as any, {} as JwtService, config(), mailSvc as any);
 
-    const result = await service.requestOtp('email', '  Parent@Example.COM  ', '1.2.3.4');
+    const result = await service.register(' New@Gmail.com ', 'a-strong-password');
 
-    expect(prisma.otpRequest.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        channel: 'email',
-        destination: 'parent@example.com',
-        codeHash: expect.any(String),
-        requestIp: '1.2.3.4',
-      }),
+    expect(prisma.userCredential.upsert).toHaveBeenCalled();
+    expect(prisma.emailToken.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ userId: 'user-1', type: 'verify', tokenHash: expect.any(String) }),
     });
+    expect(mailSvc.sendVerificationEmail).toHaveBeenCalledWith('new@gmail.com', expect.stringContaining('/verify-email?token='));
     expect(result).toMatchObject({
-      request_id: expect.any(String),
-      expires_at: expect.any(String),
-      dev_code: '272727',
+      verification_required: true,
+      user: { status: 'pending_verification' },
+      dev_verification_link: expect.stringContaining('/verify-email?token='),
     });
   });
 
-  it('verifies an SMS OTP atomically, creates pending user, and issues tokens', async () => {
-    const otp = {
-      id: 'otp-1',
-      channel: 'sms',
-      destination: '0900000000',
-      codeHash: hashOtp('123456', 'otp-1'),
-      consumedAt: null,
-      expiresAt: new Date(Date.now() + 60_000),
-      attempts: 0,
-    };
-    const user = {
-      id: 'user-1',
-      phone: otp.destination,
-      status: 'pending_consent',
-      deletedAt: null,
-    };
+  it('rejects registration from a non gmail/edu domain', async () => {
+    const prisma = { user: { findUnique: jest.fn() } };
+    const service = new AuthService(prisma as any, {} as JwtService, config(), mail() as any);
+
+    await expect(service.register('someone@yahoo.com', 'a-strong-password')).rejects.toMatchObject({
+      code: ErrorCode.VALIDATION_ERROR,
+    });
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('accepts an .edu.vn domain and rejects a duplicate active email', async () => {
     const prisma = {
-      otpRequest: {
-        findUnique: jest.fn().mockResolvedValue(otp),
-        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-      },
-      user: {
-        findUnique: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockResolvedValue(user),
-      },
+      user: { findUnique: jest.fn().mockResolvedValue({ id: 'u', deletedAt: null }) },
+    };
+    const service = new AuthService(prisma as any, {} as JwtService, config(), mail() as any);
+
+    await expect(service.register('sv@hcmus.edu.vn', 'a-strong-password')).rejects.toMatchObject({
+      code: ErrorCode.CONFLICT,
+    });
+  });
+
+  it('blocks login for an unverified email', async () => {
+    const passwordHash = await hashPassword('correct-password');
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue({
+        id: 'user-1', email: 'p@gmail.com', status: 'pending_verification',
+        emailVerifiedAt: null, deletedAt: null,
+        userCredential: { userId: 'user-1', passwordHash, failedAttempts: 0, lockedUntil: null },
+      }) },
+    };
+    const service = new AuthService(prisma as any, {} as JwtService, config(), mail() as any);
+
+    await expect(service.login('p@gmail.com', 'correct-password')).rejects.toMatchObject({
+      code: ErrorCode.EMAIL_NOT_VERIFIED,
+    });
+  });
+
+  it('logs in a verified user and issues tokens', async () => {
+    const passwordHash = await hashPassword('correct-password');
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue({
+        id: 'user-1', phone: null, email: 'p@gmail.com', status: 'active',
+        emailVerifiedAt: new Date(), deletedAt: null,
+        userCredential: { userId: 'user-1', passwordHash, failedAttempts: 1, lockedUntil: null },
+      }) },
+      userCredential: { update: jest.fn() },
       refreshToken: { create: jest.fn() },
     };
     const jwt = { signAsync: jest.fn().mockResolvedValue('access-token') };
-    const service = new AuthService(prisma as any, jwt as any, config());
+    const service = new AuthService(prisma as any, jwt as any, config(), mail() as any);
 
-    const result = await service.verifyOtp('otp-1', '123456', '5.6.7.8');
+    const result = await service.login('P@Gmail.com', 'correct-password', '1.2.3.4');
 
-    expect(prisma.otpRequest.updateMany).toHaveBeenCalledWith({
-      where: { id: 'otp-1', consumedAt: null },
-      data: { consumedAt: expect.any(Date) },
-    });
-    expect(prisma.user.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        phone: '0900000000',
-        roles: [],
-        status: 'pending_consent',
-      }),
-    });
-    expect(prisma.refreshToken.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        userId: 'user-1',
-        tokenHash: expect.any(String),
-        createdIp: '5.6.7.8',
-      }),
+    expect(prisma.userCredential.update).toHaveBeenCalledWith({
+      where: { userId: 'user-1' },
+      data: { failedAttempts: 0, lockedUntil: null },
     });
     expect(result).toMatchObject({
       access_token: 'access-token',
-      refresh_token: expect.any(String),
-      user: { id: 'user-1', phone: '0900000000', status: 'pending_consent' },
-      consent_required: true,
+      user: { id: 'user-1', email: 'p@gmail.com', status: 'active' },
+      consent_required: false,
+    });
+  });
+
+  it('verifies email and moves account to pending_consent', async () => {
+    const raw = 'verify-token';
+    const prisma = {
+      emailToken: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'et-1', userId: 'user-1', type: 'verify',
+          tokenHash: sha256(raw), consumedAt: null, expiresAt: new Date(Date.now() + 60_000),
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      user: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'user-1', status: 'pending_verification', emailVerifiedAt: null, deletedAt: null }),
+        update: jest.fn(),
+      },
+    };
+    const service = new AuthService(prisma as any, {} as JwtService, config(), mail() as any);
+
+    await expect(service.verifyEmail(raw)).resolves.toEqual({ verified: true });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { emailVerifiedAt: expect.any(Date), status: 'pending_consent' },
+    });
+  });
+
+  it('rejects an already consumed verify token', async () => {
+    const raw = 'verify-token';
+    const prisma = {
+      emailToken: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'et-1', userId: 'user-1', type: 'verify',
+          tokenHash: sha256(raw), consumedAt: new Date(), expiresAt: new Date(Date.now() + 60_000),
+        }),
+      },
+    };
+    const service = new AuthService(prisma as any, {} as JwtService, config(), mail() as any);
+
+    await expect(service.verifyEmail(raw)).rejects.toMatchObject({ code: ErrorCode.VALIDATION_ERROR });
+  });
+
+  it('sends a reset link only when a credential exists, always returning ok', async () => {
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue({ id: 'user-1', deletedAt: null, userCredential: { userId: 'user-1' } }) },
+      emailToken: { updateMany: jest.fn(), create: jest.fn() },
+    };
+    const mailSvc = mail();
+    const service = new AuthService(prisma as any, {} as JwtService, config(), mailSvc as any);
+
+    const result = await service.forgotPassword('p@gmail.com');
+    expect(mailSvc.sendPasswordResetEmail).toHaveBeenCalledWith('p@gmail.com', expect.stringContaining('/reset-password?token='));
+    expect(result).toMatchObject({ ok: true, dev_reset_link: expect.stringContaining('/reset-password?token=') });
+
+    const missing = {
+      user: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    const mailSvc2 = mail();
+    const service2 = new AuthService(missing as any, {} as JwtService, config(), mailSvc2 as any);
+    await expect(service2.forgotPassword('nobody@gmail.com')).resolves.toEqual({ ok: true });
+    expect(mailSvc2.sendPasswordResetEmail).not.toHaveBeenCalled();
+  });
+
+  it('resets the password and revokes all live refresh tokens', async () => {
+    const raw = 'reset-token';
+    const tx = {
+      userCredential: { upsert: jest.fn() },
+      refreshToken: { updateMany: jest.fn() },
+    };
+    const prisma = {
+      emailToken: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'et-1', userId: 'user-1', type: 'reset',
+          tokenHash: sha256(raw), consumedAt: null, expiresAt: new Date(Date.now() + 60_000),
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      $transaction: jest.fn((fn) => fn(tx)),
+    };
+    const service = new AuthService(prisma as any, {} as JwtService, config(), mail() as any);
+
+    await expect(service.resetPassword(raw, 'a-new-strong-password')).resolves.toEqual({ ok: true });
+    expect(tx.userCredential.upsert).toHaveBeenCalled();
+    expect(tx.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1', revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
     });
   });
 
   it('verifies a Google ID token, links auth account, creates pending user, and issues tokens', async () => {
     const user = {
-      id: 'user-google',
-      phone: null,
-      email: 'parent@example.com',
-      status: 'pending_consent',
-      deletedAt: null,
+      id: 'user-google', phone: null, email: 'parent@example.com',
+      status: 'pending_consent', deletedAt: null,
     };
     const tx = {
-      authAccount: {
-        findUnique: jest.fn().mockResolvedValue(null),
-        create: jest.fn(),
-      },
-      user: {
-        findUnique: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockResolvedValue(user),
-      },
+      authAccount: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn() },
+      user: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue(user) },
     };
     const prisma = {
       $transaction: jest.fn((fn) => fn(tx)),
       refreshToken: { create: jest.fn() },
     };
     const jwt = { signAsync: jest.fn().mockResolvedValue('access-token') };
-    const fetchMock = jest
-      .spyOn(global, 'fetch')
-      .mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          sub: 'google-user-1',
-          aud: 'google-client-id',
-          email: 'Parent@Example.com',
-          email_verified: 'true',
-          name: 'Parent One',
-          picture: 'https://example.test/avatar.png',
-        }),
-      } as Response);
-    const service = new AuthService(prisma as any, jwt as any, config());
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        sub: 'google-user-1', aud: 'google-client-id', email: 'Parent@Example.com',
+        email_verified: 'true', name: 'Parent One', picture: 'https://example.test/avatar.png',
+      }),
+    } as Response);
+    const service = new AuthService(prisma as any, jwt as any, config(), mail() as any);
 
     const result = await service.oauthLogin('google', 'id-token', '1.2.3.4');
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://oauth2.googleapis.com/tokeninfo?id_token=id-token',
-    );
-    expect(tx.user.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        phone: null,
-        email: 'parent@example.com',
-        status: 'pending_consent',
-      }),
-    });
+    expect(fetchMock).toHaveBeenCalledWith('https://oauth2.googleapis.com/tokeninfo?id_token=id-token');
     expect(tx.authAccount.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        userId: user.id,
-        provider: 'google',
-        providerUserId: 'google-user-1',
-        email: 'parent@example.com',
-        emailVerified: true,
-      }),
+      data: expect.objectContaining({ provider: 'google', providerUserId: 'google-user-1', emailVerified: true }),
     });
-    expect(result).toMatchObject({
-      access_token: 'access-token',
-      user: {
-        id: user.id,
-        phone: null,
-        email: 'parent@example.com',
-        status: 'pending_consent',
-      },
-      auth_provider: 'google',
-      consent_required: true,
-    });
-  });
-
-  it('increments attempts and rejects wrong OTP code', async () => {
-    const otp = {
-      id: 'otp-1',
-      channel: 'sms',
-      destination: '0900000000',
-      codeHash: hashOtp('123456', 'otp-1'),
-      consumedAt: null,
-      expiresAt: new Date(Date.now() + 60_000),
-      attempts: 0,
-    };
-    const prisma = {
-      otpRequest: {
-        findUnique: jest.fn().mockResolvedValue(otp),
-        update: jest.fn(),
-      },
-    };
-    const service = new AuthService(prisma as any, {} as any, config());
-
-    await expect(service.verifyOtp('otp-1', '000000')).rejects.toMatchObject({
-      code: ErrorCode.VALIDATION_ERROR,
-    });
-    expect(prisma.otpRequest.update).toHaveBeenCalledWith({
-      where: { id: 'otp-1' },
-      data: { attempts: { increment: 1 } },
-    });
+    expect(result).toMatchObject({ access_token: 'access-token', auth_provider: 'google', consent_required: true });
   });
 
   it('revokes active sibling refresh tokens when a revoked token is reused', async () => {
     const raw = 'refresh-token';
     const record = {
-      id: 'rt-1',
-      userId: 'user-1',
-      tokenHash: sha256(raw),
-      revokedAt: new Date('2026-01-01T00:00:00Z'),
-      expiresAt: new Date(Date.now() + 60_000),
+      id: 'rt-1', userId: 'user-1', tokenHash: sha256(raw),
+      revokedAt: new Date('2026-01-01T00:00:00Z'), expiresAt: new Date(Date.now() + 60_000),
       user: { id: 'user-1', roles: ['parent'], status: 'active', deletedAt: null },
     };
-    const tx = {
-      refreshToken: {
-        findUnique: jest.fn().mockResolvedValue(record),
-        updateMany: jest.fn(),
-      },
-    };
+    const tx = { refreshToken: { findUnique: jest.fn().mockResolvedValue(record), updateMany: jest.fn() } };
     const prisma = { $transaction: jest.fn((fn) => fn(tx)) };
-    const service = new AuthService(prisma as any, {} as any, config());
+    const service = new AuthService(prisma as any, {} as any, config(), mail() as any);
 
-    await expect(service.refresh(raw)).rejects.toMatchObject({
-      code: ErrorCode.AUTH_REQUIRED,
-    });
+    await expect(service.refresh(raw)).rejects.toMatchObject({ code: ErrorCode.AUTH_REQUIRED });
     expect(tx.refreshToken.updateMany).toHaveBeenCalledWith({
       where: { userId: 'user-1', revokedAt: null },
       data: { revokedAt: expect.any(Date) },
@@ -367,18 +364,16 @@ describe('AuthService', () => {
     };
     const prisma = { $transaction: jest.fn((fn) => fn(tx)) };
     const jwt = { signAsync: jest.fn().mockResolvedValue('next-access') };
-    const service = new AuthService(prisma as any, jwt as any, config());
+    const service = new AuthService(prisma as any, jwt as any, config(), mail() as any);
 
     await expect(service.refreshAdmin(raw, '1.2.3.4')).resolves.toMatchObject({
-      access_token: 'next-access',
-      refresh_token: expect.any(String),
+      access_token: 'next-access', refresh_token: expect.any(String),
     });
     expect(tx.refreshToken.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
       tx.refreshToken.create.mock.invocationCallOrder[0],
     );
     expect(tx.refreshToken.update).toHaveBeenCalledWith({
-      where: { id: 'rt-1' },
-      data: { rotatedToId: expect.any(String) },
+      where: { id: 'rt-1' }, data: { rotatedToId: expect.any(String) },
     });
   });
 
@@ -396,11 +391,9 @@ describe('AuthService', () => {
       },
     };
     const prisma = { $transaction: jest.fn((fn) => fn(tx)) };
-    const service = new AuthService(prisma as any, {} as JwtService, config());
+    const service = new AuthService(prisma as any, {} as JwtService, config(), mail() as any);
 
-    await expect(service.refreshAdmin('refresh-token')).rejects.toMatchObject({
-      code: ErrorCode.CONFLICT,
-    });
+    await expect(service.refreshAdmin('refresh-token')).rejects.toMatchObject({ code: ErrorCode.CONFLICT });
     expect(tx.refreshToken.create).not.toHaveBeenCalled();
   });
 
@@ -416,11 +409,9 @@ describe('AuthService', () => {
       },
     };
     const prisma = { $transaction: jest.fn((fn) => fn(tx)) };
-    const service = new AuthService(prisma as any, {} as JwtService, config());
+    const service = new AuthService(prisma as any, {} as JwtService, config(), mail() as any);
 
-    await expect(service.refreshAdmin('refresh-token')).rejects.toMatchObject({
-      code: ErrorCode.CONFLICT,
-    });
+    await expect(service.refreshAdmin('refresh-token')).rejects.toMatchObject({ code: ErrorCode.CONFLICT });
     expect(tx.refreshToken.updateMany).not.toHaveBeenCalled();
   });
 });

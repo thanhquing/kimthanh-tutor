@@ -18,6 +18,17 @@ export interface AppConfig {
     facebookAppId: string;
     facebookAppSecret: string;
   };
+  password: {
+    minLength: number;
+    maxLength: number;
+  };
+  mail: {
+    resendApiKey: string;
+    from: string;
+    appBaseUrl: string;
+    verifyTtlSeconds: number;
+    resetTtlSeconds: number;
+  };
   consent: {
     storeIp: boolean;
     storeUserAgent: boolean;
@@ -59,6 +70,17 @@ export default (): AppConfig => ({
     googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
     facebookAppId: process.env.FACEBOOK_APP_ID ?? '',
     facebookAppSecret: process.env.FACEBOOK_APP_SECRET ?? '',
+  },
+  password: {
+    minLength: parseInt(process.env.PASSWORD_MIN_LENGTH ?? '8', 10),
+    maxLength: parseInt(process.env.PASSWORD_MAX_LENGTH ?? '128', 10),
+  },
+  mail: {
+    resendApiKey: process.env.RESEND_API_KEY ?? '',
+    from: process.env.MAIL_FROM ?? 'Kim Thành Tutor <no-reply@kimthanh.tutor>',
+    appBaseUrl: (process.env.APP_BASE_URL ?? 'http://localhost:5173').replace(/\/$/, ''),
+    verifyTtlSeconds: parseInt(process.env.MAIL_VERIFY_TTL_SECONDS ?? '86400', 10),
+    resetTtlSeconds: parseInt(process.env.MAIL_RESET_TTL_SECONDS ?? '3600', 10),
   },
   consent: {
     storeIp: (process.env.CONSENT_STORE_IP ?? 'true') === 'true',

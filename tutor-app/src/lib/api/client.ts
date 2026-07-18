@@ -38,7 +38,10 @@ export class ApiClient {
 
   constructor(options: ApiClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? appConfig.apiBaseUrl).replace(/\/$/, "");
-    this.fetcher = options.fetcher ?? fetch;
+    // Native `fetch` phải giữ `this === window`; lưu trực tiếp rồi gọi qua
+    // `this.fetcher(...)` sẽ đổi `this` thành ApiClient và ném "Illegal
+    // invocation" trước khi request rời trình duyệt. Bind về global để an toàn.
+    this.fetcher = options.fetcher ?? fetch.bind(globalThis);
     this.tokenStore = options.tokenStore ?? createMemoryTokenStore();
     this.timeoutMs = options.timeoutMs ?? 15_000;
     this.onSessionExpired = options.onSessionExpired;

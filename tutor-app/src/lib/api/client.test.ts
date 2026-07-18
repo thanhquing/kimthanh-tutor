@@ -100,4 +100,26 @@ describe("ApiClient", () => {
     expect(store.get()).toBeNull();
     expect(expired).toHaveBeenCalledOnce();
   });
+
+  // Regression: native browser `fetch` phải giữ `this === window`. Khi không
+  // inject fetcher, ApiClient dùng global fetch; nếu gọi mà không bind đúng
+  // `this`, trình duyệt ném "Illegal invocation" trước khi request rời máy →
+  // "Không thể kết nối máy chủ" và không có entry Network. Stub dưới mô phỏng
+  // đúng ràng buộc đó để chặn tái phát.
+  it("invokes the default global fetch with the correct receiver (no Illegal invocation)", async () => {
+    const original = globalThis.fetch;
+    const strictFetch = function (this: unknown) {
+      if (this !== globalThis && this !== undefined) {
+        throw new TypeError("Failed to execute 'fetch' on 'Window': Illegal invocation");
+      }
+      return Promise.resolve(json({ ok: true }));
+    };
+    globalThis.fetch = strictFetch as typeof fetch;
+    try {
+      const client = new ApiClient({ baseUrl: "https://api.test", tokenStore: createMemoryTokenStore() });
+      await expect(client.request("/health", { skipAuth: true })).resolves.toEqual({ ok: true });
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
 });

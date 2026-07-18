@@ -23,7 +23,10 @@ export class ApiClient {
   private refreshPromise: Promise<AuthTokens> | null = null;
   constructor(options: ApiClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? marketConfig.apiBaseUrl).replace(/\/$/, "");
-    this.fetcher = options.fetcher ?? fetch;
+    // Native `fetch` phải giữ `this === window`; gọi qua `this.fetcher(...)` với
+    // fetch chưa bind sẽ ném "Illegal invocation" trên browser trước khi request
+    // rời máy (xem R-01, ai-tasks/16). Bind về global để an toàn.
+    this.fetcher = options.fetcher ?? fetch.bind(globalThis);
     this.tokenStore = options.tokenStore ?? createMemoryTokenStore();
     this.timeoutMs = options.timeoutMs ?? 15_000;
   }

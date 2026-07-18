@@ -40,4 +40,24 @@ describe("ApiClient", () => {
     });
   });
   it("gắn idempotency key cho mutation", async () => { let headers = new Headers(); const client = new ApiClient({ baseUrl: "https://api.example", fetcher: async (_input, init) => { headers = new Headers(init?.headers); return new Response(JSON.stringify({ ok: true })); } }); await client.request("/billing/checkout", { method: "POST", body: { product_type: "single_unlock" }, idempotencyKey: "once" }); expect(headers.get("idempotency-key")).toBe("once"); });
+
+  // Regression R-01: native browser `fetch` yêu cầu `this === window`. Khi không
+  // inject fetcher, ApiClient dùng global fetch; nếu gọi mà `this` sai, trình
+  // duyệt ném "Illegal invocation" trước khi request rời máy → hỏng mọi API call.
+  it("gọi global fetch mặc định với receiver đúng (không Illegal invocation)", async () => {
+    const original = globalThis.fetch;
+    const strictFetch = function (this: unknown) {
+      if (this !== globalThis && this !== undefined) {
+        throw new TypeError("Failed to execute 'fetch' on 'Window': Illegal invocation");
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json" } }));
+    };
+    globalThis.fetch = strictFetch as typeof fetch;
+    try {
+      const client = new ApiClient({ baseUrl: "https://api.example", tokenStore: createMemoryTokenStore() });
+      await expect(client.request("/health", { skipAuth: true })).resolves.toEqual({ ok: true });
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
 });

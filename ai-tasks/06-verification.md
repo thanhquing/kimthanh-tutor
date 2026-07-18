@@ -114,6 +114,24 @@ docker compose exec -T api sh /app/tutor-api/scripts/verify-flow-11-admin-modera
 docker compose exec -T api sh /app/tutor-api/scripts/verify-flow-12-tutor-admin-ops.sh
 ```
 
+## Frontend E2E smoke (BẮT BUỘC cho màn có gọi API)
+
+**Bài học 2026-07-18 (vì sao mục này tồn tại).** Bug `ApiClient` lưu native `fetch` vào field rồi gọi `this.fetcher(...)` → `fetch` chạy với `this = ApiClient` thay vì `window` → trình duyệt ném `TypeError: Illegal invocation` **trước khi request rời máy** → mọi lời gọi API của app hỏng, hiện "Không thể kết nối máy chủ", **không có entry Network**. Nhưng 93 unit test vẫn xanh vì test luôn inject fetcher giả (`vi.fn`) và script cURL gọi thẳng API (không qua browser). Bug chỉ lộ khi **click thật trên browser**. Kết luận: unit test + cURL **không đủ** để chứng nhận một màn frontend "chạy được".
+
+Quy tắc từ nay:
+
+- Mỗi màn frontend có gọi API phải có **ít nhất một smoke Playwright headless** chạy happy-path qua **API thật (dockerized)**, khẳng định request `POST/GET /api/...` thật trả `2xx` trên Network và một hành động ghi/đọc chính hiển thị đúng.
+- `ApiClient` (và các ranh giới tích hợp dùng chung: token store, oauth adapter) phải có ≥1 test chạy **implementation thật** — vd test mô phỏng ràng buộc `this` của native `fetch` để chặn tái phát bug binding (`tutor-app/src/lib/api/client.test.ts`).
+- Bằng chứng `DONE` của task frontend phải gồm smoke browser xanh (hoặc log Network/ảnh chụp từ browser thật), không chỉ "unit test xanh".
+
+Cách chạy (chuẩn dev local, không dính CORS/IPv4-IPv6):
+
+- API: `docker compose up -d db api` (publish `localhost:3000`).
+- FE dev: chạy Vite với dev proxy `/api` → `http://127.0.0.1:3000` (xem `tutor-app/vite.config.ts`), lắng nghe `--host` để cả `localhost` lẫn `127.0.0.1` đều vào được; Node ≥ 20 (dùng `.nvmrc`).
+- Smoke: Playwright headless điều khiển Chrome, đăng nhập OTP dev (`272727`), đi qua màn và assert Network + DOM.
+
+Trạng thái hiện tại: harness Playwright chính thức **chưa dựng** (đang là nợ — xem `ai-tasks/16-remediation-backlog.md`). Trong thời gian chờ, task phải kèm bằng chứng browser thật thủ công (script điều khiển Chrome headless + ảnh chụp) và không được đánh `DONE` chỉ bằng unit test.
+
 ## Quy tắc cập nhật docs sau mỗi task API
 
 Sau mỗi task API/hạ tầng, cập nhật tối thiểu:

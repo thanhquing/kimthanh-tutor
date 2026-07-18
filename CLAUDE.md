@@ -124,6 +124,7 @@ Danh sách module & ranh giới đầy đủ: `ai-docs/15` §3. Catalog endpoint
 - Có trạng thái lỗi/thành công rõ ràng.
 - Có phân quyền theo vai trò (`guest`/`parent`/`tutor`/`admin`/`system`).
 - Có test hoặc checklist verify.
+- **Với feature frontend (màn có gọi API): bắt buộc có E2E smoke trên browser thật** (Playwright headless, API dockerized) chạy happy-path màn đó — không chỉ unit/component test với `fetch` mock. Ranh giới tích hợp dùng chung (`ApiClient`, auth/token store) phải có test chạy implementation thật. Chi tiết: `ai-tasks/09` §4–§5 và `ai-tasks/06` §"Frontend E2E smoke".
 - Có cập nhật docs nếu business rule thay đổi.
 - Nếu feature dùng trong mock UI/UX: flow tương ứng trong `ai-tasks/07-api-curl-user-flows.md` phải chạy end-to-end hoặc ghi rõ blocker. Test fail → refactor/improve API cho đạt business flow rồi cập nhật MD.
 - Đưa mọi hạng mục performance/bảo mật (OWASP Top 10/ASVS, OWASP API Security Top 10, Core Web Vitals, NĐ 13/2023, `ai-docs/12`–`14`) mà task chạm tới sang 🟢 kèm evidence trong `ai-tasks/15-perf-security-checklist.md`; còn hạng mục liên quan ở 🟡/⚪ thì chưa `DONE`. Mục tiêu: mỗi task hoàn thành không để lại nợ kỹ thuật security/performance.

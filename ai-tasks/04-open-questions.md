@@ -50,6 +50,14 @@ Cần chốt trước khi triển khai thật.
 - Gia sư có thể dạy nhiều học sinh trong cùng một lớp không?
 - Phụ huynh có thể có nhiều con trong một tài khoản không? Mặc định tài liệu đã thiết kế là có.
 
+## Phiên đăng nhập frontend (mới — cần chốt)
+
+Hiện tại `tutor-app`/`tutor-market` giữ access + refresh token **chỉ trong memory** (tab-scoped), reload trang = mất phiên phải đăng nhập lại. Đây là **chủ đích bảo mật** (tránh localStorage bị XSS đọc trộm — checklist A02 🟢), không phải thiếu sót. Nhưng đánh đổi UX. Cần chốt:
+
+- Giữ nguyên memory-only cho tutor/parent (an toàn nhất, reload = login lại), hay cấp **refresh token qua cookie HttpOnly `SameSite`** để giữ phiên qua reload (như `tutor-admin` đã làm)?
+- Nếu chọn HttpOnly cookie: cần task refactor `tutor-api` auth (set/clear cookie, CSRF/`SameSite`, rotation) + FE bỏ nhận refresh trong body. Ghi nhận trong `16-remediation-backlog.md`.
+- OTP SMS hiện **tự tạo tài khoản** khi SĐT chưa tồn tại (passwordless = đăng ký/đăng nhập). Xác nhận đây là hành vi mong muốn cho production, và giới hạn chống lạm dụng (rate-limit theo SĐT/IP) đã đủ chưa.
+
 ## Kỹ thuật/hạ tầng (mới)
 
 - Provider object storage cho media (S3/R2/Wasabi)?

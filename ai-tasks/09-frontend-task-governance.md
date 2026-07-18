@@ -70,6 +70,8 @@ Một task chỉ được đánh dấu `DONE` khi cùng một commit logic đã 
 - Tích hợp API thật; request/response typed từ `@kimthanh-tutor/contracts` hoặc bổ sung contract dùng chung trong cùng task.
 - Nếu API thiếu/sai để hoàn tất hành trình: refactor `tutor-api`, DTO/schema/migration/service/controller và tài liệu liên quan trong cùng task.
 - Unit test cho state/mapper/validation; component/integration test cho hành vi chính; API service test nếu backend đổi.
+- **E2E smoke trên browser thật (BẮT BUỘC).** Mỗi task dựng/đụng một màn có gọi API phải có ít nhất một smoke Playwright headless chạy happy-path của màn đó **qua API thật** (dockerized), quan sát request/response Network thật và một hành động ghi/đọc chính. Unit/component test với `fetch` mock KHÔNG thay thế được bước này. Lý do (bài học 2026-07-18): bug `ApiClient` gọi native `fetch` sai `this` (`Illegal invocation`) làm **hỏng toàn bộ lời gọi API** của app nhưng 93 unit test vẫn xanh vì test luôn inject fetcher giả — bug chỉ lộ khi click thật trên browser. Xem `06-verification.md` §"Frontend E2E smoke".
+- **Test ranh giới tích hợp bằng implementation thật.** Mọi ranh giới dùng chung (`ApiClient`, auth/token store, oauth adapter) phải có ≥1 test chạy code thật của nó (vd client gọi qua `fetch` thật/bound), không được chỉ kiểm bằng mock của chính lớp đó.
 - cURL hoặc script `verify-flow-*` cho happy path và ít nhất một lỗi quyền/validation liên quan.
 - `pnpm lint`, `pnpm test`, `pnpm build` của package bị chạm đều pass.
 - Không chứa secret, raw PII, token hay dữ liệu trẻ em trong log/snapshot.
@@ -84,7 +86,7 @@ Tên commit đề xuất: `feat(<app>): <TASK-ID> <phạm vi ngắn>`; fix hậu
 
 - TypeScript strict và React. `tutor-app`/`tutor-admin` dùng SPA (Vite + React Router). `tutor-market` dùng kiến trúc hybrid trên framework hỗ trợ SSR/SSG (đề xuất Next.js App Router): route public được server-render/static để SEO/share; route cần login chạy như client-side app và không index.
 - TanStack Query cho server state; form library + schema validation có typed mapper riêng.
-- Vitest + Testing Library + MSW cho unit/component/contract test; Playwright cho smoke/E2E khi scaffold nền đã ổn định.
+- Vitest + Testing Library + MSW cho unit/component/contract test. **Playwright smoke E2E là tầng test bắt buộc, không còn hoãn** (scaffold ba app đã `DONE`): mỗi app có harness Playwright chạy headless với API dockerized; mỗi task feature thêm/di trì smoke happy-path cho màn của nó. Test unit/component với `fetch` mock chỉ phủ logic, không phủ ranh giới `fetch`/CORS/token/binding trên browser thật.
 - CSS tokens và component primitives nằm trong từng app trước; chỉ tách package UI dùng chung khi đã có ít nhất hai consumer thật sự giống nhau.
 - `@kimthanh-tutor/contracts` là nguồn enum/type API. Không định nghĩa lại `ClassStatus`, `ProductType`, `SubscriptionStatus` trong app.
 - Một API client thống nhất: base URL từ build-time env; Bearer token; refresh rotation có single-flight; `Idempotency-Key`; parse error chuẩn; abort request; tuyệt đối không có công tắc mock/API base trong production UI.
@@ -130,7 +132,7 @@ Trước khi nhận task:
 4. Chạy baseline test trước khi sửa và ghi lại failure có sẵn.
 5. Không tiện tay triển khai task kế tiếp trong cùng commit.
 
-Khi review task đã làm, reviewer kiểm tra lại request/response trên network, quyền với user khác, responsive keyboard/focus, lỗi API, refresh trang sâu, token expiry và script cURL; không chỉ so ảnh với mock.
+Khi review task đã làm, reviewer kiểm tra lại request/response trên network, quyền với user khác, responsive keyboard/focus, lỗi API, refresh trang sâu, token expiry và script cURL; không chỉ so ảnh với mock. **Bắt buộc có bằng chứng đã chạy màn trên browser thật** (Playwright smoke xanh hoặc log Network/ảnh chụp từ browser thật), không chấp nhận "unit test xanh" làm bằng chứng duy nhất cho một màn có gọi API.
 
 ## 9. Các quyết định sản phẩm chưa chốt
 

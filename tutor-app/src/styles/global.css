@@ -235,4 +235,10 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px s
 .modal-body { padding: 18px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 
+/* ---- Auth email+password ---- */
+.auth-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 16px; font-size: 13px; }
+.auth-links a { color: var(--brand-700); font-weight: 600; text-decoration: none; }
+.auth-links a:hover { text-decoration: underline; }
+.auth-notice { margin: 12px 0 0; padding: 10px 12px; border-radius: var(--radius-sm); color: var(--success-600); background: var(--success-50); font-size: 13px; font-weight: 600; }
+
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

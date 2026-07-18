@@ -3,11 +3,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { apiRaw } from "./api";
 
-// Định danh TÀI KHOẢN test (không phải thông tin DB): smoke cần biết đăng nhập
-// bằng SĐT/email nào. Override qua env khi chạy trên môi trường khác.
-export const E2E_TUTOR_PHONE = process.env.E2E_TUTOR_PHONE || "0900009003";
+// Định danh TÀI KHOẢN test (không phải thông tin DB). Override qua env khi cần.
+export const E2E_TUTOR_EMAIL = process.env.E2E_TUTOR_EMAIL || "tutor.e2e@gmail.com";
 export const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || "admin.e2e@example.com";
-const ADMIN_PHONE = process.env.E2E_ADMIN_PHONE || "0900009175";
+// id char(26) cố định cho tài khoản admin (không cần đúng ULID; upsert theo email).
+const ADMIN_ID = "e2eadmin000000000000000000";
 
 // Truy cập DB/API qua chính docker-compose (service `db`/`api`) — không hardcode
 // tên container, không nhúng credential DB (đã nằm trong docker-compose.yml).
@@ -17,14 +17,10 @@ function composeExec(service: string, command: string, env: string[] = []): void
   execSync(`docker compose exec -T ${envFlags} ${service} ${command}`, { cwd: REPO_ROOT, stdio: "ignore" });
 }
 
-/** Login OTP dev: mã lấy từ `dev_code` trong response (không hardcode). */
-async function loginOtp(phone: string): Promise<string> {
-  const otp = await apiRaw("/auth/otp/request", { method: "POST", body: { channel: "sms", destination: phone } });
-  const verify = await apiRaw("/auth/otp/verify", {
-    method: "POST",
-    body: { request_id: otp.body.request_id, code: otp.body.dev_code },
-  });
-  return String(verify.body.access_token);
+function tokenFromLink(link: unknown): string | null {
+  if (typeof link !== "string") return null;
+  const match = /token=([^&]+)/.exec(link);
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
 /** Seed điều khoản pháp lý qua DB container (consent gate cần active docs). */
@@ -38,9 +34,30 @@ export function seedLegalDocs(): void {
   composeExec("db", `psql -U postgres -d tutor -v ON_ERROR_STOP=1 -c "${sql}"`);
 }
 
-/** Gia sư đã consent + có hồ sơ để vào được các route bảo vệ của tutor-app. */
-export async function ensureTutorAccount(phone = E2E_TUTOR_PHONE): Promise<void> {
-  const token = await loginOtp(phone);
+/**
+ * Gia sư đã verify + đúng password + đã consent + có hồ sơ để vào route bảo vệ.
+ * Idempotent với mọi trạng thái trước đó: register (best-effort) → verify (nếu
+ * pending) → reset password về giá trị run hiện tại → login → consent → profile.
+ */
+export async function ensureTutorAccount(password: string, email = E2E_TUTOR_EMAIL): Promise<void> {
+  await apiRaw("/auth/register", { method: "POST", body: { email, password } });
+
+  const resend = await apiRaw("/auth/email/verify/resend", { method: "POST", body: { email } });
+  const verifyToken = tokenFromLink(resend.body.dev_verification_link);
+  if (verifyToken) {
+    await apiRaw("/auth/email/verify", { method: "POST", body: { token: verifyToken } });
+  }
+
+  // Đưa password về giá trị của run hiện tại dù account có từ run trước.
+  const forgot = await apiRaw("/auth/password/forgot", { method: "POST", body: { email } });
+  const resetToken = tokenFromLink(forgot.body.dev_reset_link);
+  if (resetToken) {
+    await apiRaw("/auth/password/reset", { method: "POST", body: { token: resetToken, password } });
+  }
+
+  const login = await apiRaw("/auth/login", { method: "POST", body: { email, password } });
+  const token = String(login.body.access_token ?? "");
+
   const docs = await apiRaw("/legal/documents/active");
   const terms = docs.body.terms as { id: string };
   const privacy = docs.body.privacy as { id: string };
@@ -54,6 +71,7 @@ export async function ensureTutorAccount(phone = E2E_TUTOR_PHONE): Promise<void>
       consent_method: "scroll_and_click",
     },
   });
+
   const existing = await apiRaw("/tutors/me/profile", { token });
   if (existing.status !== 200) {
     await apiRaw("/tutors/me/profile", {
@@ -75,15 +93,16 @@ export async function ensureTutorAccount(phone = E2E_TUTOR_PHONE): Promise<void>
 }
 
 /**
- * Provision admin: tạo user qua OTP → nâng role admin + active qua DB container →
- * set password (do global-setup sinh) qua CLI `set-admin-password` trong API
- * container (đúng đường provision ngoài UI). Idempotent theo SĐT.
+ * Provision admin (đăng nhập bằng /auth/admin/password, credential riêng). Tạo
+ * user admin trực tiếp qua DB container rồi set password qua CLI
+ * `set-admin-password` — không dùng luồng register email (admin email không
+ * thuộc miền gmail/edu).
  */
 export async function ensureAdminAccount(adminPassword: string): Promise<void> {
-  await loginOtp(ADMIN_PHONE);
   const sql =
-    `update users set email='${ADMIN_EMAIL}', roles=ARRAY['admin'], status='active', deleted_at=null ` +
-    `where phone='${ADMIN_PHONE}';`;
+    `insert into users (id, email, roles, status, email_verified_at, created_at, updated_at) ` +
+    `values ('${ADMIN_ID}', '${ADMIN_EMAIL}', ARRAY['admin'], 'active', now(), now(), now()) ` +
+    `on conflict (email) do update set roles=ARRAY['admin'], status='active', deleted_at=null, email_verified_at=now();`;
   composeExec("db", `psql -U postgres -d tutor -v ON_ERROR_STOP=1 -c "${sql}"`);
   composeExec("api", "node dist/scripts/set-admin-password.js", [
     `ADMIN_EMAIL='${ADMIN_EMAIL}'`,

@@ -1,6 +1,11 @@
 export type ApiRole = "guest" | "parent" | "tutor" | "admin" | "system";
 
-export type UserStatus = "pending_consent" | "active" | "suspended" | "deleted";
+export type UserStatus =
+  | "pending_verification"
+  | "pending_consent"
+  | "active"
+  | "suspended"
+  | "deleted";
 
 export type TutorProfileStatus =
   "draft" | "publishable" | "published" | "hidden" | "suspended";
@@ -135,24 +140,60 @@ export interface AuthTokens {
   refresh_token: string;
 }
 
-/** Hợp đồng OTP dùng chung cho các ứng dụng; không dùng trường `{ phone }` cũ. */
-export type AuthOtpChannel = "sms" | "email";
-
-export interface AuthOtpRequest {
-  channel: AuthOtpChannel;
-  destination: string;
+/**
+ * Đăng ký/đăng nhập bằng email + password (phương thức hoạt động hiện tại;
+ * OAuth là đích lâu dài). Chỉ nhận email `@gmail.com` hoặc domain chứa `edu`.
+ */
+export interface AuthRegisterRequest {
+  email: string;
+  password: string;
 }
 
-export interface AuthOtpRequestResponse {
-  request_id: string;
-  expires_at: string;
-  /** Chỉ có ở non-production để kiểm thử local; không được giả định luôn tồn tại. */
-  dev_code?: string;
+export interface AuthRegisterResponse {
+  user: AuthUserSummary;
+  verification_required: boolean;
+  /** Chỉ có ở non-production để kiểm thử local; không giả định luôn tồn tại. */
+  dev_verification_link?: string;
 }
 
-export interface AuthOtpVerify {
-  request_id: string;
-  code: string;
+export interface AuthLoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthVerifyEmailRequest {
+  token: string;
+}
+
+export interface AuthVerifyEmailResponse {
+  verified: boolean;
+}
+
+export interface AuthResendVerificationRequest {
+  email: string;
+}
+
+export interface AuthResendVerificationResponse {
+  ok: boolean;
+  dev_verification_link?: string;
+}
+
+export interface AuthForgotPasswordRequest {
+  email: string;
+}
+
+export interface AuthForgotPasswordResponse {
+  ok: boolean;
+  dev_reset_link?: string;
+}
+
+export interface AuthResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
+export interface AuthResetPasswordResponse {
+  ok: boolean;
 }
 
 export interface AuthGoogleOAuth {

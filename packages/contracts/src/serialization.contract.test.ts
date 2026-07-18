@@ -4,9 +4,11 @@ import type {
   AdminAuthResponse,
   AdminPasswordLogin,
   AuthMeResponse,
-  AuthOtpRequest,
-  AuthOtpRequestResponse,
-  AuthOtpVerify,
+  AuthRegisterRequest,
+  AuthRegisterResponse,
+  AuthLoginRequest,
+  AuthForgotPasswordResponse,
+  AuthResetPasswordRequest,
   AuthVerifyResponse,
   AdminUserStatusMutation,
   DashboardOverview,
@@ -78,16 +80,22 @@ assert.deepEqual(roundTrip(me), me);
 assert.deepEqual(roundTrip(error), error);
 assert.deepEqual(roundTrip(payment), payment);
 
-const otpRequest = { channel: "email", destination: "admin@example.test" } satisfies AuthOtpRequest;
+const registerRequest = { email: "new@gmail.com", password: "a-strong-password" } satisfies AuthRegisterRequest;
+const registerResponse = {
+  user: { id: "user_02", phone: null, email: "new@gmail.com", status: "pending_verification" },
+  verification_required: true,
+  dev_verification_link: "http://localhost:5173/verify-email?token=abc",
+} satisfies AuthRegisterResponse;
+const loginRequest = { email: "new@gmail.com", password: "a-strong-password" } satisfies AuthLoginRequest;
 const adminPassword = { email: "admin@example.test", password: "correct-password" } satisfies AdminPasswordLogin;
 const adminAuthenticated = {
   access_token: "access-token",
   user: me.user,
   consent_required: false,
 } satisfies AdminAuthResponse;
-const otpRequestResponse = { request_id: "otp_01", expires_at: "2026-07-15T00:05:00.000Z" } satisfies AuthOtpRequestResponse;
-const otpVerify = { request_id: "otp_01", code: "272727" } satisfies AuthOtpVerify;
-const otpVerified = {
+const forgotResponse = { ok: true, dev_reset_link: "http://localhost:5173/reset-password?token=xyz" } satisfies AuthForgotPasswordResponse;
+const resetRequest = { token: "reset-token", password: "a-new-strong-password" } satisfies AuthResetPasswordRequest;
+const authenticated = {
   access_token: "access-token",
   refresh_token: "refresh-token",
   user: me.user,
@@ -95,12 +103,14 @@ const otpVerified = {
 } satisfies AuthVerifyResponse;
 const suspendUser = { status: "suspended", reason: "Vi phạm chính sách" } satisfies AdminUserStatusMutation;
 
-assert.deepEqual(roundTrip(otpRequest), otpRequest);
+assert.deepEqual(roundTrip(registerRequest), registerRequest);
+assert.deepEqual(roundTrip(registerResponse), registerResponse);
+assert.deepEqual(roundTrip(loginRequest), loginRequest);
 assert.deepEqual(roundTrip(adminPassword), adminPassword);
 assert.deepEqual(roundTrip(adminAuthenticated), adminAuthenticated);
-assert.deepEqual(roundTrip(otpRequestResponse), otpRequestResponse);
-assert.deepEqual(roundTrip(otpVerify), otpVerify);
-assert.deepEqual(roundTrip(otpVerified), otpVerified);
+assert.deepEqual(roundTrip(forgotResponse), forgotResponse);
+assert.deepEqual(roundTrip(resetRequest), resetRequest);
+assert.deepEqual(roundTrip(authenticated), authenticated);
 assert.deepEqual(roundTrip(suspendUser), suspendUser);
 
 const student = {

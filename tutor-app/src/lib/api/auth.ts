@@ -1,11 +1,19 @@
 import type {
   ActiveLegalDocumentsResponse,
   AuthFacebookOAuth,
+  AuthForgotPasswordRequest,
+  AuthForgotPasswordResponse,
   AuthGoogleOAuth,
+  AuthLoginRequest,
   AuthMeResponse,
-  AuthOtpRequest,
-  AuthOtpRequestResponse,
-  AuthOtpVerify,
+  AuthRegisterRequest,
+  AuthRegisterResponse,
+  AuthResendVerificationRequest,
+  AuthResendVerificationResponse,
+  AuthResetPasswordRequest,
+  AuthResetPasswordResponse,
+  AuthVerifyEmailRequest,
+  AuthVerifyEmailResponse,
   AuthVerifyResponse,
   RecordLegalConsent,
   RecordLegalConsentResponse,
@@ -13,6 +21,48 @@ import type {
 import { apiClient, appTokenStore } from "./client";
 
 export const authApi = {
+  register(payload: AuthRegisterRequest) {
+    return apiClient.request<AuthRegisterResponse>("/auth/register", {
+      method: "POST",
+      body: payload,
+      skipAuth: true,
+    });
+  },
+  login(payload: AuthLoginRequest) {
+    return apiClient.request<AuthVerifyResponse>("/auth/login", {
+      method: "POST",
+      body: payload,
+      skipAuth: true,
+    });
+  },
+  verifyEmail(payload: AuthVerifyEmailRequest) {
+    return apiClient.request<AuthVerifyEmailResponse>("/auth/email/verify", {
+      method: "POST",
+      body: payload,
+      skipAuth: true,
+    });
+  },
+  resendVerification(payload: AuthResendVerificationRequest) {
+    return apiClient.request<AuthResendVerificationResponse>("/auth/email/verify/resend", {
+      method: "POST",
+      body: payload,
+      skipAuth: true,
+    });
+  },
+  forgotPassword(payload: AuthForgotPasswordRequest) {
+    return apiClient.request<AuthForgotPasswordResponse>("/auth/password/forgot", {
+      method: "POST",
+      body: payload,
+      skipAuth: true,
+    });
+  },
+  resetPassword(payload: AuthResetPasswordRequest) {
+    return apiClient.request<AuthResetPasswordResponse>("/auth/password/reset", {
+      method: "POST",
+      body: payload,
+      skipAuth: true,
+    });
+  },
   google(payload: AuthGoogleOAuth) {
     return apiClient.request<AuthVerifyResponse>("/auth/oauth/google", {
       method: "POST",
@@ -22,20 +72,6 @@ export const authApi = {
   },
   facebook(payload: AuthFacebookOAuth) {
     return apiClient.request<AuthVerifyResponse>("/auth/oauth/facebook", {
-      method: "POST",
-      body: payload,
-      skipAuth: true,
-    });
-  },
-  requestOtp(payload: AuthOtpRequest) {
-    return apiClient.request<AuthOtpRequestResponse>("/auth/otp/request", {
-      method: "POST",
-      body: payload,
-      skipAuth: true,
-    });
-  },
-  verifyOtp(payload: AuthOtpVerify) {
-    return apiClient.request<AuthVerifyResponse>("/auth/otp/verify", {
       method: "POST",
       body: payload,
       skipAuth: true,

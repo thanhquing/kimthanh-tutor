@@ -1,6 +1,5 @@
-import type { AuthOtpChannel, AuthOtpRequestResponse } from "@kimthanh-tutor/contracts";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../app/AuthContext";
 import { ApiClientError } from "../lib/api/errors";
 import { appConfig } from "../lib/config";
@@ -12,23 +11,18 @@ function errorMessage(error: unknown) {
   return "Không thể hoàn tất đăng nhập. Vui lòng thử lại.";
 }
 
-function remainingSeconds(expiresAt: string, now: number) {
-  return Math.max(0, Math.ceil((new Date(expiresAt).getTime() - now) / 1000));
-}
-
 export function LoginPage() {
   const auth = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const next = safeNextPath(searchParams.get("next"));
   const googleButton = useRef<HTMLDivElement>(null);
-  const [channel, setChannel] = useState<AuthOtpChannel>("sms");
-  const [destination, setDestination] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpRequest, setOtpRequest] = useState<AuthOtpRequestResponse | null>(null);
-  const [now, setNow] = useState(Date.now());
-  const [busy, setBusy] = useState<"google" | "facebook" | "otp-request" | "otp-verify" | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState<"google" | "facebook" | "password" | "resend" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [needsVerify, setNeedsVerify] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const { loginWithGoogleToken } = auth;
   useEffect(() => {
@@ -51,16 +45,8 @@ export function LoginPage() {
     return () => { active = false; };
   }, [loginWithGoogleToken, navigate, next]);
 
-  useEffect(() => {
-    if (!otpRequest) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
-    return () => window.clearInterval(timer);
-  }, [otpRequest]);
-
   if (auth.accountUnavailable) return <Navigate to="/account-unavailable" replace />;
   if (auth.me) return <Navigate to={routeAfterAuth(auth.me, next)} replace />;
-
-  const secondsLeft = otpRequest ? remainingSeconds(otpRequest.expires_at, now) : 0;
 
   async function facebookLogin() {
     setBusy("facebook");
@@ -76,41 +62,37 @@ export function LoginPage() {
     }
   }
 
-  async function requestOtp(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     setMessage(null);
-    if (!destination.trim()) {
-      setMessage(channel === "sms" ? "Nhập số điện thoại nhận OTP." : "Nhập email đã liên kết tài khoản.");
+    setNotice(null);
+    setNeedsVerify(false);
+    if (!email.trim() || !password) {
+      setMessage("Nhập đầy đủ email và mật khẩu.");
       return;
     }
-    setBusy("otp-request");
+    setBusy("password");
     try {
-      const response = await auth.requestOtp({ channel, destination: destination.trim() });
-      setOtpRequest(response);
-      setOtp("");
-      setNow(Date.now());
+      const me = await auth.login(email.trim(), password);
+      navigate(routeAfterAuth(me, next), { replace: true });
     } catch (error) {
-      setMessage(errorMessage(error));
+      if (error instanceof ApiClientError && error.code === "EMAIL_NOT_VERIFIED") {
+        setNeedsVerify(true);
+        setMessage("Email chưa được xác thực. Kiểm tra hộp thư hoặc gửi lại liên kết xác thực.");
+      } else {
+        setMessage(errorMessage(error));
+      }
     } finally {
       setBusy(null);
     }
   }
 
-  async function verifyOtp(event: FormEvent) {
-    event.preventDefault();
-    if (!otpRequest || secondsLeft === 0) {
-      setMessage("Mã OTP đã hết hạn. Vui lòng gửi mã mới.");
-      return;
-    }
-    if (!/^\d{6}$/.test(otp)) {
-      setMessage("OTP gồm đúng 6 chữ số.");
-      return;
-    }
-    setBusy("otp-verify");
-    setMessage(null);
+  async function resend() {
+    setBusy("resend");
+    setNotice(null);
     try {
-      const me = await auth.verifyOtp(otpRequest.request_id, otp);
-      navigate(routeAfterAuth(me, next), { replace: true });
+      await auth.resendVerification(email.trim());
+      setNotice("Đã gửi lại email xác thực (nếu tài khoản tồn tại và chưa xác thực).");
     } catch (error) {
       setMessage(errorMessage(error));
     } finally {
@@ -122,28 +104,28 @@ export function LoginPage() {
     <div className="auth-brand"><span className="brand-mark" aria-hidden="true">KT</span><div><strong>Kim Thành Tutor</strong><span>Workspace dành cho gia sư</span></div></div>
     <p className="eyebrow">Đăng nhập an toàn</p>
     <h1 id="login-title">Tiếp tục vào workspace</h1>
-    <p>Google hoặc Facebook là lựa chọn chính. OTP dùng làm phương án dự phòng.</p>
+    <p>Đăng nhập bằng email và mật khẩu. Google/Facebook sẽ sớm khả dụng.</p>
 
     <div className="social-stack" aria-busy={busy === "google" || busy === "facebook"}>
-      {appConfig.googleClientId ? <div ref={googleButton} className="google-button-host" aria-label="Tiếp tục với Google" /> : <button className="button social" type="button" disabled>Google OAuth chưa cấu hình</button>}
-      <button className="button social facebook" type="button" disabled={!appConfig.facebookAppId || busy !== null} onClick={() => void facebookLogin()}>{busy === "facebook" ? "Đang mở Facebook…" : appConfig.facebookAppId ? "Tiếp tục với Facebook" : "Facebook OAuth chưa cấu hình"}</button>
+      {appConfig.googleClientId ? <div ref={googleButton} className="google-button-host" aria-label="Tiếp tục với Google" /> : <button className="button social" type="button" disabled>Google OAuth sắp có</button>}
+      <button className="button social facebook" type="button" disabled={!appConfig.facebookAppId || busy !== null} onClick={() => void facebookLogin()}>{busy === "facebook" ? "Đang mở Facebook…" : appConfig.facebookAppId ? "Tiếp tục với Facebook" : "Facebook OAuth sắp có"}</button>
     </div>
 
-    <div className="auth-divider"><span>hoặc dùng OTP dự phòng</span></div>
-    {!otpRequest ? <form className="form-stack" onSubmit={requestOtp}>
-      <label>Kênh nhận mã<select value={channel} onChange={(event) => { setChannel(event.target.value as AuthOtpChannel); setDestination(""); }}><option value="sms">Tin nhắn SMS</option><option value="email">Email đã liên kết</option></select></label>
-      <label>{channel === "sms" ? "Số điện thoại" : "Email"}<input value={destination} onChange={(event) => setDestination(event.target.value)} type={channel === "email" ? "email" : "tel"} autoComplete={channel === "email" ? "email" : "tel"} placeholder={channel === "sms" ? "0912 345 678" : "ban@example.com"} /></label>
-      <button className="button primary block" disabled={busy !== null}>{busy === "otp-request" ? "Đang gửi mã…" : "Gửi mã OTP"}</button>
-    </form> : <form className="form-stack otp-panel" onSubmit={verifyOtp}>
-      <div className="otp-summary"><span>Đã gửi mã tới <strong>{destination}</strong></span><button type="button" className="text-button" onClick={() => { setOtpRequest(null); setMessage(null); }}>Đổi thông tin</button></div>
-      <label>Mã OTP<input value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="••••••" autoFocus /></label>
-      <p className={secondsLeft > 0 ? "otp-time" : "form-error"}>{secondsLeft > 0 ? `Mã còn hiệu lực ${secondsLeft} giây.` : "Mã đã hết hạn."}</p>
-      {appConfig.devDiagnostics && otpRequest.dev_code && <p className="dev-note">Mã local: <code>{otpRequest.dev_code}</code></p>}
-      <button className="button primary block" disabled={busy !== null || secondsLeft === 0}>{busy === "otp-verify" ? "Đang xác minh…" : "Xác nhận OTP"}</button>
-      {secondsLeft === 0 && <button className="button secondary block" type="button" onClick={() => setOtpRequest(null)}>Gửi mã mới</button>}
-    </form>}
+    <div className="auth-divider"><span>hoặc email + mật khẩu</span></div>
+    <form className="form-stack" onSubmit={submit}>
+      <label>Email<input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" maxLength={254} placeholder="ban@gmail.com" autoFocus /></label>
+      <label>Mật khẩu<input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" maxLength={128} /></label>
+      <button className="button primary block" disabled={busy !== null}>{busy === "password" ? "Đang đăng nhập…" : "Đăng nhập"}</button>
+    </form>
+    {notice && <p className="auth-notice" role="status">{notice}</p>}
     {message && <p className="form-error" role="alert">{message}</p>}
-    <p className="auth-footnote">Không có đăng nhập bằng mật khẩu cho tài khoản gia sư. Token chỉ được giữ trong bộ nhớ của tab hiện tại.</p>
+    {needsVerify && <button className="button secondary block" type="button" disabled={busy !== null} onClick={() => void resend()}>{busy === "resend" ? "Đang gửi…" : "Gửi lại email xác thực"}</button>}
+
+    <div className="auth-links">
+      <Link to="/forgot-password">Quên mật khẩu?</Link>
+      <Link to={`/register${next !== "/dashboard" ? `?next=${encodeURIComponent(next)}` : ""}`}>Chưa có tài khoản? Đăng ký</Link>
+    </div>
+    <p className="auth-footnote">Chỉ chấp nhận email Gmail hoặc email trường học (.edu). Token chỉ giữ trong bộ nhớ của tab hiện tại.</p>
     <a className="market-link" href={appConfig.marketUrl}>← Về Chợ gia sư</a>
   </section></main>;
 }

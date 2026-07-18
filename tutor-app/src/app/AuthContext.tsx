@@ -1,7 +1,9 @@
 import type {
+  AuthForgotPasswordResponse,
   AuthMeResponse,
-  AuthOtpRequest,
-  AuthOtpRequestResponse,
+  AuthRegisterResponse,
+  AuthResetPasswordResponse,
+  AuthVerifyEmailResponse,
   AuthVerifyResponse,
 } from "@kimthanh-tutor/contracts";
 import { useQueryClient } from "@tanstack/react-query";
@@ -26,8 +28,12 @@ interface AuthContextValue {
   accountUnavailable: boolean;
   loginWithGoogleToken: (idToken: string) => Promise<AuthMeResponse>;
   loginWithFacebookToken: (accessToken: string) => Promise<AuthMeResponse>;
-  requestOtp: (payload: AuthOtpRequest) => Promise<AuthOtpRequestResponse>;
-  verifyOtp: (requestId: string, code: string) => Promise<AuthMeResponse>;
+  register: (email: string, password: string) => Promise<AuthRegisterResponse>;
+  login: (email: string, password: string) => Promise<AuthMeResponse>;
+  verifyEmail: (token: string) => Promise<AuthVerifyEmailResponse>;
+  resendVerification: (email: string) => Promise<void>;
+  forgotPassword: (email: string) => Promise<AuthForgotPasswordResponse>;
+  resetPassword: (token: string, password: string) => Promise<AuthResetPasswordResponse>;
   loadMe: () => Promise<AuthMeResponse | null>;
   logout: () => void;
 }
@@ -105,10 +111,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (accessToken: string) => completeLogin(await authApi.facebook({ access_token: accessToken })),
     [completeLogin],
   );
-  const requestOtp = useCallback((payload: AuthOtpRequest) => authApi.requestOtp(payload), []);
-  const verifyOtp = useCallback(
-    async (requestId: string, code: string) => completeLogin(await authApi.verifyOtp({ request_id: requestId, code })),
+  const register = useCallback(
+    (email: string, password: string) => authApi.register({ email, password }),
+    [],
+  );
+  const login = useCallback(
+    async (email: string, password: string) => completeLogin(await authApi.login({ email, password })),
     [completeLogin],
+  );
+  const verifyEmail = useCallback((token: string) => authApi.verifyEmail({ token }), []);
+  const resendVerification = useCallback(async (email: string) => {
+    await authApi.resendVerification({ email });
+  }, []);
+  const forgotPassword = useCallback((email: string) => authApi.forgotPassword({ email }), []);
+  const resetPassword = useCallback(
+    (token: string, password: string) => authApi.resetPassword({ token, password }),
+    [],
   );
   const logout = useCallback(() => {
     void authApi.logout();
@@ -131,21 +149,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     accountUnavailable,
     loginWithGoogleToken,
     loginWithFacebookToken,
-    requestOtp,
-    verifyOtp,
+    register,
+    login,
+    verifyEmail,
+    resendVerification,
+    forgotPassword,
+    resetPassword,
     loadMe,
     logout,
   }), [
     accountUnavailable,
+    forgotPassword,
     loadMe,
     loading,
+    login,
     loginWithFacebookToken,
     loginWithGoogleToken,
     logout,
     me,
-    requestOtp,
+    register,
+    resendVerification,
+    resetPassword,
     sessionError,
-    verifyOtp,
+    verifyEmail,
   ]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

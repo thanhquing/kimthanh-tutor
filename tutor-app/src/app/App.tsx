@@ -3,6 +3,12 @@ import { AccountUnavailablePage, ForbiddenPage } from "../pages/AccessStatePages
 import { AvailabilityPage } from "../pages/AvailabilityPage";
 import { ConsentPage } from "../pages/ConsentPage";
 import { LoginPage } from "../pages/LoginPage";
+import {
+  ForgotPasswordPage,
+  RegisterPage,
+  ResetPasswordPage,
+  VerifyEmailPage,
+} from "../pages/AuthPasswordPages";
 import { PlaceholderPage } from "../pages/PlaceholderPage";
 import { ProfilePage } from "../pages/ProfilePage";
 import { NotFoundPage } from "../pages/NotFoundPage";
@@ -15,6 +21,10 @@ export function App() {
   return (
     <AuthProvider><Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/consent" element={<ConsentPage />} />
       <Route path="/forbidden" element={<ForbiddenPage />} />
       <Route path="/account-unavailable" element={<AccountUnavailablePage />} />

@@ -7,12 +7,12 @@ export default async function globalSetup() {
   if (!health || !health.ok) {
     throw new Error(`API chưa sẵn sàng tại ${API_HEALTH}. Chạy trước: docker compose up -d db api (từ root repo).`);
   }
-  const { adminPassword } = provisionSecrets();
+  const { adminPassword, userPassword } = provisionSecrets();
   try {
     seedLegalDocs();
   } catch {
     // Không seed được qua docker (vd container khác tên) → giả định đã seed sẵn.
   }
-  await ensureTutorAccount();
+  await ensureTutorAccount(userPassword);
   await ensureAdminAccount(adminPassword);
 }

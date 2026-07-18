@@ -10,14 +10,18 @@ const FILE = join(STATE_DIR, "secrets.json");
 
 export interface E2ESecrets {
   adminPassword: string;
+  userPassword: string;
 }
 
 /** Gọi ở global-setup: lấy từ env (CI) hoặc sinh mới, rồi ghi ra file gitignored. */
 export function provisionSecrets(): E2ESecrets {
-  const adminPassword = process.env.E2E_ADMIN_PASSWORD || `e2e-${randomBytes(16).toString("hex")}`;
+  const secrets: E2ESecrets = {
+    adminPassword: process.env.E2E_ADMIN_PASSWORD || `e2e-${randomBytes(16).toString("hex")}`,
+    userPassword: process.env.E2E_USER_PASSWORD || `e2e-${randomBytes(16).toString("hex")}`,
+  };
   mkdirSync(STATE_DIR, { recursive: true });
-  writeFileSync(FILE, JSON.stringify({ adminPassword } satisfies E2ESecrets, null, 2), "utf8");
-  return { adminPassword };
+  writeFileSync(FILE, JSON.stringify(secrets, null, 2), "utf8");
+  return secrets;
 }
 
 /** Đọc ở test worker. */

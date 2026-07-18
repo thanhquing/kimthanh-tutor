@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { loginViaOtp } from "./helpers";
+import { loginViaPassword } from "./helpers";
 
-// Smoke tutor-app: một phiên đăng nhập (1 OTP — throttle OTP là 5/5phút theo IP)
-// bao phủ TA-02 (hồ sơ) và TA-03 (lịch), điều hướng giữa màn bằng client-side
-// nav (token memory-only nên không reload).
+// Smoke tutor-app: một phiên đăng nhập email+password bao phủ TA-02 (hồ sơ) và
+// TA-03 (lịch), điều hướng giữa màn bằng client-side nav (token memory-only nên
+// không reload).
 test("tutor-app: hồ sơ (TA-02) và lịch rảnh (TA-03) trên browser thật", async ({ page }) => {
-  await loginViaOtp(page, "/availability");
+  await loginViaPassword(page, "/availability");
 
   // --- TA-03: lịch rảnh — thêm rồi xóa khung giờ (POST 201 / DELETE 200) ---
   await expect(page.getByRole("heading", { name: "Lịch rảnh trong tuần" })).toBeVisible();

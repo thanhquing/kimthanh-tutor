@@ -15,6 +15,15 @@ export default defineConfig({
   server: {
     port: 5174,
     headers: securityHeaders,
+    // Dev-only: chuyển tiếp lời gọi cùng-origin `/api/*` sang API để tránh
+    // cross-origin/CORS và rắc rối IPv4/IPv6 khi chạy local. Không ảnh hưởng
+    // build production (API base thật đóng qua VITE_API_BASE_URL / reverse proxy).
+    proxy: {
+      "/api": {
+        target: process.env.API_PROXY_TARGET || "http://127.0.0.1:3000",
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port: 4174,

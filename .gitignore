@@ -12,3 +12,6 @@ coverage/
 .vite/
 *.tsbuildinfo
 kimthanh-tutor-mock
+playwright-report/
+test-results/
+.playwright/

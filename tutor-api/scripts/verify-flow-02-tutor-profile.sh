@@ -43,19 +43,25 @@ seed_legal_docs() {
 }
 
 login_and_consent() {
-  otp_http="$(curl -sS -o /tmp/flow02-otp-request.json -w "%{http_code}" \
-    -X POST "$API/auth/otp/request" \
-    -H "Content-Type: application/json" \
-    --data "{\"channel\":\"sms\",\"destination\":\"$PHONE\"}")"
-  require_code "$otp_http" "201" "OTP request" /tmp/flow02-otp-request.json
-  request_id="$(json_get /tmp/flow02-otp-request.json request_id)"
-  dev_code="$(json_get /tmp/flow02-otp-request.json dev_code)"
+  EMAIL="${EMAIL:-e2e-${PHONE}@gmail.com}"
+  PASSWORD="${PASSWORD:-flow-pass-12345}"
 
-  verify_http="$(curl -sS -o /tmp/flow02-otp-verify.json -w "%{http_code}" \
-    -X POST "$API/auth/otp/verify" \
+  reg_http="$(curl -sS -o /tmp/flow02-register.json -w "%{http_code}" \
+    -X POST "$API/auth/register" \
     -H "Content-Type: application/json" \
-    --data "{\"request_id\":\"$request_id\",\"code\":\"$dev_code\"}")"
-  require_code "$verify_http" "201" "OTP verify" /tmp/flow02-otp-verify.json
+    --data "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")"
+  require_code "$reg_http" "201" "Register" /tmp/flow02-register.json
+  verify_link="$(json_get /tmp/flow02-register.json dev_verification_link)"
+  verify_token="$(printf '%s' "$verify_link" | sed -n 's/.*token=\([^&]*\).*/\1/p')"
+  curl -sS -o /tmp/flow02-verify.json -X POST "$API/auth/email/verify" \
+    -H "Content-Type: application/json" \
+    --data "{\"token\":\"$verify_token\"}" >/dev/null
+
+  login_http="$(curl -sS -o /tmp/flow02-otp-verify.json -w "%{http_code}" \
+    -X POST "$API/auth/login" \
+    -H "Content-Type: application/json" \
+    --data "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")"
+  require_code "$login_http" "201" "Login" /tmp/flow02-otp-verify.json
   ACCESS_TOKEN="$(json_get /tmp/flow02-otp-verify.json access_token)"
 
   curl -sS -o /tmp/flow02-legal-docs.json "$API/legal/documents/active"

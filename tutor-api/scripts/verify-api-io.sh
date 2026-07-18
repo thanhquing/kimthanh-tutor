@@ -32,7 +32,7 @@ npx prisma validate --schema /app/tutor-api/prisma/schema.prisma
 
 echo "== Database schema checks =="
 psql -v ON_ERROR_STOP=1 -c "select current_database() as database, current_schema() as schema;"
-psql -v ON_ERROR_STOP=1 -c "select table_name from information_schema.tables where table_schema = 'public' and table_name in ('users','otp_requests','tutor_profiles','payments','class_contracts','reviews','audit_logs') order by table_name;"
+psql -v ON_ERROR_STOP=1 -c "select table_name from information_schema.tables where table_schema = 'public' and table_name in ('users','user_credentials','email_tokens','tutor_profiles','payments','class_contracts','reviews','audit_logs') order by table_name;"
 psql -v ON_ERROR_STOP=1 -c "select typname from pg_type where typname in ('UserStatus','ProductType','PaymentStatus','ClassStatus') order by typname;"
 
 echo "== API health output =="
@@ -45,42 +45,62 @@ curl -fsS "$API_BASE_URL/readyz" | tee /tmp/readyz.json
 echo
 require_contains /tmp/readyz.json '"db":"up"'
 
+EMAIL="apiio-$(date +%H%M%S)@gmail.com"
+PASSWORD="apiio-pass-12345"
+
 echo "== cURL validation input/output =="
-invalid_code="$(curl -sS -o /tmp/invalid-otp.json -w "%{http_code}" \
-  -X POST "$BASE/auth/otp/request" \
+invalid_code="$(curl -sS -o /tmp/invalid-register.json -w "%{http_code}" \
+  -X POST "$BASE/auth/register" \
   -H "Content-Type: application/json" \
-  --data '{"channel":"fax","destination":""}')"
-cat /tmp/invalid-otp.json
+  --data '{"email":"not-gmail@yahoo.com","password":"short"}')"
+cat /tmp/invalid-register.json
 echo
-[ "$invalid_code" = "400" ] || fail "expected invalid OTP request to return 400, got $invalid_code"
-require_contains /tmp/invalid-otp.json '"code":"VALIDATION_ERROR"'
+[ "$invalid_code" = "400" ] || fail "expected invalid register to return 400, got $invalid_code"
+require_contains /tmp/invalid-register.json '"code":"VALIDATION_ERROR"'
 
-echo "== cURL happy-path OTP request output =="
-otp_code="$(curl -sS -o /tmp/otp-request.json -w "%{http_code}" \
-  -X POST "$BASE/auth/otp/request" \
+echo "== cURL register (email + password) output =="
+reg_code="$(curl -sS -o /tmp/register.json -w "%{http_code}" \
+  -X POST "$BASE/auth/register" \
   -H "Content-Type: application/json" \
-  --data '{"channel":"sms","destination":"0900000000"}')"
-cat /tmp/otp-request.json
+  --data "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")"
+cat /tmp/register.json
 echo
-[ "$otp_code" = "201" ] || fail "expected OTP request to return 201, got $otp_code"
-require_contains /tmp/otp-request.json '"request_id"'
-require_contains /tmp/otp-request.json '"dev_code"'
+[ "$reg_code" = "201" ] || fail "expected register to return 201, got $reg_code"
+require_contains /tmp/register.json '"verification_required":true'
+require_contains /tmp/register.json '"dev_verification_link"'
+VERIFY_LINK="$(json_get /tmp/register.json dev_verification_link)"
+VERIFY_TOKEN="$(printf '%s' "$VERIFY_LINK" | sed -n 's/.*token=\([^&]*\).*/\1/p')"
 
-REQUEST_ID="$(json_get /tmp/otp-request.json request_id)"
-DEV_CODE="$(json_get /tmp/otp-request.json dev_code)"
-
-echo "== cURL OTP verify output =="
-verify_code="$(curl -sS -o /tmp/otp-verify.json -w "%{http_code}" \
-  -X POST "$BASE/auth/otp/verify" \
+echo "== cURL login before verify rejected (EMAIL_NOT_VERIFIED) =="
+early_code="$(curl -sS -o /tmp/login-early.json -w "%{http_code}" \
+  -X POST "$BASE/auth/login" \
   -H "Content-Type: application/json" \
-  --data "{\"request_id\":\"$REQUEST_ID\",\"code\":\"$DEV_CODE\"}")"
-cat /tmp/otp-verify.json
-echo
-[ "$verify_code" = "201" ] || fail "expected OTP verify to return 201, got $verify_code"
-require_contains /tmp/otp-verify.json '"access_token"'
-require_contains /tmp/otp-verify.json '"consent_required":true'
+  --data "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")"
+[ "$early_code" = "403" ] || fail "expected login before verify to return 403, got $early_code"
+require_contains /tmp/login-early.json '"code":"EMAIL_NOT_VERIFIED"'
 
-ACCESS_TOKEN="$(json_get /tmp/otp-verify.json access_token)"
+echo "== cURL email verify output =="
+verify_code="$(curl -sS -o /tmp/verify.json -w "%{http_code}" \
+  -X POST "$BASE/auth/email/verify" \
+  -H "Content-Type: application/json" \
+  --data "{\"token\":\"$VERIFY_TOKEN\"}")"
+cat /tmp/verify.json
+echo
+[ "$verify_code" = "201" ] || fail "expected email verify to return 201, got $verify_code"
+require_contains /tmp/verify.json '"verified":true'
+
+echo "== cURL login output =="
+login_code="$(curl -sS -o /tmp/login.json -w "%{http_code}" \
+  -X POST "$BASE/auth/login" \
+  -H "Content-Type: application/json" \
+  --data "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")"
+cat /tmp/login.json
+echo
+[ "$login_code" = "201" ] || fail "expected login to return 201, got $login_code"
+require_contains /tmp/login.json '"access_token"'
+require_contains /tmp/login.json '"consent_required":true'
+
+ACCESS_TOKEN="$(json_get /tmp/login.json access_token)"
 
 echo "== cURL authenticated /auth/me output =="
 me_code="$(curl -sS -o /tmp/auth-me.json -w "%{http_code}" \
@@ -93,6 +113,6 @@ require_contains /tmp/auth-me.json '"status":"pending_consent"'
 
 echo "== Database write checks =="
 psql -v ON_ERROR_STOP=1 -c "select count(*) as users from users;"
-psql -v ON_ERROR_STOP=1 -c "select channel, destination, consumed_at is not null as consumed from otp_requests order by created_at desc limit 1;"
+psql -v ON_ERROR_STOP=1 -c "select type, consumed_at is not null as consumed from email_tokens order by created_at desc limit 1;"
 
-echo "OK: schema, database, API input validation, cURL output, OTP write/read flow verified."
+echo "OK: schema, database, API input validation, cURL output, register/verify/login write/read flow verified."

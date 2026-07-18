@@ -40,26 +40,45 @@ require_json_value() {
 echo "== Flow 1 setup: seed active legal documents =="
 psql "$PSQL_URL" -v ON_ERROR_STOP=1 -c "update legal_documents set is_active = false where doc_type in ('terms','privacy'); insert into legal_documents (id, doc_type, version, locale, title, content_url, checksum, is_active, published_at) values ('01KXFLOWTERMS0000000000000','terms','2026-07-flow','vi-VN','Dieu khoan su dung','https://example.test/legal/terms-2026-07','dev-terms-checksum',true,now()), ('01KXFLOWPRIVACY00000000000','privacy','2026-07-flow','vi-VN','Chinh sach bao mat','https://example.test/legal/privacy-2026-07','dev-privacy-checksum',true,now()) on conflict (doc_type, version) do update set is_active = excluded.is_active, content_url = excluded.content_url, checksum = excluded.checksum, published_at = excluded.published_at;"
 
-echo "== Flow 1 Step 1: request OTP =="
-otp_http="$(curl -sS -o /tmp/flow01-otp-request.json -w "%{http_code}" \
-  -X POST "$API/auth/otp/request" \
-  -H "Content-Type: application/json" \
-  --data "{\"channel\":\"sms\",\"destination\":\"$PHONE\"}")"
-cat /tmp/flow01-otp-request.json
-echo
-require_code "$otp_http" "201" "OTP request" /tmp/flow01-otp-request.json
-REQUEST_ID="$(json_get /tmp/flow01-otp-request.json request_id)"
-DEV_CODE="$(json_get /tmp/flow01-otp-request.json dev_code)"
-[ "$DEV_CODE" = "272727" ] || fail "Expected local dev OTP code 272727, got $DEV_CODE"
+EMAIL="${EMAIL:-e2e-${PHONE}@gmail.com}"
+PASSWORD="${PASSWORD:-flow-pass-12345}"
 
-echo "== Flow 1 Step 2: verify OTP =="
-verify_http="$(curl -sS -o /tmp/flow01-otp-verify.json -w "%{http_code}" \
-  -X POST "$API/auth/otp/verify" \
+echo "== Flow 1 Step 1: register (email + password) =="
+reg_http="$(curl -sS -o /tmp/flow01-register.json -w "%{http_code}" \
+  -X POST "$API/auth/register" \
   -H "Content-Type: application/json" \
-  --data "{\"request_id\":\"$REQUEST_ID\",\"code\":\"$DEV_CODE\"}")"
+  --data "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")"
+cat /tmp/flow01-register.json
+echo
+require_code "$reg_http" "201" "Register" /tmp/flow01-register.json
+require_json_value /tmp/flow01-register.json verification_required true
+VERIFY_LINK="$(json_get /tmp/flow01-register.json dev_verification_link)"
+VERIFY_TOKEN="$(printf '%s' "$VERIFY_LINK" | sed -n 's/.*token=\([^&]*\).*/\1/p')"
+
+echo "== Flow 1 Step 1b: login before verify rejected (EMAIL_NOT_VERIFIED) =="
+early_http="$(curl -sS -o /tmp/flow01-login-early.json -w "%{http_code}" \
+  -X POST "$API/auth/login" \
+  -H "Content-Type: application/json" \
+  --data "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")"
+require_code "$early_http" "403" "Login before verify" /tmp/flow01-login-early.json
+require_json_value /tmp/flow01-login-early.json code EMAIL_NOT_VERIFIED
+
+echo "== Flow 1 Step 2: verify email =="
+verify_http="$(curl -sS -o /tmp/flow01-verify.json -w "%{http_code}" \
+  -X POST "$API/auth/email/verify" \
+  -H "Content-Type: application/json" \
+  --data "{\"token\":\"$VERIFY_TOKEN\"}")"
+require_code "$verify_http" "201" "Verify email" /tmp/flow01-verify.json
+require_json_value /tmp/flow01-verify.json verified true
+
+echo "== Flow 1 Step 2b: login (email + password) =="
+login_http="$(curl -sS -o /tmp/flow01-otp-verify.json -w "%{http_code}" \
+  -X POST "$API/auth/login" \
+  -H "Content-Type: application/json" \
+  --data "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")"
 cat /tmp/flow01-otp-verify.json
 echo
-require_code "$verify_http" "201" "OTP verify" /tmp/flow01-otp-verify.json
+require_code "$login_http" "201" "Login" /tmp/flow01-otp-verify.json
 require_json_value /tmp/flow01-otp-verify.json consent_required true
 ACCESS_TOKEN="$(json_get /tmp/flow01-otp-verify.json access_token)"
 REFRESH_TOKEN="$(json_get /tmp/flow01-otp-verify.json refresh_token)"
@@ -116,4 +135,4 @@ refresh_http="$(curl -sS -o /tmp/flow01-refresh-after-logout.json -w "%{http_cod
 require_code "$refresh_http" "401" "Refresh after logout" /tmp/flow01-refresh-after-logout.json
 require_json_value /tmp/flow01-refresh-after-logout.json code AUTH_REQUIRED
 
-echo "OK: Flow 1 OTP + Consent Gate + Logout verified end-to-end for phone $PHONE"
+echo "OK: Flow 1 Register + Verify + Login + Consent Gate + Logout verified end-to-end for $EMAIL"

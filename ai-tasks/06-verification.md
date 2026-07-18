@@ -51,19 +51,19 @@ Phạm vi kiểm chứng hiện tại:
 - `psql` kiểm tra enum chính: `UserStatus`, `ProductType`, `PaymentStatus`, `ClassStatus`.
 - `curl` kiểm tra output `GET /healthz`.
 - `curl` kiểm tra output `GET /readyz`.
-- `curl` kiểm tra input sai `POST /api/v1/auth/otp/request` trả `400` + `VALIDATION_ERROR`.
+- `curl` kiểm tra input sai `POST /api/v1/auth/register` (domain không phải gmail/edu, password ngắn) trả `400` + `VALIDATION_ERROR`.
 - Unit test auth có mock provider cho Google OAuth; Facebook/Google E2E thật cần token provider và env client/app id thật.
-- `curl` chạy happy path OTP fallback/local:
-  - request OTP SMS,
-  - lấy `dev_code` cố định `272727` ở môi trường non-production,
-  - verify OTP,
+- `curl` chạy happy path email + password:
+  - register (email gmail/edu + password), nhận `dev_verification_link` ở non-production,
+  - login trước verify → `EMAIL_NOT_VERIFIED` (403),
+  - verify email + login,
   - gọi `GET /api/v1/auth/me` bằng Bearer token,
   - kiểm tra user ở trạng thái `pending_consent`.
-- `psql` kiểm tra DB đã ghi `users` và `otp_requests`.
+- `psql` kiểm tra DB đã ghi `users` và `email_tokens` (+ `user_credentials`).
 
 Script flow UI đã có:
 
-- `tutor-api/scripts/verify-flow-01-auth-consent.sh`: chạy kịch bản 1 trong `07-api-curl-user-flows.md` end-to-end bằng cURL, gồm seed legal documents dev, OTP fallback local với mã `272727`, load legal docs, record consent, reload `/auth/me`.
+- `tutor-api/scripts/verify-flow-01-auth-consent.sh`: chạy kịch bản 1 end-to-end bằng cURL, gồm seed legal documents dev, register email+password, login-trước-verify bị chặn (`EMAIL_NOT_VERIFIED`), verify email, login, load legal docs, record consent, reload `/auth/me`, logout revoke.
 - `tutor-api/scripts/verify-flow-02-tutor-profile.sh`: chạy kịch bản 2 end-to-end bằng cURL, gồm login/consent, tạo hồ sơ gia sư, thêm availability, thêm payout account, publish profile.
 - `tutor-api/scripts/verify-flow-03-guest-search-paywall.sh`: chạy kịch bản 3 end-to-end bằng cURL, gồm tạo tutor published qua Flow 2, search public, xem detail locked/paywall.
 - `tutor-api/scripts/verify-flow-04-guest-trial-activation.sh`: chạy kịch bản 4 end-to-end bằng cURL, gồm guest tạo trial, tutor accept, guest complete activation token.
@@ -137,7 +137,7 @@ pnpm --filter @kimthanh-tutor/e2e test:app                  # hoặc test:admin 
 
 Nguyên tắc bảo mật của harness:
 
-- **Không hardcode secret.** Password admin sinh ngẫu nhiên lúc chạy, lưu vào `tutor-e2e/.e2e-state/` (gitignored); mã OTP đọc từ `dev_code` trong response API. Chỉ định danh tài khoản test (SĐT/email) là hằng số, không phải thông tin DB.
+- **Không hardcode secret.** Password admin + password gia sư sinh ngẫu nhiên lúc chạy, lưu vào `tutor-e2e/.e2e-state/` (gitignored); link verify/reset đọc từ `dev_verification_link`/`dev_reset_link` trong response API. Chỉ định danh tài khoản test (email) là hằng số, không phải thông tin DB.
 - **Không nhúng credential/tên container.** Seed truy cập DB/API qua `docker compose exec db|api` (service từ chính compose file), không hardcode tên container hay mật khẩu DB.
 - Dev không dính CORS/IPv4-IPv6 nhờ dev proxy `/api` trong `vite.config.ts` của tutor-app/tutor-admin; tutor-market SSR fetch server-side.
 - Throttle OTP là 5 lần/5 phút theo IP → gộp login trong một smoke khi có thể; token tutor/parent memory-only nên điều hướng client-side sau login (không `page.goto` route bảo vệ).

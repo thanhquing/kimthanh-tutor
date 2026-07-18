@@ -1,0 +1,4 @@
+.e2e-state/
+playwright-report/
+test-results/
+node_modules/

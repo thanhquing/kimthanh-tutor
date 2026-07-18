@@ -1,0 +1,16 @@
+{
+  "name": "@kimthanh-tutor/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "E2E smoke browser thật (Playwright) dùng chung cho tutor-app, tutor-admin, tutor-market",
+  "scripts": {
+    "test": "playwright test",
+    "test:app": "playwright test --project=tutor-app",
+    "test:admin": "playwright test --project=tutor-admin",
+    "test:market": "playwright test --project=tutor-market"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.51.1"
+  }
+}

@@ -124,13 +124,23 @@ Quy tắc từ nay:
 - `ApiClient` (và các ranh giới tích hợp dùng chung: token store, oauth adapter) phải có ≥1 test chạy **implementation thật** — vd test mô phỏng ràng buộc `this` của native `fetch` để chặn tái phát bug binding (`tutor-app/src/lib/api/client.test.ts`).
 - Bằng chứng `DONE` của task frontend phải gồm smoke browser xanh (hoặc log Network/ảnh chụp từ browser thật), không chỉ "unit test xanh".
 
-Cách chạy (chuẩn dev local, không dính CORS/IPv4-IPv6):
+Harness dùng chung: **`tutor-e2e/`** (một Playwright project cho cả 3 app — đồng bộ config/seed/cách chạy). Chrome hệ thống (`channel: chrome`, không tải browser). Multi-project (`tutor-app`/`tutor-admin`/`tutor-market`) + multi-webServer.
 
-- API: `docker compose up -d db api` (publish `localhost:3000`).
-- FE dev: chạy Vite với dev proxy `/api` → `http://127.0.0.1:3000` (xem `tutor-app/vite.config.ts`), lắng nghe `--host` để cả `localhost` lẫn `127.0.0.1` đều vào được; Node ≥ 20 (dùng `.nvmrc`).
-- Smoke: Playwright headless điều khiển Chrome, đăng nhập OTP dev (`272727`), đi qua màn và assert Network + DOM.
+Cách chạy:
 
-Trạng thái hiện tại: harness Playwright chính thức **chưa dựng** (đang là nợ — xem `ai-tasks/16-remediation-backlog.md`). Trong thời gian chờ, task phải kèm bằng chứng browser thật thủ công (script điều khiển Chrome headless + ảnh chụp) và không được đánh `DONE` chỉ bằng unit test.
+```bash
+export PATH="$HOME/.nvm/versions/node/v20.20.2/bin:$PATH"   # Node ≥ 20 (.nvmrc)
+docker compose up -d db api                                 # API tại localhost:3000
+pnpm --filter @kimthanh-tutor/e2e test                      # cả 3 app
+pnpm --filter @kimthanh-tutor/e2e test:app                  # hoặc test:admin | test:market
+```
+
+Nguyên tắc bảo mật của harness:
+
+- **Không hardcode secret.** Password admin sinh ngẫu nhiên lúc chạy, lưu vào `tutor-e2e/.e2e-state/` (gitignored); mã OTP đọc từ `dev_code` trong response API. Chỉ định danh tài khoản test (SĐT/email) là hằng số, không phải thông tin DB.
+- **Không nhúng credential/tên container.** Seed truy cập DB/API qua `docker compose exec db|api` (service từ chính compose file), không hardcode tên container hay mật khẩu DB.
+- Dev không dính CORS/IPv4-IPv6 nhờ dev proxy `/api` trong `vite.config.ts` của tutor-app/tutor-admin; tutor-market SSR fetch server-side.
+- Throttle OTP là 5 lần/5 phút theo IP → gộp login trong một smoke khi có thể; token tutor/parent memory-only nên điều hướng client-side sau login (không `page.goto` route bảo vệ).
 
 ## Quy tắc cập nhật docs sau mỗi task API
 

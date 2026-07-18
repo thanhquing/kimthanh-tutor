@@ -3,4 +3,5 @@ packages:
   - "tutor-market"
   - "tutor-app"
   - "tutor-admin"
+  - "tutor-e2e"
   - "packages/*"

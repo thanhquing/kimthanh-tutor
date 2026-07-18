@@ -1,16 +1,16 @@
 import { expect, test } from "@playwright/test";
 import { loginViaOtp } from "./helpers";
 
-// TA-03 — smoke browser thật: đăng nhập → /availability → thêm + xóa khung giờ,
-// khẳng định POST/DELETE /availabilities thật trả 2xx (không phải NETWORK_ERROR).
-test("TA-03: thêm và xóa khung giờ trên browser thật", async ({ page }) => {
+// Smoke tutor-app: một phiên đăng nhập (1 OTP — throttle OTP là 5/5phút theo IP)
+// bao phủ TA-02 (hồ sơ) và TA-03 (lịch), điều hướng giữa màn bằng client-side
+// nav (token memory-only nên không reload).
+test("tutor-app: hồ sơ (TA-02) và lịch rảnh (TA-03) trên browser thật", async ({ page }) => {
   await loginViaOtp(page, "/availability");
 
+  // --- TA-03: lịch rảnh — thêm rồi xóa khung giờ (POST 201 / DELETE 200) ---
   await expect(page.getByRole("heading", { name: "Lịch rảnh trong tuần" })).toBeVisible();
-  // List đã tải xong (kể cả khi rỗng) — chứng tỏ GET /availabilities chạy thật.
   await expect(page.getByRole("heading", { name: "Danh sách khung giờ" })).toBeVisible();
 
-  // Thêm khung giờ Thứ Sáu 07:00–08:00 (ít khả năng trùng).
   await page.getByRole("button", { name: "+ Thêm khung giờ" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
@@ -27,11 +27,16 @@ test("TA-03: thêm và xóa khung giờ trên browser thật", async ({ page }) 
   const row = page.locator(".avail-row", { hasText: "Thứ Sáu · 07:00–08:00" });
   await expect(row).toBeVisible();
 
-  // Xóa lại để test hermetic.
   const del = page.waitForResponse(
     (r) => r.url().includes("/tutors/me/availabilities/") && r.request().method() === "DELETE",
   );
   await row.getByRole("button", { name: "Xóa" }).click();
   expect((await del).status()).toBe(200);
   await expect(row).toHaveCount(0);
+
+  // --- TA-02: hồ sơ — điều hướng client-side (không reload) và kiểm dữ liệu thật ---
+  await page.getByRole("link", { name: "Hồ sơ gia sư" }).click();
+  await page.waitForURL((url) => url.pathname === "/profile");
+  await expect(page.getByRole("heading", { name: "Hồ sơ gia sư" })).toBeVisible();
+  await expect(page.getByLabel(/Tên hiển thị/)).toHaveValue("Cô E2E");
 });

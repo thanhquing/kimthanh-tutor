@@ -122,4 +122,24 @@ describe("ApiClient", () => {
     ).rejects.toMatchObject({ code: "REQUEST_ABORTED" });
     expect(fetcher).not.toHaveBeenCalled();
   });
+
+  // Regression R-04: native browser `fetch` yêu cầu `this === window`. Client
+  // mặc định (không inject fetcher) phải gọi global fetch với receiver đúng,
+  // nếu không trình duyệt ném "Illegal invocation" trước khi request rời máy.
+  it("gọi global fetch mặc định với receiver đúng (không Illegal invocation)", async () => {
+    const original = globalThis.fetch;
+    const strictFetch = function (this: unknown) {
+      if (this !== globalThis && this !== undefined) {
+        throw new TypeError("Failed to execute 'fetch' on 'Window': Illegal invocation");
+      }
+      return Promise.resolve(json({ ok: true }));
+    };
+    globalThis.fetch = strictFetch as typeof fetch;
+    try {
+      const client = new ApiClient({ baseUrl: "https://api.test", tokenStore: createMemoryTokenStore() });
+      await expect(client.request("/health", { skipAuth: true })).resolves.toEqual({ ok: true });
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
 });

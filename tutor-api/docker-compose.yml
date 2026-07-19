@@ -41,9 +41,8 @@ services:
       OTP_MAX_ATTEMPTS: 5
       PASSWORD_MIN_LENGTH: 8
       PASSWORD_MAX_LENGTH: 128
-      RESEND_API_KEY: ""
-      MAIL_FROM: "Kim Thành Tutor <no-reply@kimthanh.tutor>"
-      APP_BASE_URL: "http://localhost:5173"
+      # RESEND_API_KEY + MAIL_FROM đến từ env_file `.env` (secret, không nhúng compose).
+      APP_BASE_URL: "http://localhost:5174"
       CONSENT_STORE_IP: "true"
       CONSENT_STORE_USER_AGENT: "true"
       PLATFORM_BANK_CODE: "970436"

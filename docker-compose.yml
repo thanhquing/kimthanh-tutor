@@ -18,6 +18,10 @@ services:
     build:
       context: .
       dockerfile: tutor-api/Dockerfile
+    # Secret/creds của tutor-api nạp từ file .env của chính package (gitignored,
+    # không bake vào image). Khối `environment:` dưới ghi đè giá trị hạ tầng docker.
+    env_file:
+      - tutor-api/.env
     environment:
       NODE_ENV: development
       PORT: 3000
@@ -43,11 +47,7 @@ services:
       SEPAY_WEBHOOK_API_KEY: docker-dev-sepay-key
       SEPAY_IP_ALLOWLIST: "127.0.0.1,::1"
       MEDIA_SIGNING_SECRET: docker-dev-media-signing-secret
-      # Google OAuth — secret nạp từ file .env gốc (gitignored), không nhúng vào compose.
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-http://localhost:3000/api/v1/auth/oauth/google/callback}
-      OAUTH_RETURN_URLS: ${OAUTH_RETURN_URLS:-http://localhost:5174,http://localhost:3001}
+      # Google OAuth creds đến từ env_file `tutor-api/.env` (không nhúng vào compose).
     depends_on:
       db:
         condition: service_healthy

@@ -13,6 +13,13 @@ function errorMessage(error: unknown) {
   return "Đã có lỗi xảy ra. Vui lòng thử lại.";
 }
 
+// Callback OAuth server-side redirect kèm ?oauth_error khi thất bại.
+const OAUTH_ERRORS: Record<string, string> = {
+  state: "Phiên đăng nhập Google đã hết hạn hoặc không hợp lệ. Vui lòng thử lại.",
+  denied: "Bạn đã hủy đăng nhập Google.",
+  failed: "Đăng nhập Google thất bại. Vui lòng thử lại.",
+};
+
 function routeAfterAuth(me: AuthMeResponse, next: string) {
   if (me.user.status === "suspended" || me.user.status === "deleted") return "/account-unavailable";
   if (me.user.status === "pending_consent") return "/consent";
@@ -39,9 +46,21 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(
+    () => OAUTH_ERRORS[params.get("oauth_error") ?? ""] ?? null,
+  );
   const [needsVerify, setNeedsVerify] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Google đăng nhập server-side: điều hướng cả trang tới BE. Dựng href sau khi
+  // mount để lấy origin (SSR không có window); callback set cookie rồi quay lại.
+  const [googleStartUrl, setGoogleStartUrl] = useState<string | null>(null);
+  useEffect(() => {
+    setGoogleStartUrl(
+      `/api/v1/auth/oauth/google/start` +
+        `?return_to=${encodeURIComponent(window.location.origin)}&next=${encodeURIComponent(next)}`,
+    );
+  }, [next]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -80,7 +99,9 @@ export function LoginForm() {
 
   return (
     <Shell title="Đăng nhập">
-      <p className="auth-sub">Đăng nhập bằng email và mật khẩu. Google/Facebook sẽ sớm khả dụng.</p>
+      <p className="auth-sub">Đăng nhập bằng Google hoặc email + mật khẩu.</p>
+      {googleStartUrl && <a className="button social" href={googleStartUrl}>Tiếp tục với Google</a>}
+      <div className="auth-divider"><span>hoặc email + mật khẩu</span></div>
       <form className="auth-form" onSubmit={submit}>
         <label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" placeholder="ban@gmail.com" /></label>
         <label>Mật khẩu<input value={password} onChange={(e) => setPassword(e.target.value)} type="password" autoComplete="current-password" /></label>

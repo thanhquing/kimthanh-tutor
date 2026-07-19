@@ -1,9 +1,9 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../app/AuthContext";
 import { ApiClientError } from "../lib/api/errors";
 import { appConfig } from "../lib/config";
-import { loginWithFacebook, renderGoogleButton } from "../lib/oauth";
+import { loginWithFacebook } from "../lib/oauth";
 import { routeAfterAuth, safeNextPath } from "../lib/redirects";
 
 function errorMessage(error: unknown) {
@@ -11,39 +11,32 @@ function errorMessage(error: unknown) {
   return "Không thể hoàn tất đăng nhập. Vui lòng thử lại.";
 }
 
+// Callback OAuth server-side redirect kèm ?oauth_error khi thất bại.
+const OAUTH_ERRORS: Record<string, string> = {
+  state: "Phiên đăng nhập Google đã hết hạn hoặc không hợp lệ. Vui lòng thử lại.",
+  denied: "Bạn đã hủy đăng nhập Google.",
+  failed: "Đăng nhập Google thất bại. Vui lòng thử lại.",
+};
+
 export function LoginPage() {
   const auth = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const next = safeNextPath(searchParams.get("next"));
-  const googleButton = useRef<HTMLDivElement>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState<"google" | "facebook" | "password" | "resend" | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"facebook" | "password" | "resend" | null>(null);
+  const [message, setMessage] = useState<string | null>(
+    () => OAUTH_ERRORS[searchParams.get("oauth_error") ?? ""] ?? null,
+  );
   const [needsVerify, setNeedsVerify] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const { loginWithGoogleToken } = auth;
-  useEffect(() => {
-    if (!googleButton.current || !appConfig.googleClientId) return;
-    let active = true;
-    renderGoogleButton(
-      googleButton.current,
-      appConfig.googleClientId,
-      (idToken) => {
-        if (!active) return;
-        setBusy("google");
-        setMessage(null);
-        void loginWithGoogleToken(idToken)
-          .then((me) => navigate(routeAfterAuth(me, next), { replace: true }))
-          .catch((error) => setMessage(errorMessage(error)))
-          .finally(() => setBusy(null));
-      },
-      (error) => active && setMessage(error),
-    ).catch((error) => active && setMessage(errorMessage(error)));
-    return () => { active = false; };
-  }, [loginWithGoogleToken, navigate, next]);
+  // Đăng nhập Google chạy server-side (Authorization Code): điều hướng cả trang
+  // tới BE, không giữ token ở browser. Callback set cookie phiên rồi quay lại FE.
+  const googleStartUrl =
+    `${appConfig.apiBaseUrl}/auth/oauth/google/start` +
+    `?return_to=${encodeURIComponent(window.location.origin)}&next=${encodeURIComponent(next)}`;
 
   if (auth.accountUnavailable) return <Navigate to="/account-unavailable" replace />;
   if (auth.me) return <Navigate to={routeAfterAuth(auth.me, next)} replace />;
@@ -104,10 +97,10 @@ export function LoginPage() {
     <div className="auth-brand"><span className="brand-mark" aria-hidden="true">KT</span><div><strong>Kim Thành Tutor</strong><span>Workspace dành cho gia sư</span></div></div>
     <p className="eyebrow">Đăng nhập an toàn</p>
     <h1 id="login-title">Tiếp tục vào workspace</h1>
-    <p>Đăng nhập bằng email và mật khẩu. Google/Facebook sẽ sớm khả dụng.</p>
+    <p>Đăng nhập bằng Google hoặc email + mật khẩu.</p>
 
-    <div className="social-stack" aria-busy={busy === "google" || busy === "facebook"}>
-      {appConfig.googleClientId ? <div ref={googleButton} className="google-button-host" aria-label="Tiếp tục với Google" /> : <button className="button social" type="button" disabled>Google OAuth sắp có</button>}
+    <div className="social-stack" aria-busy={busy === "facebook"}>
+      <a className="button social" href={googleStartUrl}>Tiếp tục với Google</a>
       <button className="button social facebook" type="button" disabled={!appConfig.facebookAppId || busy !== null} onClick={() => void facebookLogin()}>{busy === "facebook" ? "Đang mở Facebook…" : appConfig.facebookAppId ? "Tiếp tục với Facebook" : "Facebook OAuth sắp có"}</button>
     </div>
 

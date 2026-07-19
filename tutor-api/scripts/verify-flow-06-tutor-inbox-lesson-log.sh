@@ -54,22 +54,41 @@ TRIAL_ID="$(json_get /tmp/flow05-trial.json id)"
 echo "== Flow 6 Step 1: tutor views trial inbox =="
 inbox_http="$(curl -sS -o /tmp/flow06-inbox.json -w "%{http_code}" \
   -H "$TUTOR_AUTH" \
-  "$API/trials/mine?role=tutor")"
+  "$API/trials/mine?role=tutor&status=pending&limit=20")"
 cat /tmp/flow06-inbox.json
 echo
 require_code "$inbox_http" "200" "Tutor trial inbox" /tmp/flow06-inbox.json
 json_array_contains_id /tmp/flow06-inbox.json items "$TRIAL_ID" || fail "Tutor inbox did not include trial_id $TRIAL_ID"
+require_json_value /tmp/flow06-inbox.json items.0.id "$TRIAL_ID"
+require_json_value /tmp/flow06-inbox.json items.0.contact null
+require_json_value /tmp/flow06-inbox.json items.0.capabilities.can_accept true
+require_json_value /tmp/flow06-inbox.json items.0.capabilities.can_view_contact false
+TRIAL_VERSION="$(json_get /tmp/flow06-inbox.json items.0.version)"
 
 echo "== Flow 6 Step 2: accept trial =="
 accept_http="$(curl -sS -o /tmp/flow06-accept.json -w "%{http_code}" \
   -X POST "$API/trials/$TRIAL_ID/accept" \
-  -H "$TUTOR_AUTH")"
+  -H "Content-Type: application/json" \
+  -H "$TUTOR_AUTH" \
+  --data "{\"expected_version\":$TRIAL_VERSION}")"
 cat /tmp/flow06-accept.json
 echo
 require_code "$accept_http" "201" "Accept parent trial" /tmp/flow06-accept.json
 require_json_value /tmp/flow06-accept.json trial.status accepted
 require_json_value /tmp/flow06-accept.json class_contract.status trial_accepted
 CLASS_ID="$(json_get /tmp/flow06-accept.json class_contract.id)"
+
+echo "== Flow 6 Step 2b: stale double accept returns current state =="
+double_http="$(curl -sS -o /tmp/flow06-double-accept.json -w "%{http_code}" \
+  -X POST "$API/trials/$TRIAL_ID/accept" \
+  -H "Content-Type: application/json" \
+  -H "$TUTOR_AUTH" \
+  --data "{\"expected_version\":$TRIAL_VERSION}")"
+cat /tmp/flow06-double-accept.json
+echo
+require_code "$double_http" "409" "Stale double accept" /tmp/flow06-double-accept.json
+require_json_value /tmp/flow06-double-accept.json details.trial.status accepted
+require_json_value /tmp/flow06-double-accept.json details.trial.class_contract_id "$CLASS_ID"
 
 echo "== Flow 6 Step 3: transition class to active =="
 transition_http="$(curl -sS -o /tmp/flow06-transition-active.json -w "%{http_code}" \

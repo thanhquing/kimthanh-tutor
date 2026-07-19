@@ -2,8 +2,8 @@
 
 Trạng thái code ngày 2026-07-19:
 
-- Backend `tutor-api` có module cho Flow 1-12; Flow 6/10 rerun E2E ngày 2026-07-19 và unit mới nhất 120 test.
-- Ba frontend đã hoàn tất scaffold (`TA-00`, `TM-00`, `AD-00`); tutor-app đã xong TA-01–TA-04, current task là `TA-05`.
+- Backend `tutor-api` có module cho Flow 1-12; Flow 4/5/6 rerun E2E ngày 2026-07-19 và unit mới nhất 126 test.
+- Ba frontend đã hoàn tất scaffold (`TA-00`, `TM-00`, `AD-00`); tutor-app đã xong TA-01–TA-05, current task là `TA-06`.
 - Các mốc dưới đây theo dõi sản phẩm tổng thể; API contract pass không đồng nghĩa frontend/provider/worker/production infrastructure đã hoàn tất.
 
 ## Mốc 0: Tài liệu sẵn sàng

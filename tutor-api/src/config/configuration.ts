@@ -41,6 +41,10 @@ export interface AppConfig {
     authStrict: number;
     authMedium: number;
     authRelaxed: number;
+    trialWindowMs: number;
+    trialLimit: number;
+    guestTrialPhoneWindowMs: number;
+    guestTrialPhoneLimit: number;
   };
   password: {
     minLength: number;
@@ -120,6 +124,15 @@ export default (): AppConfig => ({
     authStrict: parseInt(process.env.AUTH_THROTTLE_LIMIT_STRICT ?? '5', 10),
     authMedium: parseInt(process.env.AUTH_THROTTLE_LIMIT_MEDIUM ?? '10', 10),
     authRelaxed: parseInt(process.env.AUTH_THROTTLE_LIMIT_RELAXED ?? '30', 10),
+    trialWindowMs:
+      parseInt(process.env.TRIAL_THROTTLE_WINDOW_SECONDS ?? '3600', 10) * 1000,
+    trialLimit: parseInt(process.env.TRIAL_THROTTLE_LIMIT ?? '10', 10),
+    guestTrialPhoneWindowMs:
+      parseInt(process.env.GUEST_TRIAL_PHONE_WINDOW_SECONDS ?? '3600', 10) * 1000,
+    guestTrialPhoneLimit: parseInt(
+      process.env.GUEST_TRIAL_PHONE_LIMIT ?? '3',
+      10,
+    ),
   },
   password: {
     minLength: parseInt(process.env.PASSWORD_MIN_LENGTH ?? '8', 10),

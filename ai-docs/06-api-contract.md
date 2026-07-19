@@ -98,6 +98,7 @@ Quy tắc:
 - Quản lý lịch rảnh/bận.
 - Xem danh sách yêu cầu dạy thử được gửi đến mình.
 - Chấp nhận/từ chối yêu cầu dạy thử.
+- Inbox trial hỗ trợ filter đủ 5 trạng thái + keyset; response không trả contact PII khi policy chưa chốt, trả capability/activation state. Accept/decline gửi `expected_version`; xung đột `409` kèm `details.trial` mới nhất để UI bỏ action cũ. Lý do decline lưu trường riêng đã trim; activation `link_created` chỉ có nghĩa link đã tạo, không khẳng định worker đã gửi.
 - Xem danh sách lớp.
 - Cập nhật trạng thái lớp.
 - Tạo sổ đầu bài.

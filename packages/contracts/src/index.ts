@@ -417,26 +417,58 @@ export interface TrialRequestSummary {
   student_id: string | null;
   tutor_profile_id: string;
   subject: string;
-  grade: number;
+  grade: string | null;
   learning_goal: string | null;
-  teaching_mode: TeachingMode;
-  preferred_schedule: unknown;
+  teaching_mode: TeachingMode | null;
+  preferred_schedule: string | null;
   message: string | null;
+  decline_reason: string | null;
   status: TrialStatus;
   version: number;
   created_at: string;
   responded_at: string | null;
   expires_at: string | null;
   class_contract_id: string | null;
+  contact: null;
+  capabilities: {
+    can_accept: boolean;
+    can_decline: boolean;
+    can_view_contact: false;
+  };
+  activation: {
+    state: "not_applicable" | "not_required" | "link_created" | "activated" | "expired";
+    expires_at: string | null;
+  };
+}
+
+export interface TrialMineQuery {
+  role?: "parent" | "tutor";
+  status?: TrialStatus;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface TrialActionInput {
+  expected_version?: number;
+}
+
+export interface TrialDeclineInput extends TrialActionInput {
+  reason: string;
+}
+
+export interface TrialAcceptResponse {
+  trial: TrialRequestSummary;
+  class_contract: ClassSummary;
+  activation_token: string | null;
 }
 
 export interface TrialCreateInput {
   tutor_profile_id: string;
   subject: string;
-  grade: number;
+  grade?: string;
   learning_goal?: string;
-  teaching_mode: TeachingMode;
-  preferred_schedule?: unknown;
+  teaching_mode?: TeachingMode;
+  preferred_schedule?: string;
   message?: string;
   student_id?: string;
   contact_name?: string;
@@ -453,8 +485,8 @@ export interface ActivationCompleteResponse {
 
 export interface ClassSummary {
   id: string;
-  trial_request_id: string;
-  parent_profile_id: string;
+  trial_request_id: string | null;
+  parent_profile_id: string | null;
   student_id: string | null;
   tutor_profile_id: string;
   subject: string;

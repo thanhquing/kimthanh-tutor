@@ -22,6 +22,7 @@ import {
 } from "../admin/dto/admin.dto";
 import { SearchQueryDto } from "../search/dto/search-query.dto";
 import { AdminPasswordLoginDto } from "../auth/dto/auth.dto";
+import { DeclineTrialDto, TrialActionDto, TrialMineQueryDto } from "../trials/dto/trial.dto";
 
 function errorsFor<T extends object>(Cls: new () => T, payload: object) {
   const instance = plainToInstance(Cls, payload);
@@ -32,6 +33,14 @@ function errorsFor<T extends object>(Cls: new () => T, payload: object) {
 }
 
 describe("DTO validation contracts", () => {
+  it("validates trial filters, expected version and non-empty decline reason", () => {
+    expect(errorsFor(TrialMineQueryDto, { status: "unknown" })).toHaveLength(1);
+    expect(errorsFor(TrialMineQueryDto, { status: "cancelled", limit: "20" })).toEqual([]);
+    expect(errorsFor(TrialActionDto, { expected_version: -1 })).toHaveLength(1);
+    expect(errorsFor(TrialActionDto, { expected_version: 0 })).toEqual([]);
+    expect(errorsFor(DeclineTrialDto, { reason: "" })).toHaveLength(1);
+    expect(errorsFor(DeclineTrialDto, { reason: "Trùng lịch", expected_version: 2 })).toEqual([]);
+  });
   it("requires a valid admin email and a 12-128 character password", () => {
     expect(errorsFor(AdminPasswordLoginDto, { email: "invalid", password: "short" })).not.toEqual([]);
     expect(errorsFor(AdminPasswordLoginDto, { email: "admin@example.test", password: "correct-password" })).toEqual([]);

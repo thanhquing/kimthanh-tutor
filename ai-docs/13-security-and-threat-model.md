@@ -123,4 +123,11 @@ Trạng thái 2026-07-16: limiter hiện dùng `@nestjs/throttler` in-memory. Ph
 | Upload mã độc/nội dung xấu | Signed upload + validate + quét virus + kiểm duyệt |
 | Rò rỉ PII trẻ vị thành niên | Phân loại PII + hạn chế log + retention + ẩn danh (`14-...`) |
 | Mất sự kiện (thông báo/cấp quyền) | Outbox at-least-once + retry + dead-letter |
+
+### Review threat model TA-05 — inbox trial
+
+- **Spam guest lead:** `POST /trials` có limiter riêng theo IP; service đếm số lead gần đây theo `contact_phone` trên index PostgreSQL và trả `RATE_LIMITED` trước khi lưu thêm PII. Store throttler IP vẫn in-memory tới khi INFRA bật Redis, nhưng giới hạn theo phone là DB-backed và dùng chung giữa instance.
+- **Double-submit/race parent cancel:** accept/decline/cancel compare-and-swap theo `status=pending` + `version`; lỗi `409` chỉ trả read model đã redaction để UI cập nhật state, không trả contact snapshot.
+- **IDOR/contact leak:** query khóa theo `parentProfileId`/`tutorProfileId`; presenter luôn trả `contact=null`, `can_view_contact=false` khi policy còn mở. Client không log, đưa student/contact vào URL hoặc snapshot.
+- **Thông báo chưa dispatch:** response dùng từ `link_created`, không tuyên bố “đã gửi”; side-effect chỉ emit outbox trong transaction.
 | Lộ secret | Secret manager + không log + quay vòng |

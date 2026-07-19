@@ -1,19 +1,31 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { TrialsService } from './trials.service';
 import {
   ActivationDto,
   CreateTrialDto,
   DeclineTrialDto,
+  TrialActionDto,
   TrialMineQueryDto,
 } from './dto/trial.dto';
 import { OptionalAuth, Public, Roles } from '../../common/auth/roles.decorator';
 import { CurrentUser, AuthUser } from '../../common/auth/auth-user';
+
+const TRIAL_THROTTLE_WINDOW_MS =
+  Number(process.env.TRIAL_THROTTLE_WINDOW_SECONDS ?? 3600) * 1000;
+const TRIAL_THROTTLE_LIMIT = Number(process.env.TRIAL_THROTTLE_LIMIT ?? 10);
 
 @Controller()
 export class TrialsController {
   constructor(private readonly trials: TrialsService) {}
 
   @OptionalAuth()
+  @Throttle({
+    default: {
+      ttl: TRIAL_THROTTLE_WINDOW_MS,
+      limit: TRIAL_THROTTLE_LIMIT,
+    },
+  })
   @Post('trials')
   create(@CurrentUser() user: AuthUser | undefined, @Body() dto: CreateTrialDto) {
     return this.trials.create(user, dto);
@@ -27,8 +39,12 @@ export class TrialsController {
 
   @Roles('tutor')
   @Post('trials/:id/accept')
-  accept(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.trials.accept(user, id);
+  accept(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: TrialActionDto,
+  ) {
+    return this.trials.accept(user, id, dto);
   }
 
   @Roles('tutor')
@@ -43,8 +59,12 @@ export class TrialsController {
 
   @Roles('parent')
   @Post('trials/:id/cancel')
-  cancel(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.trials.cancel(user, id);
+  cancel(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: TrialActionDto,
+  ) {
+    return this.trials.cancel(user, id, dto);
   }
 
   @Public()

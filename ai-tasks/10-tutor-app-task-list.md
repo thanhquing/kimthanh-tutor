@@ -2,7 +2,7 @@
 
 Tất cả task khởi tạo ở trạng thái `TODO`. Quy tắc trạng thái, commit và Definition of Done: `09-frontend-task-governance.md`. Sai lệch mock cần xử lý: `13-mock-ui-ux-audit.md`.
 
-Snapshot 2026-07-19: `TA-00`–`TA-04` DONE theo evidence bên dưới; `TA-05` là `Current task`. Placeholder route của TA-05–TA-13 không phải feature đã hoàn tất.
+Snapshot 2026-07-19: `TA-00`–`TA-05` DONE theo evidence bên dưới; `TA-06` là `Current task`. Placeholder route của TA-06–TA-13 không phải feature đã hoàn tất.
 
 ## Thứ tự đề xuất
 
@@ -13,7 +13,7 @@ Snapshot 2026-07-19: `TA-00`–`TA-04` DONE theo evidence bên dưới; `TA-05` 
 | 3 | TA-02 Hồ sơ, media và publish | TA-01 | DONE |
 | 4 | TA-03 Lịch available/busy | TA-01 | DONE |
 | 5 | TA-04 Dashboard công việc | TA-02, TA-03 | DONE |
-| 6 | TA-05 Inbox yêu cầu học thử | TA-01 | TODO |
+| 6 | TA-05 Inbox yêu cầu học thử | TA-01 | DONE |
 | 7 | TA-06 Lớp và state machine | TA-05 | TODO |
 | 8 | TA-07 Sổ đầu bài | TA-06 | TODO |
 | 9 | TA-08 Tài khoản nhận học phí | TA-01 | TODO |
@@ -153,8 +153,12 @@ Nghiệm thu và test:
 
 ## TA-05 — Inbox yêu cầu học thử
 
-- Trạng thái: TODO
-- Commit: —
+- Trạng thái: DONE
+- Owner: `codex/root`
+- Started: 2026-07-19
+- Completed: 2026-07-19
+- Commit lookup: `git log --oneline --grep='TA-05' -1`
+- Blocker: —
 - Mock: `trials.html`. API: Trials. Flow 4, 5, 6.
 
 Scope:
@@ -168,6 +172,13 @@ Nghiệm thu và test:
 - Chỉ pending có action; double accept và parent cancel race hiển thị state mới; decline reason được trim/validate.
 - Component test filters/actions/conflict; API service unit test nếu response cần thêm capability/activation status.
 - `verify-flow-04-guest-trial-activation.sh`, `05-parent-onboarding-trial.sh`, `06-tutor-inbox-lesson-log.sh` pass phần liên quan.
+
+Evidence hoàn tất:
+
+- Route lazy `/trials` dùng infinite query keyset + filter đủ năm trạng thái; detail giữ chỗ ổn định, privacy fail-closed, cảnh báo lịch không suy diễn, action theo capability. Accept/decline có double-submit guard, trim reason, conflict override theo trạng thái server; class link và activation state được render nhưng không render raw token.
+- API owner-safe theo parent/tutor role thật; presenter luôn `contact=null`; accept/decline/cancel CAS `pending+expected_version`, conflict trả current redacted state. Guest trial chống spam riêng 10/IP/giờ và 3 lead/phone/giờ; inbox/phone có index phục vụ keyset/anti-spam.
+- API lint/build + 18 suite/126 test; app lint/build + 20 file/109 test; contracts serialization xanh. Docker Flow 4 và Flow 6 (gồm Flow 5) pass ngày 2026-07-19. Playwright tutor-app 3 pass/1 skip OAuth: inbox GET 200, detail privacy/schedule warning, accept POST 201, class link/activation state và regression session/dashboard/availability/profile.
+- Checklist xanh trong scope: `A01`, `A04`, `A09`, `API1`, `API3`, `API5`, `API6`, `C3`, `D5`, `D7`, `D8`, `E3`, `E5`; các mục `API4`, `C5`, `E2`, `E7`, `E8` có evidence TA-05 nhưng giữ vàng vì gap hạ tầng/toàn app đã ghi rõ trong `15-perf-security-checklist.md`.
 
 ## TA-06 — Danh sách lớp, chi tiết và state machine
 

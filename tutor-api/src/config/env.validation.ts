@@ -52,6 +52,10 @@ const base = {
   AUTH_THROTTLE_LIMIT_STRICT: z.coerce.number().int().positive().default(5),
   AUTH_THROTTLE_LIMIT_MEDIUM: z.coerce.number().int().positive().default(10),
   AUTH_THROTTLE_LIMIT_RELAXED: z.coerce.number().int().positive().default(30),
+  TRIAL_THROTTLE_WINDOW_SECONDS: z.coerce.number().int().positive().default(3600),
+  TRIAL_THROTTLE_LIMIT: z.coerce.number().int().positive().default(10),
+  GUEST_TRIAL_PHONE_WINDOW_SECONDS: z.coerce.number().int().positive().default(3600),
+  GUEST_TRIAL_PHONE_LIMIT: z.coerce.number().int().positive().default(3),
 
   PASSWORD_MIN_LENGTH: z.coerce.number().int().positive().default(8),
   PASSWORD_MAX_LENGTH: z.coerce.number().int().positive().default(128),

@@ -15,6 +15,7 @@ const trial = {
   teachingMode: 'online',
   preferredSchedule: 'Saturday morning',
   message: 'Please help',
+  declineReason: null,
   contactSnapshot: '{}',
   status: 'pending',
   version: 0,
@@ -39,13 +40,23 @@ const classContract = {
 };
 
 describe('TrialsService', () => {
+  const tutorUser = {
+    userId: '01HYUSER0000000000000000',
+    roles: ['tutor'],
+    status: 'active',
+    tutorProfileId: trial.tutorProfileId,
+  } as any;
+
   it('creates a guest lead and a pending trial request', async () => {
     const tx = {
       trialRequest: { create: jest.fn().mockResolvedValue(trial) },
     };
     const prisma = {
       tutorProfile: { findFirst: jest.fn().mockResolvedValue({ id: trial.tutorProfileId }) },
-      lead: { create: jest.fn().mockResolvedValue({ id: trial.leadId }) },
+      lead: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: trial.leadId }),
+      },
       $transaction: jest.fn((fn) => fn(tx)),
     };
     const outbox = { emit: jest.fn() };
@@ -114,6 +125,37 @@ describe('TrialsService', () => {
     expect(prisma.lead.create).not.toHaveBeenCalled();
   });
 
+  it('rate-limits repeated guest trials by contact phone before storing PII', async () => {
+    const prisma = {
+      tutorProfile: {
+        findFirst: jest.fn().mockResolvedValue({ id: trial.tutorProfileId }),
+      },
+      lead: {
+        count: jest.fn().mockResolvedValue(3),
+        create: jest.fn(),
+      },
+      $transaction: jest.fn(),
+    };
+    const service = new TrialsService(prisma as any, {} as any);
+
+    await expect(
+      service.create(undefined, {
+        tutor_profile_id: trial.tutorProfileId,
+        subject: trial.subject,
+        contact_name: 'Guest Parent',
+        contact_phone: '0900000000',
+      }),
+    ).rejects.toMatchObject({ code: ErrorCode.RATE_LIMITED });
+    expect(prisma.lead.count).toHaveBeenCalledWith({
+      where: {
+        contactPhone: '0900000000',
+        createdAt: { gte: expect.any(Date) },
+      },
+    });
+    expect(prisma.lead.create).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('accepts a pending trial and creates a class contract once', async () => {
     const tx = {
       trialRequest: {
@@ -180,6 +222,149 @@ describe('TrialsService', () => {
         }),
       }),
     );
+  });
+
+  it('lists a bounded filtered tutor inbox without returning contact PII', async () => {
+    const prisma = {
+      trialRequest: {
+        findMany: jest.fn().mockResolvedValue([
+          { ...trial, classContract: null, activationTokens: [] },
+        ]),
+      },
+    };
+    const service = new TrialsService(prisma as any, {} as any);
+
+    const result = await service.mine(tutorUser, {
+      role: 'tutor',
+      status: 'pending',
+      limit: '1',
+    });
+
+    expect(prisma.trialRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { OR: [{ tutorProfileId: trial.tutorProfileId }] },
+            { status: 'pending' },
+          ],
+        },
+        take: 2,
+      }),
+    );
+    expect(result).toEqual({
+      items: [
+        expect.objectContaining({
+          id: trial.id,
+          contact: null,
+          capabilities: {
+            can_accept: true,
+            can_decline: true,
+            can_view_contact: false,
+          },
+        }),
+      ],
+      next_cursor: null,
+    });
+  });
+
+  it('returns the current trial in a version conflict before accepting', async () => {
+    const prisma = {
+      trialRequest: {
+        findFirst: jest.fn().mockResolvedValue({
+          ...trial,
+          version: 2,
+          classContract: null,
+          lead: null,
+        }),
+      },
+      $transaction: jest.fn(),
+    };
+    const service = new TrialsService(prisma as any, {} as any);
+
+    await expect(
+      service.accept(tutorUser, trial.id, { expected_version: 1 }),
+    ).rejects.toMatchObject({
+      code: ErrorCode.CONFLICT,
+      details: { trial: expect.objectContaining({ id: trial.id, version: 2 }) },
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('declines with trimmed reason using status and version compare-and-swap', async () => {
+    const declined = {
+      ...trial,
+      status: 'declined',
+      version: 1,
+      declineReason: 'Trùng lịch',
+    };
+    const tx = {
+      trialRequest: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue(declined),
+      },
+    };
+    const prisma = {
+      trialRequest: { findFirst: jest.fn().mockResolvedValue(trial) },
+      $transaction: jest.fn((fn) => fn(tx)),
+    };
+    const outbox = { emit: jest.fn() };
+    const service = new TrialsService(prisma as any, outbox as any);
+
+    const result = await service.decline(tutorUser, trial.id, {
+      reason: '  Trùng lịch  ',
+      expected_version: 0,
+    });
+
+    expect(tx.trialRequest.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: trial.id,
+        tutorProfileId: trial.tutorProfileId,
+        status: 'pending',
+        version: 0,
+      },
+      data: {
+        status: 'declined',
+        respondedAt: expect.any(Date),
+        declineReason: 'Trùng lịch',
+        version: { increment: 1 },
+      },
+    });
+    expect(outbox.emit).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ eventType: 'trial.declined' }),
+    );
+    expect(result).toMatchObject({
+      status: 'declined',
+      decline_reason: 'Trùng lịch',
+      message: trial.message,
+    });
+  });
+
+  it('surfaces the parent-cancelled state when decline loses the race', async () => {
+    const cancelled = { ...trial, status: 'cancelled', version: 1 };
+    const tx = {
+      trialRequest: {
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        findUnique: jest.fn().mockResolvedValue(cancelled),
+      },
+    };
+    const prisma = {
+      trialRequest: { findFirst: jest.fn().mockResolvedValue(trial) },
+      $transaction: jest.fn((fn) => fn(tx)),
+    };
+    const service = new TrialsService(prisma as any, {} as any);
+
+    await expect(
+      service.decline(tutorUser, trial.id, {
+        reason: 'Trùng lịch',
+        expected_version: 0,
+      }),
+    ).rejects.toMatchObject({
+      code: ErrorCode.CONFLICT,
+      details: {
+        trial: expect.objectContaining({ status: 'cancelled', version: 1 }),
+      },
+    });
   });
 
   it('rejects accepting a non-pending trial', async () => {

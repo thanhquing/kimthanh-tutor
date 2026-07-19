@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { TrialRequest, ClassContract, Lead, Prisma } from '@prisma/client';
+import {
+  TrialRequest,
+  ClassContract,
+  Lead,
+  Prisma,
+  ActivationToken,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AppException } from '../../common/errors/app.exception';
 import { ErrorCode } from '../../common/errors/error-codes';
@@ -11,12 +17,29 @@ import {
   ActivationDto,
   CreateTrialDto,
   DeclineTrialDto,
+  TrialActionDto,
   TrialMineQueryDto,
 } from './dto/trial.dto';
+import {
+  buildKeyset,
+  clampLimit,
+  decodeCursor,
+  encodeCursor,
+} from '../../common/pagination/keyset';
 
 const ACTIVATION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const ACTIVATION_PURPOSE = 'guest_trial_activation';
+const GUEST_TRIAL_PHONE_WINDOW_MS =
+  Number(process.env.GUEST_TRIAL_PHONE_WINDOW_SECONDS ?? 3600) * 1000;
+const GUEST_TRIAL_PHONE_LIMIT = Number(
+  process.env.GUEST_TRIAL_PHONE_LIMIT ?? 3,
+);
 type ActivationTokenStore = Pick<Prisma.TransactionClient, 'activationToken'>;
+type TrialPresenterInput = TrialRequest & {
+  classContract?: ClassContract | null;
+  lead?: Lead | null;
+  activationTokens?: Array<Pick<ActivationToken, 'consumedAt' | 'expiresAt'>>;
+};
 
 @Injectable()
 export class TrialsService {
@@ -79,6 +102,20 @@ export class TrialsService {
           'Guest cần contact_name và contact_phone',
         );
       }
+      const recentByPhone = await this.prisma.lead.count({
+        where: {
+          contactPhone,
+          createdAt: {
+            gte: new Date(Date.now() - GUEST_TRIAL_PHONE_WINDOW_MS),
+          },
+        },
+      });
+      if (recentByPhone >= GUEST_TRIAL_PHONE_LIMIT) {
+        throw new AppException(
+          ErrorCode.RATE_LIMITED,
+          'Số điện thoại đã gửi quá nhiều yêu cầu học thử, vui lòng thử lại sau',
+        );
+      }
       const lead = await this.prisma.lead.create({
         data: {
           id: newId(),
@@ -134,7 +171,9 @@ export class TrialsService {
   async mine(user: AuthUser, query: TrialMineQueryDto) {
     const roles =
       query.role !== undefined
-        ? [query.role]
+        ? user.roles.includes(query.role)
+          ? [query.role]
+          : []
         : (['parent', 'tutor'] as const).filter((r) => user.roles.includes(r));
     const OR = [];
     if (roles.includes('parent') && user.parentProfileId) {
@@ -143,18 +182,41 @@ export class TrialsService {
     if (roles.includes('tutor') && user.tutorProfileId) {
       OR.push({ tutorProfileId: user.tutorProfileId });
     }
-    if (OR.length === 0) return { items: [] };
+    if (OR.length === 0) return { items: [], next_cursor: null };
 
-    const items = await this.prisma.trialRequest.findMany({
-      where: { OR },
-      include: { classContract: true },
+    const limit = clampLimit(query.limit, 20, 50);
+    const cursorWhere = this.createdAtCursorWhere(query.cursor);
+    const where: Prisma.TrialRequestWhereInput = {
+      AND: [
+        { OR },
+        ...(query.status ? [{ status: query.status }] : []),
+        ...(query.cursor ? [cursorWhere] : []),
+      ],
+    };
+
+    const rows = await this.prisma.trialRequest.findMany({
+      where,
+      include: {
+        classContract: true,
+        activationTokens: {
+          select: { consumedAt: true, expiresAt: true },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 1,
+        },
+      },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: 100,
+      take: limit + 1,
     });
-    return { items: items.map((t) => this.toTrial(t)) };
+    const page = buildKeyset(rows, limit, (item) =>
+      encodeCursor(item.createdAt.toISOString(), item.id),
+    );
+    return {
+      items: page.items.map((item) => this.toTrial(item)),
+      next_cursor: page.next_cursor,
+    };
   }
 
-  async accept(user: AuthUser, id: string) {
+  async accept(user: AuthUser, id: string, dto: TrialActionDto = {}) {
     if (!user.tutorProfileId) {
       throw new AppException(ErrorCode.FORBIDDEN_ROLE, 'Chưa có hồ sơ gia sư');
     }
@@ -168,30 +230,24 @@ export class TrialsService {
         'Không tìm thấy yêu cầu học thử',
       );
     }
-    if (trial.classContract) {
-      const activationToken = trial.leadId
-        ? await this.createActivationToken(
-            this.prisma,
-            trial.leadId,
-            trial.id,
-          )
-        : null;
-      return {
-        trial: this.toTrial(trial),
-        class_contract: this.toClass(trial.classContract),
-        activation_token: activationToken,
-      };
+    if (dto.expected_version !== undefined && dto.expected_version !== trial.version) {
+      this.throwTrialConflict(trial);
     }
     if (trial.status !== 'pending') {
       throw new AppException(
         ErrorCode.INVALID_STATE_TRANSITION,
         'Chỉ yêu cầu pending mới được chấp nhận',
+        { trial: this.toTrial(trial) },
       );
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.trialRequest.updateMany({
-        where: { id: trial.id, version: trial.version, status: 'pending' },
+        where: {
+          id: trial.id,
+          version: dto.expected_version ?? trial.version,
+          status: 'pending',
+        },
         data: {
           status: 'accepted',
           respondedAt: new Date(),
@@ -199,10 +255,11 @@ export class TrialsService {
         },
       });
       if (updated.count !== 1) {
-        throw new AppException(
-          ErrorCode.CONFLICT,
-          'Yêu cầu học thử vừa được xử lý bởi thao tác khác',
-        );
+        const current = await tx.trialRequest.findUnique({
+          where: { id: trial.id },
+          include: { classContract: true },
+        });
+        this.throwTrialConflict(current ?? trial);
       }
 
       const classContract = await tx.classContract.create({
@@ -260,25 +317,51 @@ export class TrialsService {
         'Không tìm thấy yêu cầu học thử',
       );
     }
+    if (dto.expected_version !== undefined && dto.expected_version !== trial.version) {
+      this.throwTrialConflict(trial);
+    }
     if (trial.status !== 'pending') {
       throw new AppException(
         ErrorCode.INVALID_STATE_TRANSITION,
         'Chỉ yêu cầu pending mới được từ chối',
+        { trial: this.toTrial(trial) },
       );
     }
-    const updated = await this.prisma.trialRequest.update({
-      where: { id },
-      data: {
-        status: 'declined',
-        respondedAt: new Date(),
-        message: dto.reason ? `${trial.message ?? ''}\n[decline] ${dto.reason}` : trial.message,
-        version: { increment: 1 },
-      },
+    const reason = this.requiredTrim(dto.reason, 'reason');
+    return this.prisma.$transaction(async (tx) => {
+      const changed = await tx.trialRequest.updateMany({
+        where: {
+          id,
+          tutorProfileId: user.tutorProfileId,
+          status: 'pending',
+          version: dto.expected_version ?? trial.version,
+        },
+        data: {
+          status: 'declined',
+          respondedAt: new Date(),
+          declineReason: reason,
+          version: { increment: 1 },
+        },
+      });
+      if (changed.count !== 1) {
+        const current = await tx.trialRequest.findUnique({
+          where: { id },
+          include: { classContract: true },
+        });
+        this.throwTrialConflict(current ?? trial);
+      }
+      await this.outbox.emit(tx, {
+        aggregateType: 'trial_request',
+        aggregateId: id,
+        eventType: 'trial.declined',
+        payload: { trial_id: id },
+      });
+      const updated = await tx.trialRequest.findUniqueOrThrow({ where: { id } });
+      return this.toTrial(updated);
     });
-    return this.toTrial(updated);
   }
 
-  async cancel(user: AuthUser, id: string) {
+  async cancel(user: AuthUser, id: string, dto: TrialActionDto = {}) {
     if (!user.parentProfileId) {
       throw new AppException(ErrorCode.FORBIDDEN_ROLE, 'Chưa có hồ sơ phụ huynh');
     }
@@ -291,17 +374,46 @@ export class TrialsService {
         'Không tìm thấy yêu cầu học thử',
       );
     }
+    if (dto.expected_version !== undefined && dto.expected_version !== trial.version) {
+      this.throwTrialConflict(trial);
+    }
     if (trial.status !== 'pending') {
       throw new AppException(
         ErrorCode.INVALID_STATE_TRANSITION,
         'Chỉ yêu cầu pending mới được hủy',
+        { trial: this.toTrial(trial) },
       );
     }
-    const updated = await this.prisma.trialRequest.update({
-      where: { id },
-      data: { status: 'cancelled', respondedAt: new Date(), version: { increment: 1 } },
+    return this.prisma.$transaction(async (tx) => {
+      const changed = await tx.trialRequest.updateMany({
+        where: {
+          id,
+          parentProfileId: user.parentProfileId,
+          status: 'pending',
+          version: dto.expected_version ?? trial.version,
+        },
+        data: {
+          status: 'cancelled',
+          respondedAt: new Date(),
+          version: { increment: 1 },
+        },
+      });
+      if (changed.count !== 1) {
+        const current = await tx.trialRequest.findUnique({
+          where: { id },
+          include: { classContract: true },
+        });
+        this.throwTrialConflict(current ?? trial);
+      }
+      await this.outbox.emit(tx, {
+        aggregateType: 'trial_request',
+        aggregateId: id,
+        eventType: 'trial.cancelled',
+        payload: { trial_id: id },
+      });
+      const updated = await tx.trialRequest.findUniqueOrThrow({ where: { id } });
+      return this.toTrial(updated);
     });
-    return this.toTrial(updated);
   }
 
   // Public activation for guest lead accepted by tutor.
@@ -442,9 +554,8 @@ export class TrialsService {
     return raw;
   }
 
-  private toTrial(
-    t: TrialRequest & { classContract?: ClassContract | null; lead?: Lead | null },
-  ) {
+  private toTrial(t: TrialPresenterInput) {
+    const activation = this.activationPresentation(t);
     return {
       id: t.id,
       parent_profile_id: t.parentProfileId,
@@ -457,12 +568,68 @@ export class TrialsService {
       teaching_mode: t.teachingMode,
       preferred_schedule: t.preferredSchedule,
       message: t.message,
+      decline_reason: t.declineReason,
       status: t.status,
       version: t.version,
       created_at: t.createdAt.toISOString(),
       responded_at: t.respondedAt?.toISOString() ?? null,
       expires_at: t.expiresAt?.toISOString() ?? null,
       class_contract_id: t.classContract?.id ?? null,
+      // Chính sách chia sẻ liên hệ đang là open question. API tutor fail-closed:
+      // không parse/trả contact_snapshot hoặc Lead PII cho tới khi rule được chốt.
+      contact: null,
+      capabilities: {
+        can_accept: t.status === 'pending',
+        can_decline: t.status === 'pending',
+        can_view_contact: false as const,
+      },
+      activation,
+    };
+  }
+
+  private activationPresentation(t: TrialPresenterInput) {
+    if (t.status !== 'accepted') {
+      return { state: 'not_applicable' as const, expires_at: null };
+    }
+    const token = t.activationTokens?.[0];
+    if (token?.consumedAt) {
+      return { state: 'activated' as const, expires_at: token.expiresAt.toISOString() };
+    }
+    if (token && token.expiresAt.getTime() <= Date.now()) {
+      return { state: 'expired' as const, expires_at: token.expiresAt.toISOString() };
+    }
+    if (token || t.leadId) {
+      return {
+        state: 'link_created' as const,
+        expires_at: token?.expiresAt.toISOString() ?? null,
+      };
+    }
+    return { state: 'not_required' as const, expires_at: null };
+  }
+
+  private throwTrialConflict(trial: TrialPresenterInput): never {
+    throw new AppException(
+      ErrorCode.CONFLICT,
+      'Yêu cầu học thử vừa được xử lý bởi thao tác khác',
+      { trial: this.toTrial(trial) },
+    );
+  }
+
+  private createdAtCursorWhere(cursor?: string): Prisma.TrialRequestWhereInput {
+    if (!cursor) return {};
+    const decoded = decodeCursor(cursor);
+    if (!decoded || typeof decoded[0] !== 'string') {
+      throw new AppException(ErrorCode.VALIDATION_ERROR, 'Cursor không hợp lệ');
+    }
+    const createdAt = new Date(decoded[0]);
+    if (Number.isNaN(createdAt.getTime())) {
+      throw new AppException(ErrorCode.VALIDATION_ERROR, 'Cursor không hợp lệ');
+    }
+    return {
+      OR: [
+        { createdAt: { lt: createdAt } },
+        { createdAt, id: { lt: decoded[1] } },
+      ],
     };
   }
 

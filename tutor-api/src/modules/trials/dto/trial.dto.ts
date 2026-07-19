@@ -1,11 +1,14 @@
 import {
   IsEmail,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
 } from 'class-validator';
+import { PaginationQueryDto } from '../../../common/pagination/pagination.dto';
 
 export class CreateTrialDto {
   @IsString()
@@ -65,16 +68,32 @@ export class CreateTrialDto {
 }
 
 export class DeclineTrialDto {
-  @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(500)
-  reason?: string;
+  reason!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  expected_version?: number;
 }
 
-export class TrialMineQueryDto {
+export class TrialActionDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  expected_version?: number;
+}
+
+export class TrialMineQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsIn(['parent', 'tutor'])
   role?: 'parent' | 'tutor';
+
+  @IsOptional()
+  @IsIn(['pending', 'accepted', 'declined', 'expired', 'cancelled'])
+  status?: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled';
 }
 
 export class ActivationDto {

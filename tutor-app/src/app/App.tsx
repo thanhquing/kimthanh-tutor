@@ -20,6 +20,7 @@ import { TutorAccessGate } from "./TutorAccessGate";
 const AvailabilityPage = lazy(() => import("../pages/AvailabilityPage").then((module) => ({ default: module.AvailabilityPage })));
 const DashboardPage = lazy(() => import("../pages/DashboardPage").then((module) => ({ default: module.DashboardPage })));
 const ProfilePage = lazy(() => import("../pages/ProfilePage").then((module) => ({ default: module.ProfilePage })));
+const TrialsPage = lazy(() => import("../pages/TrialsPage").then((module) => ({ default: module.TrialsPage })));
 
 function FeatureRoute({ children }: { children: ReactNode }) {
   return <Suspense fallback={<div className="panel"><LoadingState label="Đang mở màn hình…" /></div>}>{children}</Suspense>;
@@ -41,7 +42,8 @@ export function App() {
         <Route path="/profile/*" element={<FeatureRoute><ProfilePage /></FeatureRoute>} />
         <Route path="/availability/*" element={<FeatureRoute><AvailabilityPage /></FeatureRoute>} />
         <Route path="/dashboard/*" element={<FeatureRoute><DashboardPage /></FeatureRoute>} />
-        {navigation.filter((item) => !["/dashboard", "/profile", "/availability"].includes(item.path)).map((item) => <Route key={item.path} path={`${item.path}/*`} element={<PlaceholderPage item={item} />} />)}
+        <Route path="/trials/*" element={<FeatureRoute><TrialsPage /></FeatureRoute>} />
+        {navigation.filter((item) => !["/dashboard", "/profile", "/availability", "/trials"].includes(item.path)).map((item) => <Route key={item.path} path={`${item.path}/*`} element={<PlaceholderPage item={item} />} />)}
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes></AuthProvider>

@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { loginViaPassword } from "./helpers";
+import { E2E_TRIAL_SUBJECT } from "../lib/seed";
 
 // Smoke tutor-app: một phiên đăng nhập email+password bao phủ TA-02 (hồ sơ),
-// TA-03 (lịch) và TA-04 (dashboard), điều hướng client-side trong cùng phiên.
-test("tutor-app: dashboard (TA-04), hồ sơ (TA-02) và lịch rảnh (TA-03) trên browser thật", async ({ page }) => {
+// TA-03 (lịch), TA-04 (dashboard), TA-05 (trial), điều hướng trong cùng phiên.
+test("tutor-app: dashboard, trial inbox, hồ sơ và lịch rảnh trên browser thật", async ({ page }) => {
   await page.addInitScript(() => {
     const measuredWindow = window as typeof window & { __ktCls?: number };
     measuredWindow.__ktCls = 0;
@@ -34,6 +35,30 @@ test("tutor-app: dashboard (TA-04), hồ sơ (TA-02) và lịch rảnh (TA-03) t
   await expect(page.getByRole("heading", { name: /Chào E2E/ })).toBeVisible();
   const cls = await page.evaluate(() => (window as typeof window & { __ktCls?: number }).__ktCls ?? 0);
   expect(cls).toBeLessThan(0.1);
+
+  // --- TA-05: đọc inbox qua API thật và accept đúng một pending trial ---
+  const inbox = page.waitForResponse(
+    (r) => r.url().includes("/trials/mine") && r.request().method() === "GET",
+  );
+  await page.locator(".sidebar").getByRole("link", { name: "Học thử", exact: true }).click();
+  expect((await inbox).status()).toBe(200);
+  await expect(page.getByRole("heading", { name: "Yêu cầu học thử" })).toBeVisible();
+  const trialCard = page.locator('.trial-card[data-status="pending"]', {
+    hasText: E2E_TRIAL_SUBJECT,
+  });
+  await expect(trialCard).toBeVisible();
+  await trialCard.getByText("Xem chi tiết yêu cầu").click();
+  await expect(trialCard.getByText(/chưa thể tự xác nhận trùng lịch/i)).toBeVisible();
+  await expect(trialCard.getByText(/Không có dữ liệu liên hệ nào được tải/i)).toBeVisible();
+
+  const acceptTrial = page.waitForResponse(
+    (r) => r.url().includes("/trials/") && r.url().endsWith("/accept") && r.request().method() === "POST",
+  );
+  await trialCard.getByRole("button", { name: "Nhận dạy thử" }).click();
+  expect((await acceptTrial).status()).toBe(201);
+  await expect(trialCard.getByText("Lớp học thử đã được tạo.")).toBeVisible();
+  await expect(trialCard.getByRole("link", { name: /Mở lớp/ })).toBeVisible();
+  await expect(trialCard.getByText(/không cần kích hoạt/i)).toBeVisible();
 
   await page.locator(".sidebar").getByRole("link", { name: "Lịch rảnh", exact: true }).click();
   await page.waitForURL((url) => url.pathname === "/availability");

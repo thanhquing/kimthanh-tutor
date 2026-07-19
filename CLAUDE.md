@@ -23,11 +23,11 @@ pnpm workspace (`pnpm-workspace.yaml`), Node ≥ 18.12 (dùng 20, xem `.nvmrc`),
 
 | Thư mục | Vai trò | Stack | Trạng thái |
 | --- | --- | --- | --- |
-| `tutor-api` | Backend: nghiệp vụ, auth, thanh toán, mở khóa, lớp, sổ đầu bài, thông báo | NestJS 10 + PostgreSQL 15+ + Prisma | Đã có module đầy đủ; flow cURL 1-12 Verified, Flow 6/10 rerun 2026-07-19; 120 unit tests pass 2026-07-19 |
+| `tutor-api` | Backend: nghiệp vụ, auth, thanh toán, mở khóa, lớp, sổ đầu bài, thông báo | NestJS 10 + PostgreSQL 15+ + Prisma | Đã có module đầy đủ; flow cURL 1-12 Verified, Flow 4/5/6 rerun 2026-07-19; 126 unit tests pass 2026-07-19 |
 | `tutor-market` | App **phụ huynh**: chợ gia sư + bảng điều khiển học tập | Next.js App Router, SSR/ISR + private client shell | `TM-00` DONE; business UI theo `TM-01`–`TM-13` |
-| `tutor-app` | App **gia sư**: hồ sơ, lịch dạy, dạy thử, sổ đầu bài, QR | Vite + React SPA | `TA-00`–`TA-04` DONE; current task `TA-05` |
+| `tutor-app` | App **gia sư**: hồ sơ, lịch dạy, dạy thử, sổ đầu bài, QR | Vite + React SPA | `TA-00`–`TA-05` DONE; current task `TA-06` |
 | `tutor-admin` | App quản trị nội bộ (role `admin`) | Vite + React SPA | `AD-00` DONE: auth/RBAC, shell và API client; nghiệp vụ theo `AD-01`–`AD-09` |
-| `tutor-e2e` | E2E smoke browser thật (Playwright) dùng chung cho 3 app; multi-project + seed dùng chung (`@kimthanh-tutor/e2e`) | Playwright + Chrome hệ thống | Harness + smoke TA-02/TA-03/TA-04, AD-00, TM-00 |
+| `tutor-e2e` | E2E smoke browser thật (Playwright) dùng chung cho 3 app; multi-project + seed dùng chung (`@kimthanh-tutor/e2e`) | Playwright + Chrome hệ thống | Harness + smoke TA-02/TA-03/TA-04/TA-05, AD-00, TM-00 |
 | `packages/contracts` | DTO/type/enum dùng chung API ↔ apps (`@kimthanh-tutor/contracts`) | TypeScript thuần | Có type nền tảng |
 | `ai-docs` | Tài liệu tham chiếu sản phẩm/nghiệp vụ/kỹ thuật | — | Nguồn chân lý nghiệp vụ |
 | `ai-tasks` | Backlog, mốc, quy tắc, catalog endpoint, verify | — | Nguồn chân lý triển khai |

@@ -343,6 +343,7 @@ erDiagram
         string teaching_mode
         string preferred_schedule
         string message
+        string decline_reason "nullable; không ghi đè message"
         string contact_snapshot "🔒 liên hệ tối thiểu tại thời điểm gửi"
         string status "pending|accepted|declined|expired|cancelled"
         int version
@@ -579,7 +580,7 @@ Chi tiết chiến lược ở `12-non-functional-requirements.md`. Tối thiể
 1. Guest (chưa tài khoản) gửi form → tạo `leads` + `trial_requests(lead_id, parent_profile_id=null, status=pending)` + `outbox_events`.
 2. Gia sư chấp nhận: `UPDATE trial_requests ... WHERE version=:v` (optimistic lock) → `accepted`.
 3. Hệ thống tạo `class_contracts(trial_accepted)` + `activation_tokens(token_hash, expires_at)`, gửi link kích hoạt qua outbox.
-4. Phụ huynh kích hoạt bằng token raw: API hash để lookup, consume token atomically, tạo `users`+`parent_profiles`, `leads.converted_parent_profile_id` set, gán `trial_requests.parent_profile_id`, clear `trial_requests.lead_id`, và gán `class_contracts.parent_profile_id`.
+4. Phụ huynh kích hoạt bằng token raw: API hash để lookup, consume token atomically, tạo/tái sử dụng `users`+`parent_profiles`, `leads.converted_parent_profile_id` set, gán `trial_requests.parent_profile_id`, clear `trial_requests.lead_id`, và gán `class_contracts.parent_profile_id`. Quan hệ converted lead → parent là nhiều-một: một phụ huynh có thể từng tạo nhiều lead guest.
 
 ### 3. Sổ đầu bài → dashboard theo học sinh
 

@@ -16,10 +16,10 @@ docker compose up --build --abort-on-container-exit verify
 
 Kết quả API/unit mới nhất: ✅ pass ngày 2026-07-19:
 
-- Full Jest API: 18 suite / 120 test pass.
+- Full Jest API: 18 suite / 126 test pass.
 - API lint và Nest production build pass.
-- `tutor-app`: 18 file / 100 test, lint và Vite production build pass; build lazy-split dashboard/profile/availability.
-- `@kimthanh-tutor/contracts`: serialization tests pass (gồm `TutorDashboardOverview`).
+- `tutor-app`: 20 file / 109 test, lint và Vite production build pass; build lazy-split dashboard/profile/availability/trials.
+- `@kimthanh-tutor/contracts`: serialization tests pass (gồm `TutorDashboardOverview`, `TrialRequestSummary`).
 
 Evidence Docker/flow mới nhất cho TA-04 ngày 2026-07-19:
 
@@ -27,6 +27,12 @@ Evidence Docker/flow mới nhất cho TA-04 ngày 2026-07-19:
 - Flow 6 pass gồm `GET /dashboard/tutor/overview`: lớp active có latest lesson đúng, `pending_trials=0`, không có `partial_errors`.
 - Flow 10 pass gồm dashboard thấy subscription `tutor_qr=active`, payout/access/can-create capability đều `true` và QR `created` nằm trong `pending_qr_records`.
 - `pnpm --filter @kimthanh-tutor/e2e test:app`: 3 pass, 1 skip OAuth khi thiếu client id; smoke TA-04 nhận GET dashboard `200`, render dữ liệu thật, reload sâu giữ phiên và CLS < 0.1. Chạy riêng smoke cuối: 1 pass.
+
+Evidence TA-05 ngày 2026-07-19:
+
+- Docker rebuild áp dụng `decline_reason`, index inbox/phone và cardinality nhiều Lead → một Parent; Flow 4 rerun pass cả ca lặp lại contact parent cũ, Flow 6 pass (bao gồm Flow 5).
+- Flow 5/6 xác nhận list filter + keyset, `contact=null`, capability fail-closed; accept gửi `expected_version`; stale double accept trả 409 + `details.trial.status=accepted` và class link.
+- `pnpm --filter @kimthanh-tutor/e2e test:app`: 3 pass, 1 skip OAuth; Chrome đọc GET inbox 200, mở detail privacy/schedule warning, POST accept 201, render class link + activation state; regression session/dashboard/availability/profile xanh.
 
 File liên quan:
 
@@ -69,9 +75,9 @@ Script flow UI đã có:
 - `tutor-api/scripts/verify-flow-01-auth-consent.sh`: chạy kịch bản 1 end-to-end bằng cURL, gồm seed legal documents dev, register email+password, login-trước-verify bị chặn (`EMAIL_NOT_VERIFIED`), verify email, login, load legal docs, record consent, reload `/auth/me`, logout revoke.
 - `tutor-api/scripts/verify-flow-02-tutor-profile.sh`: chạy kịch bản 2 end-to-end bằng cURL, gồm login/consent, tạo hồ sơ gia sư, thêm availability, thêm payout account, publish profile.
 - `tutor-api/scripts/verify-flow-03-guest-search-paywall.sh`: chạy kịch bản 3 end-to-end bằng cURL, gồm tạo tutor published qua Flow 2, search public, xem detail locked/paywall.
-- `tutor-api/scripts/verify-flow-04-guest-trial-activation.sh`: chạy kịch bản 4 end-to-end bằng cURL, gồm guest tạo trial, tutor accept, guest complete activation token.
-- `tutor-api/scripts/verify-flow-05-parent-onboarding-trial.sh`: chạy kịch bản 5 end-to-end bằng cURL, gồm parent login/consent, bootstrap parent profile, tạo student, gửi trial, xem trial mine.
-- `tutor-api/scripts/verify-flow-06-tutor-inbox-lesson-log.sh`: chạy kịch bản 6 end-to-end bằng cURL, gồm tutor inbox, accept trial, chuyển class active, tạo/sửa lesson log và đọc aggregate dashboard (latest lesson, counts, partial errors).
+- `tutor-api/scripts/verify-flow-04-guest-trial-activation.sh`: guest tạo trial, tutor accept theo version, guest complete activation token; fixture phone động để rerun và phủ nhiều lead cùng convert về parent cũ.
+- `tutor-api/scripts/verify-flow-05-parent-onboarding-trial.sh`: parent login/consent, bootstrap profile, tạo student, gửi trial, list filter/keyset và contact fail-closed.
+- `tutor-api/scripts/verify-flow-06-tutor-inbox-lesson-log.sh`: tutor inbox filter/capability, accept CAS + stale double accept 409, chuyển class active, tạo/sửa lesson log và đọc aggregate dashboard.
 - `tutor-api/scripts/verify-flow-07-parent-dashboard-tracking.sh`: chạy kịch bản 7 end-to-end bằng cURL, gồm overview miễn phí, detail locked, checkout `parent_tracking`, giả lập webhook SePay, mở dashboard detail.
 - `tutor-api/scripts/verify-flow-08-single-unlock-profile.sh`: chạy kịch bản 8 end-to-end bằng cURL, gồm checkout `single_unlock`, giả lập webhook SePay, xem tutor detail unlocked.
 - `tutor-api/scripts/verify-flow-09-review-moderation.sh`: chạy kịch bản 9 end-to-end bằng cURL, gồm complete class, parent review, tutor report, admin moderate; script tự grant admin role trong DB verify.

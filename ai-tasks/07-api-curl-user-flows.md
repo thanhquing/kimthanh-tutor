@@ -23,9 +23,9 @@ Nguyên tắc khi test UI/API:
 | 1 | Login + Consent Gate | Verified | Email + password (register → verify email → login) là đường register/login chính; pass ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-01-auth-consent.sh` (register → verify email → login); script tự seed legal documents dev. Google OAuth server-side verify bằng browser/E2E |
 | 2 | Tutor profile setup | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-02-tutor-profile.sh`; đã refactor `POST /tutors/me/payout-accounts` trả đủ safe UI shape |
 | 3 | Guest search + paywall | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-03-guest-search-paywall.sh`; script tự tạo tutor published qua Flow 2 |
-| 4 | Guest trial + activation | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-04-guest-trial-activation.sh`; script tự tạo tutor published qua Flow 2 |
-| 5 | Parent onboarding + trial | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-05-parent-onboarding-trial.sh`; đã refactor `POST /parents/me` trả email để UI reload profile |
-| 6 | Tutor inbox + lesson log | Verified | Pass end-to-end ngày 2026-07-19 bằng `tutor-api/scripts/verify-flow-06-tutor-inbox-lesson-log.sh`; gồm aggregate dashboard owner-safe thấy class/latest lesson, counts đúng và không partial error |
+| 4 | Guest trial + activation | Verified | Rerun pass 2026-07-19; accept gửi expected version, activation state `link_created`; sửa cardinality để nhiều lead lịch sử convert về cùng parent |
+| 5 | Parent onboarding + trial | Verified | Rerun pass trong Flow 6 ngày 2026-07-19; list filter/keyset và xác nhận contact fail-closed |
+| 6 | Tutor inbox + lesson log | Verified | Rerun pass 2026-07-19; inbox filter/contact capability, accept CAS và stale double-accept 409 kèm state mới; regression class/log/dashboard xanh |
 | 7 | Parent dashboard + tracking checkout | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-07-parent-dashboard-tracking.sh`; đã refactor overview trả `latest_lesson`, detail chưa mua trả `PAYMENT_REQUIRED`, billing entitlement có `status` |
 | 8 | Single unlock profile | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-08-single-unlock-profile.sh`; fixture dev chưa seed media/review nên unlocked detail trả `intro_video_url=null`, `reviews=[]` |
 | 9 | Review + moderation | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-09-review-moderation.sh`; script tự grant admin role trong DB verify |
@@ -852,7 +852,9 @@ User action: gia sư mở inbox yêu cầu và bấm "Chấp nhận".
 
 ```bash
 curl -sS -X POST "$API/trials/$TRIAL_ID/accept" \
-  -H "$TUTOR_AUTH"
+  -H "$JSON" \
+  -H "$TUTOR_AUTH" \
+  --data '{"expected_version": 0}'
 ```
 
 Expected output:
@@ -874,7 +876,7 @@ Expected output:
 UI state:
 
 - Tutor thấy class mới ở trạng thái chờ kích hoạt/phụ huynh hoàn tất.
-- Hệ thống gửi link kích hoạt cho guest.
+- UI hiển thị `activation.state=link_created`: link đã được tạo và đang chờ phụ huynh hoàn tất; không diễn đạt “đã gửi” cho tới khi outbox worker có delivery receipt.
 
 ### Step 3. Guest hoàn tất activation link
 
@@ -1043,7 +1045,7 @@ Mục tiêu UI:
 ### Step 1. Tutor xem inbox yêu cầu
 
 ```bash
-curl -sS "$API/trials/mine?role=tutor" \
+curl -sS "$API/trials/mine?role=tutor&status=pending&limit=20" \
   -H "$TUTOR_AUTH"
 ```
 
@@ -1056,9 +1058,16 @@ Expected output:
       "id": "01K...",
       "status": "pending",
       "subject": "math",
-      "learning_goal": "On thi vao lop 10"
+      "learning_goal": "On thi vao lop 10",
+      "contact": null,
+      "capabilities": {
+        "can_accept": true,
+        "can_decline": true,
+        "can_view_contact": false
+      }
     }
-  ]
+  ],
+  "next_cursor": null
 }
 ```
 
@@ -1066,7 +1075,9 @@ Expected output:
 
 ```bash
 curl -sS -X POST "$API/trials/$TRIAL_ID/accept" \
-  -H "$TUTOR_AUTH"
+  -H "$JSON" \
+  -H "$TUTOR_AUTH" \
+  --data '{"expected_version": 0}'
 ```
 
 Expected output:
@@ -1086,7 +1097,8 @@ Expected output:
 UI state:
 
 - Lưu `CLASS_ID`.
-- Hiển thị lớp trong tab "Lớp mới".
+- Render link lớp và activation state ngay trên request; stale double-submit trả `409 details.trial` để thay state/action hiện tại.
+- Vì `preferred_schedule` là chuỗi tự do, UI chỉ nhắc đối chiếu availability; không khẳng định không trùng lịch.
 
 ### Step 3. Chuyển lớp sang active
 

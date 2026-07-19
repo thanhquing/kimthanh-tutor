@@ -21,6 +21,7 @@ import type {
   TutorProfilePublishResponse,
   TutorPublicDetail,
   TutorSearchCard,
+  TrialRequestSummary,
 } from "./index";
 
 function roundTrip<T>(value: T): T {
@@ -80,6 +81,36 @@ assert.deepEqual(roundTrip(card), card);
 assert.deepEqual(roundTrip(me), me);
 assert.deepEqual(roundTrip(error), error);
 assert.deepEqual(roundTrip(payment), payment);
+
+const trial = {
+  id: "trial_01",
+  parent_profile_id: "parent_01",
+  lead_id: null,
+  student_id: "student_01",
+  tutor_profile_id: "tutor_01",
+  subject: "Toán",
+  grade: "8",
+  learning_goal: "Củng cố đại số",
+  teaching_mode: "online",
+  preferred_schedule: "Thứ 3, Thứ 5 sau 19:00",
+  message: "Mong cô hỗ trợ.",
+  decline_reason: null,
+  status: "pending",
+  version: 0,
+  created_at: "2026-07-19T00:00:00.000Z",
+  responded_at: null,
+  expires_at: "2026-08-02T00:00:00.000Z",
+  class_contract_id: null,
+  contact: null,
+  capabilities: {
+    can_accept: true,
+    can_decline: true,
+    can_view_contact: false,
+  },
+  activation: { state: "not_applicable", expires_at: null },
+} satisfies TrialRequestSummary;
+
+assert.deepEqual(roundTrip(trial), trial);
 
 const registerRequest = { email: "new@gmail.com", password: "a-strong-password" } satisfies AuthRegisterRequest;
 const registerResponse = {

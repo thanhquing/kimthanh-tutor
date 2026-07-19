@@ -6,6 +6,7 @@ import { apiRaw } from "./api";
 // Định danh TÀI KHOẢN test (không phải thông tin DB). Override qua env khi cần.
 export const E2E_TUTOR_EMAIL = process.env.E2E_TUTOR_EMAIL || "tutor.e2e@gmail.com";
 export const E2E_PARENT_EMAIL = process.env.E2E_PARENT_EMAIL || "parent.e2e@gmail.com";
+export const E2E_TRIAL_SUBJECT = "Toán TA-05 E2E";
 export const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || "admin.e2e@example.com";
 // id char(26) cố định cho tài khoản admin (không cần đúng ULID; upsert theo email).
 const ADMIN_ID = "e2eadmin000000000000000000";
@@ -43,7 +44,7 @@ export function seedLegalDocs(): void {
  * Idempotent với mọi trạng thái trước đó: register (best-effort) → verify (nếu
  * pending) → reset password về giá trị run hiện tại → login → consent → profile.
  */
-export async function ensureTutorAccount(password: string, email = E2E_TUTOR_EMAIL): Promise<void> {
+export async function ensureTutorAccount(password: string, email = E2E_TUTOR_EMAIL): Promise<{ token: string; profileId: string }> {
   await apiRaw("/auth/register", { method: "POST", body: { email, password } });
 
   const resend = await apiRaw("/auth/email/verify/resend", { method: "POST", body: { email } });
@@ -60,7 +61,7 @@ export async function ensureTutorAccount(password: string, email = E2E_TUTOR_EMA
   }
 
   const login = await apiRaw("/auth/login", { method: "POST", body: { email, password } });
-  const token = String(login.body.access_token ?? "");
+  let token = String(login.body.access_token ?? "");
 
   const docs = await apiRaw("/legal/documents/active");
   const terms = docs.body.terms as { id: string };
@@ -76,24 +77,29 @@ export async function ensureTutorAccount(password: string, email = E2E_TUTOR_EMA
     },
   });
 
-  const existing = await apiRaw("/tutors/me/profile", { token });
-  if (existing.status !== 200) {
-    await apiRaw("/tutors/me/profile", {
-      method: "POST",
-      token,
-      body: {
-        display_name: "Cô E2E",
-        bio: "Tài khoản smoke E2E cho tutor-app: gia sư Toán cấp 2, luyện nền tảng.",
-        region: "Ha Noi",
-        gender: "female",
-        subjects: ["math"],
-        grade_levels: [6, 7],
-        teaching_modes: ["online"],
-        expected_fee_min: 150000,
-        expected_fee_max: 250000,
-      },
-    });
-  }
+  // POST upsert không cần role tutor, nên dùng được cả lần seed đầu tiên.
+  await apiRaw("/tutors/me/profile", {
+    method: "POST",
+    token,
+    body: {
+      display_name: "Cô E2E",
+      bio: "Tài khoản smoke E2E cho tutor-app: gia sư Toán cấp 2, luyện nền tảng.",
+      region: "Ha Noi",
+      gender: "female",
+      subjects: ["math"],
+      grade_levels: [6, 7],
+      teaching_modes: ["online"],
+      expected_fee_min: 150000,
+      expected_fee_max: 250000,
+    },
+  });
+  // JWT cũ chưa có role tutor ở lần bootstrap đầu; login lại rồi publish để
+  // parent có thể tạo trial qua API public đúng business rule.
+  const tutorLogin = await apiRaw("/auth/login", { method: "POST", body: { email, password } });
+  token = String(tutorLogin.body.access_token ?? "");
+  await apiRaw("/tutors/me/profile/publish", { method: "POST", token });
+  const profile = await apiRaw("/tutors/me/profile", { token });
+  return { token, profileId: String(profile.body.id ?? "") };
 }
 
 /** Đăng ký + verify + reset password (đưa về run hiện tại) + login + consent → token. */
@@ -126,8 +132,43 @@ async function registerVerifyLoginConsent(email: string, password: string): Prom
 }
 
 /** Phụ huynh đã verify + đúng password + đã consent (status active) để vào khu vực private. */
-export async function ensureParentAccount(password: string, email = E2E_PARENT_EMAIL): Promise<void> {
-  await registerVerifyLoginConsent(email, password);
+export async function ensureParentAccount(password: string, email = E2E_PARENT_EMAIL): Promise<string> {
+  let token = await registerVerifyLoginConsent(email, password);
+  await apiRaw("/parents/me", {
+    method: "POST",
+    token,
+    body: { display_name: "Phụ huynh E2E" },
+  });
+  const login = await apiRaw("/auth/login", { method: "POST", body: { email, password } });
+  token = String(login.body.access_token ?? "");
+  return token;
+}
+
+/** Tạo đúng một pending trial để browser thực hiện action accept của TA-05. */
+export async function ensurePendingTutorTrial(
+  tutorToken: string,
+  parentToken: string,
+  tutorProfileId: string,
+): Promise<void> {
+  const inbox = await apiRaw("/trials/mine?role=tutor&status=pending&limit=50", { token: tutorToken });
+  const items = Array.isArray(inbox.body.items) ? inbox.body.items as Array<Record<string, unknown>> : [];
+  if (items.some((item) => item.subject === E2E_TRIAL_SUBJECT)) return;
+  const created = await apiRaw("/trials", {
+    method: "POST",
+    token: parentToken,
+    body: {
+      tutor_profile_id: tutorProfileId,
+      subject: E2E_TRIAL_SUBJECT,
+      grade: "8",
+      learning_goal: "Củng cố đại số qua buổi học thử E2E",
+      teaching_mode: "online",
+      preferred_schedule: "Thứ 3, Thứ 5 sau 19:00",
+      message: "Yêu cầu smoke TA-05",
+    },
+  });
+  if (created.status !== 201) {
+    throw new Error(`Không seed được trial TA-05: HTTP ${created.status}`);
+  }
 }
 
 /**

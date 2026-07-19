@@ -114,10 +114,12 @@ TRIAL_ID="$(json_get /tmp/flow05-trial.json id)"
 echo "== Flow 5 Step 4: parent views trial status =="
 mine_http="$(curl -sS -o /tmp/flow05-trials-mine.json -w "%{http_code}" \
   -H "$PARENT_AUTH" \
-  "$API/trials/mine?role=parent")"
+  "$API/trials/mine?role=parent&status=pending&limit=20")"
 cat /tmp/flow05-trials-mine.json
 echo
 require_code "$mine_http" "200" "Parent trials mine" /tmp/flow05-trials-mine.json
 json_array_contains_id /tmp/flow05-trials-mine.json items "$TRIAL_ID" || fail "Parent trial list did not include trial_id $TRIAL_ID"
+require_json_value /tmp/flow05-trials-mine.json items.0.contact null
+require_json_value /tmp/flow05-trials-mine.json items.0.capabilities.can_view_contact false
 
 echo "OK: Flow 5 Parent onboarding + trial verified end-to-end for parent_profile_id $PARENT_PROFILE_ID student_id $STUDENT_ID trial_id $TRIAL_ID"

@@ -175,7 +175,7 @@ Trường chính:
 
 - `id`
 - `contact_name`, `contact_phone`, `contact_email` (PII)
-- `converted_parent_profile_id`: null đến khi kích hoạt
+- `converted_parent_profile_id`: null đến khi kích hoạt; nhiều lead lịch sử có thể cùng chuyển đổi về một `ParentProfile`
 - `status`: new, converted, expired
 - `created_at`, `expires_at`
 
@@ -209,6 +209,7 @@ Trường chính:
 - `teaching_mode`
 - `preferred_schedule`
 - `message`
+- `decline_reason`: lý do từ chối riêng, không sửa/nối vào lời nhắn gốc
 - `contact_snapshot`: liên hệ tối thiểu tại thời điểm gửi (PII)
 - `status`: pending, accepted, declined, expired, cancelled
 - `version` (optimistic lock chống double-accept)

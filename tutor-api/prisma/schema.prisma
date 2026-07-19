@@ -330,7 +330,7 @@ model ParentProfile {
   trialRequests  TrialRequest[]
   classContracts ClassContract[]
   reviews        Review[]
-  leadOrigin     Lead?
+  leadOrigins    Lead[]
 
   @@map("parent_profiles")
 }
@@ -664,7 +664,7 @@ model Lead {
   contactName              String     @map("contact_name")
   contactPhone             String     @map("contact_phone")
   contactEmail             String?    @map("contact_email")
-  convertedParentProfileId String?    @unique @map("converted_parent_profile_id") @db.Char(26)
+  convertedParentProfileId String?    @map("converted_parent_profile_id") @db.Char(26)
   status                   LeadStatus @default(new)
   createdAt                DateTime   @default(now()) @map("created_at") @db.Timestamptz
   expiresAt                DateTime?  @map("expires_at") @db.Timestamptz
@@ -674,6 +674,8 @@ model Lead {
   activationTokens       ActivationToken[]
 
   @@index([status])
+  @@index([convertedParentProfileId])
+  @@index([contactPhone, createdAt])
   @@map("leads")
 }
 
@@ -708,6 +710,7 @@ model TrialRequest {
   teachingMode      String?     @map("teaching_mode")
   preferredSchedule String?     @map("preferred_schedule")
   message           String?
+  declineReason     String?     @map("decline_reason")
   contactSnapshot   String?     @map("contact_snapshot") // PII
   status            TrialStatus @default(pending)
   version           Int         @default(0)
@@ -724,6 +727,8 @@ model TrialRequest {
 
   @@index([tutorProfileId, status])
   @@index([parentProfileId, status])
+  @@index([tutorProfileId, status, createdAt, id])
+  @@index([parentProfileId, status, createdAt, id])
   @@index([leadId, status])
   @@map("trial_requests")
 }

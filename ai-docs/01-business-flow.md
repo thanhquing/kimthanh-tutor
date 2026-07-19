@@ -145,6 +145,8 @@ Hệ thống dùng lịch để:
 
 Gia sư nhận yêu cầu từ phụ huynh.
 
+Trong khi chính sách chia sẻ liên hệ còn là câu hỏi mở, inbox gia sư **không trả hoặc hiển thị** `contact_snapshot`/PII của `Lead`; chỉ hiển thị nội dung yêu cầu, lịch mong muốn và capability xử lý. Lịch mong muốn hiện là chuỗi tự do nên UI yêu cầu đối chiếu lịch rảnh/bận, không tự khẳng định có/không xung đột.
+
 Trạng thái yêu cầu:
 
 - `pending`: mới gửi.
@@ -157,6 +159,7 @@ Khi gia sư chấp nhận:
 
 - Hệ thống tạo/liên kết `ClassContract` ở trạng thái `trial_accepted`.
 - Hệ thống gửi link kích hoạt/đăng ký cho phụ huynh nếu phụ huynh chưa có tài khoản.
+- Accept/decline/cancel dùng `expected_version` + compare-and-swap; client nhận trạng thái hiện tại trong lỗi `409` nếu thua race.
 
 ### 3.4 Sổ đầu bài
 

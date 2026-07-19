@@ -100,11 +100,11 @@ Snapshot 2026-07-16: catalog endpoint đã implement; 16 suite / 93 unit test AP
 
 | Method | Path | Vai trò | Input | Output | Bảng | Quy tắc |
 | --- | --- | --- | --- | --- | --- | --- |
-| POST | `/trials` | guest/parent | `{ tutor_profile_id, subject, grade, learning_goal, teaching_mode, preferred_schedule, message, student_id?, contact? }` | trial | `trial_requests`,`leads`,`outbox_events` | Guest → tạo `lead`; parent → link student; status `pending` ✅ |
-| GET | `/trials/mine` | parent/tutor | `?role` | list | `trial_requests` | Bên gửi/bên nhận ✅ |
-| POST | `/trials/:id/accept` | tutor | — | `{ trial, class_contract, activation_token? }` | `trial_requests`,`class_contracts`,`activation_tokens`,`outbox_events` | Optimistic lock (`version`); chỉ `pending`; guest lead nhận token raw một lần, DB lưu hash ✅ |
-| POST | `/trials/:id/decline` | tutor | `{ reason? }` | trial | `trial_requests` | Chỉ `pending` ✅ |
-| POST | `/trials/:id/cancel` | parent | — | trial | `trial_requests` | Chỉ `pending`, của mình ✅ |
+| POST | `/trials` | guest/parent | `{ tutor_profile_id, subject, grade, learning_goal, teaching_mode, preferred_schedule, message, student_id?, contact? }` | trial | `trial_requests`,`leads`,`outbox_events` | Guest → tạo `lead`; parent → link student; status `pending`; limiter riêng 10/IP/giờ + 3 guest lead/phone/giờ ✅ |
+| GET | `/trials/mine` | parent/tutor | `?role&status?&cursor?&limit?` | `{ items, next_cursor }` | `trial_requests`,`class_contracts`,`activation_tokens` | Owner-safe; filter 5 status + keyset; không trả contact PII, trả capability + activation state ✅ |
+| POST | `/trials/:id/accept` | tutor | `{ expected_version? }` | `{ trial, class_contract, activation_token? }` | `trial_requests`,`class_contracts`,`activation_tokens`,`outbox_events` | CAS `pending+version`; conflict trả `details.trial`; guest token raw một lần, UI không render token ✅ |
+| POST | `/trials/:id/decline` | tutor | `{ reason, expected_version? }` | trial | `trial_requests`,`outbox_events` | Reason bắt buộc, trim ≤500, lưu riêng; CAS `pending+version` ✅ |
+| POST | `/trials/:id/cancel` | parent | `{ expected_version? }` | trial | `trial_requests`,`outbox_events` | Chỉ pending của mình; CAS `pending+version` ✅ |
 | POST | `/activation/complete` | guest(token) | `{ activation_token }` | `{ user, parent_profile, class_contract, consent_required }` | `activation_tokens`,`users`,`parent_profiles`,`leads`,`trial_requests`,`class_contracts` | Convert lead → parent; token hash + expiry + consume atomically ✅ |
 | GET | `/classes/mine` | parent/tutor | — | list | `class_contracts` | Thuộc lớp ✅ |
 | POST | `/classes/:id/transition` | tutor/parent | `{ to }` | class | `class_contracts`,`outbox_events` | State machine + optimistic lock ✅ |

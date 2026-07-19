@@ -1,4 +1,4 @@
-import type { AuthTokens } from "@kimthanh-tutor/contracts";
+import type { AuthAccessTokenResponse } from "@kimthanh-tutor/contracts";
 import { appConfig } from "../config";
 import { ApiClientError, isApiErrorResponse } from "./errors";
 import { createMemoryTokenStore, type TokenStore } from "./session";
@@ -34,7 +34,7 @@ export class ApiClient {
   private readonly tokenStore: TokenStore;
   private readonly timeoutMs: number;
   private readonly onSessionExpired?: () => void;
-  private refreshPromise: Promise<AuthTokens> | null = null;
+  private refreshPromise: Promise<AuthAccessTokenResponse> | null = null;
 
   constructor(options: ApiClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? appConfig.apiBaseUrl).replace(/\/$/, "");
@@ -49,6 +49,12 @@ export class ApiClient {
 
   async request<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
     return this.perform<T>(path, options, true);
+  }
+
+  // Khôi phục phiên sau reload: refresh token nằm trong cookie HttpOnly nên
+  // browser tự đính, ta chỉ cần đổi lấy access token mới.
+  restoreSession(): Promise<AuthAccessTokenResponse> {
+    return this.refresh();
   }
 
   private async perform<T>(path: string, options: ApiRequestOptions, mayRefresh: boolean): Promise<T> {
@@ -103,6 +109,9 @@ export class ApiClient {
 
     try {
       return await this.fetcher(`${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`, {
+        // Gửi kèm cookie HttpOnly `kt_refresh` để `/auth/refresh` và `/auth/logout`
+        // đọc được refresh token (cùng-origin nên không rò rỉ cross-site).
+        credentials: "include",
         ...requestInit,
         body: hasBody ? (isFormData ? body : JSON.stringify(body)) : undefined,
         headers,
@@ -118,12 +127,9 @@ export class ApiClient {
     }
   }
 
-  private async refresh(): Promise<AuthTokens> {
+  private refresh(): Promise<AuthAccessTokenResponse> {
     if (this.refreshPromise) return this.refreshPromise;
-    const refreshToken = this.tokenStore.get()?.refresh_token;
-    if (!refreshToken) throw new ApiClientError("Phiên đăng nhập đã hết hạn", "api", 401, "AUTH_REQUIRED");
-
-    this.refreshPromise = this.perform<AuthTokens>("/auth/refresh", { method: "POST", body: { refresh_token: refreshToken }, skipAuth: true }, false)
+    this.refreshPromise = this.requestRefreshWithConcurrencyRetry()
       .then((tokens) => { this.tokenStore.set(tokens); return tokens; })
       .catch((error: unknown) => {
         if (error instanceof ApiClientError && (error.status === 401 || error.code === "AUTH_REQUIRED")) {
@@ -134,6 +140,21 @@ export class ApiClient {
       })
       .finally(() => { this.refreshPromise = null; });
     return this.refreshPromise;
+  }
+
+  private async requestRefreshWithConcurrencyRetry(attempt = 0): Promise<AuthAccessTokenResponse> {
+    try {
+      // Không gửi body: refresh token đi qua cookie HttpOnly, server rotate + set lại.
+      return await this.perform<AuthAccessTokenResponse>("/auth/refresh", { method: "POST", skipAuth: true }, false);
+    } catch (error) {
+      // Hai tab dùng chung cookie có thể refresh gần đồng thời; tab thua nhận
+      // CONFLICT (409). Chờ Set-Cookie mới rồi thử lại thay vì biến thành logout.
+      if (error instanceof ApiClientError && error.status === 409 && attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+        return this.requestRefreshWithConcurrencyRetry(attempt + 1);
+      }
+      throw error;
+    }
   }
 
   private async toResponseError(response: Response): Promise<ApiClientError> {

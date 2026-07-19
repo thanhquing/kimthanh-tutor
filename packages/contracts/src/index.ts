@@ -135,6 +135,11 @@ export interface TutorPublicDetailUnlocked extends TutorPublicDetailBase {
 export type TutorPublicDetail =
   TutorPublicDetailLocked | TutorPublicDetailUnlocked;
 
+/**
+ * Cặp token phát nội bộ ở server. Refresh token KHÔNG bao giờ trả cho
+ * JavaScript của app công khai — nó nằm trong cookie HttpOnly `kt_refresh`
+ * (xem `AuthSessionResponse`). Chỉ dùng cho tầng phát/rotation phía server.
+ */
 export interface AuthTokens {
   access_token: string;
   refresh_token: string;
@@ -219,9 +224,21 @@ export interface AdminAuthResponse extends AdminAccessTokenResponse {
   consent_required: boolean;
 }
 
-export interface AuthVerifyResponse extends AuthTokens {
+/**
+ * Kết quả một phiên đăng nhập cho app công khai (tutor/parent) qua
+ * `POST /auth/login` và `POST /auth/oauth/*`. Chỉ trả **access token** (giữ
+ * trong RAM tab); refresh token được set vào cookie HttpOnly `kt_refresh` nên
+ * không xuất hiện ở body — chống XSS đọc trộm mà vẫn giữ phiên qua reload.
+ */
+export interface AuthSessionResponse {
+  access_token: string;
   user: AuthUserSummary;
   consent_required: boolean;
+}
+
+/** Trả về từ `POST /auth/refresh`: access token mới; refresh xoay vòng trong cookie. */
+export interface AuthAccessTokenResponse {
+  access_token: string;
 }
 
 export interface AuthUserSummary {

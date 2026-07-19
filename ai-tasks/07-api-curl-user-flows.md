@@ -388,21 +388,21 @@ Expected output:
 ```json
 {
   "access_token": "<jwt>",
-  "refresh_token": "<refresh_token>",
   "user": {
     "id": "01K...",
     "phone": null,
     "email": "parent@example.com",
     "status": "pending_consent"
   },
-  "auth_provider": "google",
   "consent_required": true
 }
 ```
 
+Response còn kèm header `Set-Cookie: kt_refresh=...; HttpOnly; SameSite=Strict; Path=/api/v1/auth` — refresh token KHÔNG nằm trong body. Với cURL, thêm `-c cookies.txt` để lưu cookie.
+
 UI state:
 
-- Lưu token.
+- Chỉ lưu `access_token` trong RAM; refresh token do cookie HttpOnly giữ (giữ đăng nhập qua reload).
 - Nếu `consent_required=true`, mở màn consent bắt buộc.
 
 ### Step 1B. Login/register bằng Facebook
@@ -422,21 +422,21 @@ Expected output:
 ```json
 {
   "access_token": "<jwt>",
-  "refresh_token": "<refresh_token>",
   "user": {
     "id": "01K...",
     "phone": null,
     "email": "parent@example.com",
     "status": "pending_consent"
   },
-  "auth_provider": "facebook",
   "consent_required": true
 }
 ```
 
+Response còn kèm `Set-Cookie: kt_refresh=...; HttpOnly; SameSite=Strict` — refresh token không nằm trong body (xem Step 1A).
+
 UI state:
 
-- Lưu token.
+- Chỉ lưu `access_token` trong RAM; refresh token do cookie HttpOnly giữ.
 - Nếu `consent_required=true`, mở màn consent bắt buộc.
 
 ### Step 1C. Fallback/local: Request phone OTP

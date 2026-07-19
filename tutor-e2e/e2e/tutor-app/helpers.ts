@@ -8,9 +8,9 @@ import { readSecrets } from "../lib/secrets";
  * mật do global-setup sinh (không hardcode). Bước này chạm ranh giới ApiClient
  * (POST /auth/login) — bắt sớm lỗi kiểu binding fetch.
  *
- * LƯU Ý: token tutor là memory-only (chủ đích bảo mật). KHÔNG dùng page.goto tới
- * route bảo vệ SAU login (full reload xóa token → đá về /login); điều hướng
- * client-side (routeAfterAuth hoặc click NavLink).
+ * Từ R-05: access token vẫn memory-only, nhưng refresh token nằm trong cookie
+ * HttpOnly `kt_refresh` nên full reload/`page.goto` route bảo vệ SAU login đều
+ * giữ phiên (boot gọi /auth/refresh khôi phục). Xem `session.e2e.ts`.
  */
 export async function loginViaPassword(page: Page, next = "/availability", email = E2E_TUTOR_EMAIL) {
   const { userPassword } = readSecrets();

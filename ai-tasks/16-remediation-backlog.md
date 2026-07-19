@@ -16,7 +16,7 @@ Các task frontend được chứng nhận `DONE` bằng **unit/component test (
 | R-02 | P1 | Không có E2E smoke browser thật cho bất kỳ màn FE nào; task `DONE` chỉ bằng unit test + cURL | TA-00, TA-01, TA-02, TA-03, TM-00, AD-00 | ✅ **DONE (baseline)** — mỗi app có smoke happy-path: tutor-app (profile TA-02, availability TA-03), tutor-admin (login→overview AD-00), tutor-market (home search SSR TM-00). Smoke theo từng feature tiếp tục tích lũy qua DoD mới |
 | R-03 | P1 | Chưa có harness Playwright trong 3 app (chạy headless với API dockerized) | `tutor-app`, `tutor-market`, `tutor-admin` | ✅ **DONE** — cả 3 app có `playwright.config.ts` + `e2e/` (Chrome hệ thống, `pnpm --filter <app> test:e2e`), seed qua API/DB container |
 | R-04 | P1 | Thiếu test ranh giới bằng implementation thật cho `ApiClient` (bắt lỗi unbound `fetch`) | tutor-app, tutor-market, tutor-admin | ✅ **DONE** — cả 3 app có regression test mô phỏng ràng buộc `this` của native fetch |
-| R-05 | P2 | Chưa chốt chiến lược phiên đăng nhập: memory-only (reload = login lại) vs refresh cookie HttpOnly cho tutor/parent | `tutor-app`, `tutor-market`, `tutor-api` auth | ⚪ OPEN — quyết định sản phẩm (`04-open-questions.md`) |
+| R-05 | P2 | Chiến lược phiên đăng nhập: memory-only làm **mất phiên khi reload** (UX sai). Chốt dùng **refresh token trong cookie HttpOnly** cho tutor/parent, giống `tutor-admin` | `tutor-app`, `tutor-market`, `tutor-api` auth | ✅ **DONE** (2026-07-19) — cookie HttpOnly `kt_refresh` cho cả 2 app; access token memory-only; boot silent-refresh giữ phiên qua reload. Evidence: `auth.controller.spec.ts` (public session cookie), unit client tests (refresh cookie + 409 retry + restoreSession), **E2E browser thật login→reload giữ phiên** (`tutor-app/session.e2e.ts`, `tutor-market/auth.e2e.ts`), backend `verify-flow-01`/`verify-api-io` (body không lộ refresh_token) |
 | R-06 | P2 | Chạy dev local dính CORS + IPv4/IPv6 (Vite bind `::1`, API IPv4, CORS thiếu `localhost`) | tutor-app: ✅ dev proxy; tutor-admin: ✅ có proxy sẵn; tutor-market: SSR (fetch server-side, không cross-origin browser) | ✅ **DONE** cho nhu cầu hiện tại; xét lại khi tutor-market dựng private shell gọi API browser-side (TM-03) |
 
 ## 2. Chi tiết & cách fix
@@ -37,9 +37,16 @@ Các task frontend được chứng nhận `DONE` bằng **unit/component test (
 
 - Cả 3 app có ≥1 test `ApiClient` mô phỏng ràng buộc `this` của native fetch (`*/src/lib/api/client.test.ts`).
 
-### R-05 — Chiến lược phiên (P2)
+### R-05 — Chiến lược phiên (P2) — ✅ DONE (2026-07-19)
 
-- Chốt trong `04-open-questions.md`. Nếu chọn HttpOnly cookie cho tutor/parent → mở task refactor `tutor-api` auth (set/clear cookie, `SameSite`/CSRF, rotation) + FE bỏ nhận refresh trong body, đồng bộ với mô hình `tutor-admin`.
+- **Quyết định (2026-07-19):** chọn **refresh token trong cookie HttpOnly** cho `tutor-app` + `tutor-market`, đồng bộ mô hình `tutor-admin`. Lý do: memory-only làm mất phiên mỗi lần reload (UX sai); localStorage giữ được phiên nhưng để JS đọc trộm token (XSS). Cookie HttpOnly giữ cả hai: phiên sống qua reload **và** JS không đọc được token.
+- **Kiến trúc:** access token ngắn hạn giữ trong RAM; refresh token nằm trong cookie `kt_refresh` (httpOnly, `SameSite=Strict`, `Secure` ở prod, path `/api/v1/auth`, cùng-origin nên không vướng CSRF cross-site). Boot app gọi silent `POST /auth/refresh` (cookie tự đính) để khôi phục phiên.
+- **Phạm vi refactor:**
+  - `tutor-api/auth.controller.ts`: `login` / `oauth/google` / `oauth/facebook` set cookie, body bỏ `refresh_token`; `refresh` đọc cookie (rotate + set lại), trả `{ access_token }`; `logout` đọc cookie để revoke + clear. Xử lý CONFLICT (409) CAS grace như admin.
+  - `packages/contracts`: thêm `AuthSessionResponse` / `AuthAccessTokenResponse` (không lộ refresh cho JS).
+  - FE 2 app: `credentials: "include"`, token store chỉ giữ access, `restoreSession()` lúc boot, retry 409 khi refresh; bỏ gửi refresh trong body.
+  - Test: unit `client.test.ts` (refresh qua cookie) + **E2E browser thật login→reload giữ phiên** cho cả 2 app; `verify-flow-*.sh` dùng curl cookie jar.
+  - Doc: `ai-docs/13`, `ai-docs/15`, `ai-tasks/05`, `ai-tasks/07`, `ai-tasks/15`.
 
 ### R-06 — Ergonomics dev (P2) — ✅ DONE cho nhu cầu hiện tại
 

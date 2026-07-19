@@ -1,4 +1,4 @@
-import type { AuthMeResponse, AuthVerifyResponse } from "@kimthanh-tutor/contracts";
+import type { AuthMeResponse, AuthSessionResponse } from "@kimthanh-tutor/contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -6,12 +6,11 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../app/App";
 import { authApi } from "../lib/api/auth";
-import { appTokenStore } from "../lib/api/client";
+import { apiClient, appTokenStore } from "../lib/api/client";
 import { ApiClientError } from "../lib/api/errors";
 
-const verified: AuthVerifyResponse = {
+const verified: AuthSessionResponse = {
   access_token: "access-token",
-  refresh_token: "refresh-token",
   user: { id: "user-1", phone: null, email: "p@gmail.com", status: "active" },
   consent_required: false,
 };
@@ -27,7 +26,14 @@ function renderLogin(initial = "/login?next=/classes") {
 }
 
 describe("LoginPage email + password", () => {
-  beforeEach(() => appTokenStore.clear());
+  beforeEach(() => {
+    appTokenStore.clear();
+    // Khách chưa đăng nhập: boot gọi restoreSession() và server trả 401 (không
+    // có cookie hợp lệ) → phiên logged-out sạch, không có server-side error.
+    vi.spyOn(apiClient, "restoreSession").mockRejectedValue(
+      new ApiClientError("Phiên đăng nhập đã hết hạn", "api", 401, "AUTH_REQUIRED"),
+    );
+  });
   afterEach(() => vi.restoreAllMocks());
 
   it("logs in with email + password and routes a roleless user to profile", async () => {

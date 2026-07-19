@@ -9,7 +9,7 @@ import type {
   AuthLoginRequest,
   AuthForgotPasswordResponse,
   AuthResetPasswordRequest,
-  AuthVerifyResponse,
+  AuthSessionResponse,
   AdminUserStatusMutation,
   DashboardOverview,
   MediaAssetStatus,
@@ -97,10 +97,9 @@ const forgotResponse = { ok: true, dev_reset_link: "http://localhost:5173/reset-
 const resetRequest = { token: "reset-token", password: "a-new-strong-password" } satisfies AuthResetPasswordRequest;
 const authenticated = {
   access_token: "access-token",
-  refresh_token: "refresh-token",
   user: me.user,
   consent_required: false,
-} satisfies AuthVerifyResponse;
+} satisfies AuthSessionResponse;
 const suspendUser = { status: "suspended", reason: "Vi phạm chính sách" } satisfies AdminUserStatusMutation;
 
 assert.deepEqual(roundTrip(registerRequest), registerRequest);

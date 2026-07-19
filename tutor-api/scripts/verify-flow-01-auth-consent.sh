@@ -72,7 +72,9 @@ require_code "$verify_http" "201" "Verify email" /tmp/flow01-verify.json
 require_json_value /tmp/flow01-verify.json verified true
 
 echo "== Flow 1 Step 2b: login (email + password) =="
+# Refresh token về trong cookie HttpOnly kt_refresh (lưu vào cookie jar), KHÔNG ở body.
 login_http="$(curl -sS -o /tmp/flow01-otp-verify.json -w "%{http_code}" \
+  -c /tmp/flow01-cookies.txt \
   -X POST "$API/auth/login" \
   -H "Content-Type: application/json" \
   --data "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")"
@@ -81,7 +83,11 @@ echo
 require_code "$login_http" "201" "Login" /tmp/flow01-otp-verify.json
 require_json_value /tmp/flow01-otp-verify.json consent_required true
 ACCESS_TOKEN="$(json_get /tmp/flow01-otp-verify.json access_token)"
-REFRESH_TOKEN="$(json_get /tmp/flow01-otp-verify.json refresh_token)"
+# Kiểm chứng body login KHÔNG lộ refresh token cho JavaScript.
+if grep -q "refresh_token" /tmp/flow01-otp-verify.json; then
+  echo "FAIL: body /auth/login vẫn lộ refresh_token (phải nằm trong cookie HttpOnly)"; exit 1
+fi
+grep -qi "kt_refresh" /tmp/flow01-cookies.txt || { echo "FAIL: không thấy cookie kt_refresh sau login"; exit 1; }
 
 echo "== Flow 1 Step 3: load active legal documents =="
 docs_http="$(curl -sS -o /tmp/flow01-legal-docs.json -w "%{http_code}" "$API/legal/documents/active")"
@@ -121,17 +127,29 @@ echo
 require_code "$me_http" "200" "Auth me" /tmp/flow01-auth-me.json
 require_json_value /tmp/flow01-auth-me.json user.status active
 
-echo "== Flow 1 Step 6: logout and revoke refresh token =="
+echo "== Flow 1 Step 5b: refresh phiên qua cookie HttpOnly (giữ đăng nhập sau reload) =="
+# Không gửi body: refresh token đi qua cookie; server rotate + set cookie mới.
+cookie_refresh_http="$(curl -sS -o /tmp/flow01-refresh.json -w "%{http_code}" \
+  -b /tmp/flow01-cookies.txt -c /tmp/flow01-cookies.txt \
+  -X POST "$API/auth/refresh")"
+cat /tmp/flow01-refresh.json
+echo
+require_code "$cookie_refresh_http" "201" "Refresh via cookie" /tmp/flow01-refresh.json
+NEW_ACCESS_TOKEN="$(json_get /tmp/flow01-refresh.json access_token)"
+[ -n "$NEW_ACCESS_TOKEN" ] || { echo "FAIL: refresh qua cookie không trả access_token"; exit 1; }
+if grep -q "refresh_token" /tmp/flow01-refresh.json; then
+  echo "FAIL: body /auth/refresh vẫn lộ refresh_token (phải nằm trong cookie HttpOnly)"; exit 1
+fi
+
+echo "== Flow 1 Step 6: logout and revoke refresh token (qua cookie) =="
 logout_http="$(curl -sS -o /tmp/flow01-logout.json -w "%{http_code}" \
-  -X POST "$API/auth/logout" \
-  -H "Content-Type: application/json" \
-  --data "{\"refresh_token\":\"$REFRESH_TOKEN\"}")"
+  -b /tmp/flow01-cookies.txt -c /tmp/flow01-cookies.txt \
+  -X POST "$API/auth/logout")"
 require_code "$logout_http" "204" "Logout" /tmp/flow01-logout.json
 
 refresh_http="$(curl -sS -o /tmp/flow01-refresh-after-logout.json -w "%{http_code}" \
-  -X POST "$API/auth/refresh" \
-  -H "Content-Type: application/json" \
-  --data "{\"refresh_token\":\"$REFRESH_TOKEN\"}")"
+  -b /tmp/flow01-cookies.txt \
+  -X POST "$API/auth/refresh")"
 require_code "$refresh_http" "401" "Refresh after logout" /tmp/flow01-refresh-after-logout.json
 require_json_value /tmp/flow01-refresh-after-logout.json code AUTH_REQUIRED
 

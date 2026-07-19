@@ -3,12 +3,28 @@ import { ApiClient } from "./client";
 import { createMemoryTokenStore } from "./session";
 describe("ApiClient", () => {
   it("refresh một lần khi nhiều request cùng nhận 401", async () => {
-    const store = createMemoryTokenStore(); store.set({ access_token: "old", refresh_token: "refresh" });
+    const store = createMemoryTokenStore(); store.set({ access_token: "old" });
     let refreshed = 0;
-    const fetcher: typeof fetch = async (input, init) => { const path = String(input); if (path.endsWith("/auth/refresh")) { refreshed += 1; return new Response(JSON.stringify({ access_token: "new", refresh_token: "new-refresh" })); } if (new Headers(init?.headers).get("authorization") === "Bearer old") return new Response("", { status: 401 }); return new Response(JSON.stringify({ ok: true })); };
+    const fetcher: typeof fetch = async (input, init) => { const path = String(input); if (path.endsWith("/auth/refresh")) { refreshed += 1; expect(init?.body).toBeUndefined(); return new Response(JSON.stringify({ access_token: "new" })); } if (new Headers(init?.headers).get("authorization") === "Bearer old") return new Response("", { status: 401 }); return new Response(JSON.stringify({ ok: true })); };
     const client = new ApiClient({ baseUrl: "https://api.example", fetcher, tokenStore: store });
     await Promise.all([client.request("/private"), client.request("/private")]);
     expect(refreshed).toBe(1);
+    expect(store.get()).toEqual({ access_token: "new" });
+  });
+  it("retry refresh khi gặp 409 rotate conflict rồi thành công", async () => {
+    const store = createMemoryTokenStore(); store.set({ access_token: "old" });
+    let refreshed = 0;
+    const fetcher: typeof fetch = async (input, init) => { const path = String(input); if (path.endsWith("/auth/refresh")) { refreshed += 1; return refreshed === 1 ? new Response(JSON.stringify({ code: "CONFLICT", message: "Đang làm mới" }), { status: 409, headers: { "content-type": "application/json" } }) : new Response(JSON.stringify({ access_token: "new" })); } return new Headers(init?.headers).get("authorization") === "Bearer new" ? new Response(JSON.stringify({ ok: true })) : new Response("", { status: 401 }); };
+    const client = new ApiClient({ baseUrl: "https://api.example", fetcher, tokenStore: store });
+    await expect(client.request("/private")).resolves.toEqual({ ok: true });
+    expect(refreshed).toBe(2);
+  });
+  it("restoreSession đổi cookie lấy access token mới", async () => {
+    const store = createMemoryTokenStore();
+    const fetcher: typeof fetch = async (input, init) => { expect(String(input)).toMatch(/\/auth\/refresh$/); expect(init?.credentials).toBe("include"); return new Response(JSON.stringify({ access_token: "restored" })); };
+    const client = new ApiClient({ baseUrl: "https://api.example", fetcher, tokenStore: store });
+    await expect(client.restoreSession()).resolves.toEqual({ access_token: "restored" });
+    expect(store.get()).toEqual({ access_token: "restored" });
   });
   it("không retry 401 khi request không có access token", async () => {
     let requests = 0;

@@ -1,4 +1,4 @@
-import type { AuthTokens } from "@kimthanh-tutor/contracts";
+import type { AuthAccessTokenResponse } from "@kimthanh-tutor/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { ApiClient } from "./client";
 import { ApiClientError } from "./errors";
@@ -10,14 +10,16 @@ function json(body: unknown, status = 200, headers: Record<string, string> = {})
 
 describe("ApiClient", () => {
   it("shares one refresh across concurrent 401 responses", async () => {
-    const store = createMemoryTokenStore({ access_token: "old", refresh_token: "refresh-1" });
+    const store = createMemoryTokenStore({ access_token: "old" });
     let refreshCalls = 0;
     const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith("/auth/refresh")) {
         refreshCalls += 1;
+        // Refresh token đi qua cookie HttpOnly, không có trong body request.
+        expect(init?.body).toBeUndefined();
         await new Promise((resolve) => setTimeout(resolve, 5));
-        return json({ access_token: "new", refresh_token: "refresh-2" } satisfies AuthTokens);
+        return json({ access_token: "new" } satisfies AuthAccessTokenResponse);
       }
       return new Headers(init?.headers).get("authorization") === "Bearer new" ? json({ ok: true }) : json({ code: "AUTH_REQUIRED", message: "Hết phiên" }, 401);
     });
@@ -25,12 +27,44 @@ describe("ApiClient", () => {
 
     await expect(Promise.all([client.request("/classes"), client.request("/trials")])).resolves.toEqual([{ ok: true }, { ok: true }]);
     expect(refreshCalls).toBe(1);
-    expect(store.get()).toEqual({ access_token: "new", refresh_token: "refresh-2" });
+    expect(store.get()).toEqual({ access_token: "new" });
+  });
+
+  it("retries refresh once on a 409 rotate conflict then succeeds", async () => {
+    const store = createMemoryTokenStore({ access_token: "old" });
+    let refreshCalls = 0;
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/auth/refresh")) {
+        refreshCalls += 1;
+        return refreshCalls === 1
+          ? json({ code: "CONFLICT", message: "Phiên đang được làm mới" }, 409)
+          : json({ access_token: "new" } satisfies AuthAccessTokenResponse);
+      }
+      return new Headers(init?.headers).get("authorization") === "Bearer new" ? json({ ok: true }) : json({ code: "AUTH_REQUIRED", message: "Hết phiên" }, 401);
+    });
+    const client = new ApiClient({ baseUrl: "https://api.test", fetcher: fetcher as typeof fetch, tokenStore: store });
+
+    await expect(client.request("/classes")).resolves.toEqual({ ok: true });
+    expect(refreshCalls).toBe(2);
+    expect(store.get()).toEqual({ access_token: "new" });
+  });
+
+  it("restoreSession exchanges the cookie for a fresh access token", async () => {
+    const store = createMemoryTokenStore();
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toMatch(/\/auth\/refresh$/);
+      expect(init?.credentials).toBe("include");
+      return json({ access_token: "restored" } satisfies AuthAccessTokenResponse);
+    });
+    const client = new ApiClient({ baseUrl: "https://api.test", fetcher: fetcher as typeof fetch, tokenStore: store });
+
+    await expect(client.restoreSession()).resolves.toEqual({ access_token: "restored" });
+    expect(store.get()).toEqual({ access_token: "restored" });
   });
 
   it("normalizes API errors and does not refresh a 403", async () => {
     const fetcher = vi.fn(async () => json({ code: "FORBIDDEN_ROLE", message: "Không có quyền", request_id: "req-403" }, 403));
-    const client = new ApiClient({ baseUrl: "https://api.test", fetcher: fetcher as typeof fetch, tokenStore: createMemoryTokenStore({ access_token: "a", refresh_token: "r" }) });
+    const client = new ApiClient({ baseUrl: "https://api.test", fetcher: fetcher as typeof fetch, tokenStore: createMemoryTokenStore({ access_token: "a" }) });
 
     const error = await client.request("/admin").catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(ApiClientError);
@@ -49,7 +83,7 @@ describe("ApiClient", () => {
       expect(init).not.toHaveProperty("skipAuth");
       return json({ id: "payment-1" });
     });
-    const client = new ApiClient({ baseUrl: "https://api.test", fetcher: fetcher as typeof fetch, tokenStore: createMemoryTokenStore({ access_token: "access", refresh_token: "refresh" }) });
+    const client = new ApiClient({ baseUrl: "https://api.test", fetcher: fetcher as typeof fetch, tokenStore: createMemoryTokenStore({ access_token: "access" }) });
     await client.request("/billing/checkout", { method: "POST", body: { product_type: "tutor_qr" }, idempotencyKey: "idem-01" });
   });
 
@@ -75,7 +109,7 @@ describe("ApiClient", () => {
   });
 
   it("keeps the refresh token on a transient refresh failure", async () => {
-    const store = createMemoryTokenStore({ access_token: "expired", refresh_token: "still-valid" });
+    const store = createMemoryTokenStore({ access_token: "expired" });
     const fetcher = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input).endsWith("/auth/refresh")) throw new TypeError("network down");
       return json({ code: "AUTH_REQUIRED", message: "Hết phiên" }, 401);
@@ -84,12 +118,12 @@ describe("ApiClient", () => {
     const client = new ApiClient({ baseUrl: "https://api.test", fetcher: fetcher as typeof fetch, tokenStore: store, onSessionExpired: expired });
 
     await expect(client.request("/auth/me")).rejects.toMatchObject({ code: "NETWORK_ERROR" });
-    expect(store.get()).toEqual({ access_token: "expired", refresh_token: "still-valid" });
+    expect(store.get()).toEqual({ access_token: "expired" });
     expect(expired).not.toHaveBeenCalled();
   });
 
   it("clears the session after the server rejects refresh", async () => {
-    const store = createMemoryTokenStore({ access_token: "expired", refresh_token: "revoked" });
+    const store = createMemoryTokenStore({ access_token: "expired" });
     const fetcher = vi.fn(async (input: RequestInfo | URL) => String(input).endsWith("/auth/refresh")
       ? json({ code: "AUTH_REQUIRED", message: "Phiên bị thu hồi" }, 401)
       : json({ code: "AUTH_REQUIRED", message: "Hết phiên" }, 401));

@@ -12,9 +12,9 @@ import type {
   AuthResendVerificationResponse,
   AuthResetPasswordRequest,
   AuthResetPasswordResponse,
+  AuthSessionResponse,
   AuthVerifyEmailRequest,
   AuthVerifyEmailResponse,
-  AuthVerifyResponse,
   RecordLegalConsent,
   RecordLegalConsentResponse,
 } from "@kimthanh-tutor/contracts";
@@ -29,7 +29,7 @@ export const authApi = {
     });
   },
   login(payload: AuthLoginRequest) {
-    return apiClient.request<AuthVerifyResponse>("/auth/login", {
+    return apiClient.request<AuthSessionResponse>("/auth/login", {
       method: "POST",
       body: payload,
       skipAuth: true,
@@ -64,14 +64,14 @@ export const authApi = {
     });
   },
   google(payload: AuthGoogleOAuth) {
-    return apiClient.request<AuthVerifyResponse>("/auth/oauth/google", {
+    return apiClient.request<AuthSessionResponse>("/auth/oauth/google", {
       method: "POST",
       body: payload,
       skipAuth: true,
     });
   },
   facebook(payload: AuthFacebookOAuth) {
-    return apiClient.request<AuthVerifyResponse>("/auth/oauth/facebook", {
+    return apiClient.request<AuthSessionResponse>("/auth/oauth/facebook", {
       method: "POST",
       body: payload,
       skipAuth: true,
@@ -92,12 +92,10 @@ export const authApi = {
     });
   },
   logout() {
-    const refreshToken = appTokenStore.get()?.refresh_token;
+    // Refresh token nằm trong cookie HttpOnly; server đọc cookie để revoke + clear.
     appTokenStore.clear();
-    if (!refreshToken) return Promise.resolve();
     return apiClient.request<void>("/auth/logout", {
       method: "POST",
-      body: { refresh_token: refreshToken },
       skipAuth: true,
     }).catch(() => undefined);
   },

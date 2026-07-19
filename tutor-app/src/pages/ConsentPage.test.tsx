@@ -39,7 +39,7 @@ function reachBottom() {
 }
 
 describe("ConsentPage", () => {
-  beforeEach(() => appTokenStore.set({ access_token: "access", refresh_token: "refresh" }));
+  beforeEach(() => appTokenStore.set({ access_token: "access" }));
   afterEach(() => {
     appTokenStore.clear();
     vi.restoreAllMocks();

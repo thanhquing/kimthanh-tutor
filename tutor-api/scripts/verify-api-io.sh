@@ -99,6 +99,8 @@ echo
 [ "$login_code" = "201" ] || fail "expected login to return 201, got $login_code"
 require_contains /tmp/login.json '"access_token"'
 require_contains /tmp/login.json '"consent_required":true'
+# Refresh token chỉ nằm trong cookie HttpOnly kt_refresh, KHÔNG lộ ra body (R-05).
+if grep -q '"refresh_token"' /tmp/login.json; then fail "login body must not expose refresh_token (cookie HttpOnly only)"; fi
 
 ACCESS_TOKEN="$(json_get /tmp/login.json access_token)"
 

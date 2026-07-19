@@ -5,13 +5,13 @@ import type {
   AuthMeResponse,
   AuthRegisterResponse,
   AuthResetPasswordResponse,
+  AuthSessionResponse,
   AuthVerifyEmailResponse,
-  AuthVerifyResponse,
   RecordLegalConsent,
 } from "@kimthanh-tutor/contracts";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { authApi } from "@/lib/api/auth";
-import { appTokenStore } from "@/lib/api/client";
+import { apiClient, appTokenStore } from "@/lib/api/client";
 import { ApiClientError } from "@/lib/api/errors";
 
 interface AuthContextValue {
@@ -34,7 +34,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<AuthMeResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Boot luôn thử khôi phục phiên từ cookie HttpOnly (giữ đăng nhập qua reload).
+  const [loading, setLoading] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [accountUnavailable, setAccountUnavailable] = useState(false);
 
@@ -47,14 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadMe = useCallback(async () => {
-    if (!appTokenStore.get()) {
-      setMe(null);
-      setLoading(false);
-      return null;
-    }
     setLoading(true);
     setSessionError(null);
     try {
+      // Chưa có access token (boot/sau reload) → đổi cookie HttpOnly lấy access
+      // token mới trước khi hỏi /auth/me; khách chưa đăng nhập nhận 401 và dọn sạch.
+      if (!appTokenStore.get()) await apiClient.restoreSession();
       const response = await authApi.me();
       setMe(response);
       return response;
@@ -71,13 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [clearLocalSession]);
 
-  const completeLogin = useCallback(async (verified: AuthVerifyResponse) => {
+  const completeLogin = useCallback(async (verified: AuthSessionResponse) => {
     if (verified.user.status === "suspended" || verified.user.status === "deleted") {
       appTokenStore.clear();
       setAccountUnavailable(true);
       throw new Error("Tài khoản hiện không khả dụng.");
     }
-    appTokenStore.set({ access_token: verified.access_token, refresh_token: verified.refresh_token });
+    // Chỉ giữ access token; refresh token đã nằm trong cookie HttpOnly.
+    appTokenStore.set({ access_token: verified.access_token });
     try {
       const response = await authApi.me();
       setMe(response);
@@ -114,7 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearLocalSession]);
 
   useEffect(() => {
-    if (appTokenStore.get()) void loadMe();
+    // Boot: luôn thử khôi phục phiên từ cookie HttpOnly (giữ đăng nhập qua reload).
+    void loadMe();
   }, [loadMe]);
 
   const value = useMemo<AuthContextValue>(() => ({

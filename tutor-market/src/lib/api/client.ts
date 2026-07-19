@@ -1,4 +1,4 @@
-import type { AuthTokens } from "@kimthanh-tutor/contracts";
+import type { AuthAccessTokenResponse } from "@kimthanh-tutor/contracts";
 import { marketConfig } from "@/lib/config";
 import { ApiClientError, isApiErrorResponse } from "./errors";
 import { createMemoryTokenStore, type TokenStore } from "./session";
@@ -20,7 +20,7 @@ export class ApiClient {
   private readonly fetcher: Fetcher;
   private readonly tokenStore: TokenStore;
   private readonly timeoutMs: number;
-  private refreshPromise: Promise<AuthTokens> | null = null;
+  private refreshPromise: Promise<AuthAccessTokenResponse> | null = null;
   constructor(options: ApiClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? marketConfig.apiBaseUrl).replace(/\/$/, "");
     // Native `fetch` phải giữ `this === window`; gọi qua `this.fetcher(...)` với
@@ -31,6 +31,8 @@ export class ApiClient {
     this.timeoutMs = options.timeoutMs ?? 15_000;
   }
   request<T>(path: string, options: ApiRequestOptions = {}) { return this.perform<T>(path, options, true); }
+  // Khôi phục phiên sau reload từ cookie HttpOnly `kt_refresh`.
+  restoreSession(): Promise<AuthAccessTokenResponse> { return this.refresh(); }
   private async perform<T>(path: string, options: ApiRequestOptions, mayRefresh: boolean): Promise<T> {
     const access = options.skipAuth ? null : this.tokenStore.get()?.access_token ?? null;
     const response = await this.send(path, options, access);
@@ -59,22 +61,34 @@ export class ApiClient {
     if (idempotencyKey) headers.set("idempotency-key", idempotencyKey);
     const form = typeof FormData !== "undefined" && body instanceof FormData;
     if (body !== undefined && !form) headers.set("content-type", "application/json");
-    try { return await this.fetcher(`${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`, { ...init, body: body === undefined ? undefined : form ? body : JSON.stringify(body), headers, signal: controller.signal }); }
+    try { return await this.fetcher(`${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`, { credentials: "include", ...init, body: body === undefined ? undefined : form ? body : JSON.stringify(body), headers, signal: controller.signal }); }
     catch (error) {
       if (timedOut) throw new ApiClientError("Yêu cầu quá thời gian chờ", "timeout", null, "REQUEST_TIMEOUT");
       if (callerSignal?.aborted) throw new ApiClientError("Yêu cầu đã bị hủy", "aborted", null, "REQUEST_ABORTED");
       throw new ApiClientError("Không thể kết nối máy chủ", "network", null, "NETWORK_ERROR", error);
     } finally { clearTimeout(timer); callerSignal?.removeEventListener("abort", abort); }
   }
-  private async refresh(): Promise<AuthTokens> {
+  private refresh(): Promise<AuthAccessTokenResponse> {
     if (this.refreshPromise) return this.refreshPromise;
-    const refreshToken = this.tokenStore.get()?.refresh_token;
-    if (!refreshToken) throw new ApiClientError("Phiên đăng nhập đã hết hạn", "api", 401, "AUTH_REQUIRED");
-    this.refreshPromise = this.perform<AuthTokens>("/auth/refresh", { method: "POST", body: { refresh_token: refreshToken }, skipAuth: true }, false)
+    this.refreshPromise = this.requestRefreshWithConcurrencyRetry()
       .then((tokens) => { this.tokenStore.set(tokens); return tokens; })
       .catch((error: unknown) => { this.tokenStore.clear(); throw error; })
       .finally(() => { this.refreshPromise = null; });
     return this.refreshPromise;
+  }
+  private async requestRefreshWithConcurrencyRetry(attempt = 0): Promise<AuthAccessTokenResponse> {
+    try {
+      // Không gửi body: refresh token đi qua cookie HttpOnly, server rotate + set lại.
+      return await this.perform<AuthAccessTokenResponse>("/auth/refresh", { method: "POST", skipAuth: true }, false);
+    } catch (error) {
+      // Hai tab dùng chung cookie có thể refresh gần đồng thời; tab thua nhận
+      // CONFLICT (409). Chờ Set-Cookie mới rồi thử lại thay vì biến thành logout.
+      if (error instanceof ApiClientError && error.status === 409 && attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+        return this.requestRefreshWithConcurrencyRetry(attempt + 1);
+      }
+      throw error;
+    }
   }
   private async responseError(response: Response) {
     let body: unknown = null; try { body = await response.json(); } catch { /* normalized below */ }

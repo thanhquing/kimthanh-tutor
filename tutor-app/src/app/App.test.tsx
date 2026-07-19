@@ -1,8 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it } from "vitest";
-import { appTokenStore } from "../lib/api/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { apiClient, appTokenStore } from "../lib/api/client";
+import { ApiClientError } from "../lib/api/errors";
 import { App } from "./App";
 
 function renderApp(path: string) {
@@ -11,7 +12,14 @@ function renderApp(path: string) {
 }
 
 describe("App routes", () => {
-  beforeEach(() => appTokenStore.clear());
+  beforeEach(() => {
+    appTokenStore.clear();
+    // Khách chưa đăng nhập: boot đổi cookie ở /auth/refresh và nhận 401 → logged-out sạch.
+    vi.spyOn(apiClient, "restoreSession").mockRejectedValue(
+      new ApiClientError("Phiên đăng nhập đã hết hạn", "api", 401, "AUTH_REQUIRED"),
+    );
+  });
+  afterEach(() => vi.restoreAllMocks());
 
   it("does not render a protected deep route before authentication", async () => {
     renderApp("/availability");
@@ -19,8 +27,9 @@ describe("App routes", () => {
     expect(screen.queryByRole("heading", { name: "Lịch rảnh" })).not.toBeInTheDocument();
   });
 
-  it("keeps login as a public route", () => {
+  it("keeps login as a public route", async () => {
     renderApp("/login");
-    expect(screen.getByRole("heading", { name: "Tiếp tục vào workspace" })).toBeInTheDocument();
+    // Boot khôi phục phiên chạy trước (loading ngắn), sau đó lộ route login công khai.
+    expect(await screen.findByRole("heading", { name: "Tiếp tục vào workspace" })).toBeInTheDocument();
   });
 });

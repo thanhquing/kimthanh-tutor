@@ -11,7 +11,6 @@ import {
   ForgotPasswordDto,
   GoogleOAuthDto,
   LoginDto,
-  RefreshDto,
   RegisterDto,
   ResendVerificationDto,
   ResetPasswordDto,
@@ -20,8 +19,30 @@ import {
 import { AllowStatus, Public } from '../../common/auth/roles.decorator';
 import { CurrentUser, AuthUser } from '../../common/auth/auth-user';
 
+// Hình dạng trả ra cho app công khai. tutor-api không phụ thuộc package
+// `contracts` (mỗi bên tự khai type); các interface này phải khớp
+// `AuthSessionResponse`/`AuthAccessTokenResponse` trong `packages/contracts`.
+interface AuthUserSummary {
+  id: string;
+  phone: string | null;
+  email: string | null;
+  status: string;
+}
+interface AuthSessionResponse {
+  access_token: string;
+  user: AuthUserSummary;
+  consent_required: boolean;
+}
+interface AuthAccessTokenResponse {
+  access_token: string;
+}
+
 @Controller('auth')
 export class AuthController {
+  // App công khai (tutor/parent): refresh token nằm trong cookie HttpOnly này,
+  // không trả cho JavaScript (chống XSS đọc trộm) mà vẫn giữ phiên qua reload.
+  private readonly publicRefreshCookie = 'kt_refresh';
+  // Admin console: cookie riêng, path riêng để cô lập với app công khai.
   private readonly adminRefreshCookie = 'kt_admin_refresh';
 
   constructor(
@@ -29,24 +50,38 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {}
 
-  private adminCookieOptions(): CookieOptions {
-    const prefix = (this.config.get<string>('apiPrefix') ?? 'api/v1').replace(/^\/+|\/+$/g, '');
+  private apiPrefix(): string {
+    return (this.config.get<string>('apiPrefix') ?? 'api/v1').replace(/^\/+|\/+$/g, '');
+  }
+
+  // Cookie refresh dùng chung khuôn cho public/admin, khác nhau ở `path` để
+  // browser chỉ đính cookie đúng nhóm endpoint. Cùng-origin nên `SameSite=Strict`
+  // đủ chống CSRF, không cần double-submit token.
+  private refreshCookieOptions(path: string): CookieOptions {
     const refreshTtl = this.config.get<number>('jwt.refreshTtl') ?? 1_209_600;
     return {
       httpOnly: true,
       sameSite: 'strict',
       secure: this.config.get<string>('env') === 'production',
-      path: `/${prefix}/auth/admin`,
+      path,
       maxAge: refreshTtl * 1000,
     };
   }
 
-  private readAdminRefreshCookie(request: Request): string | null {
+  private publicCookieOptions(): CookieOptions {
+    return this.refreshCookieOptions(`/${this.apiPrefix()}/auth`);
+  }
+
+  private adminCookieOptions(): CookieOptions {
+    return this.refreshCookieOptions(`/${this.apiPrefix()}/auth/admin`);
+  }
+
+  private readRefreshCookie(request: Request, name: string): string | null {
     const header = request.headers.cookie;
     if (!header) return null;
     for (const part of header.split(';')) {
       const [rawName, ...rawValue] = part.trim().split('=');
-      if (rawName === this.adminRefreshCookie) {
+      if (rawName === name) {
         try {
           return decodeURIComponent(rawValue.join('='));
         } catch {
@@ -57,10 +92,24 @@ export class AuthController {
     return null;
   }
 
-  private clearAdminRefreshCookie(response: Response): void {
-    const options = this.adminCookieOptions();
-    delete options.maxAge;
-    response.clearCookie(this.adminRefreshCookie, options);
+  private clearRefreshCookie(response: Response, name: string, options: CookieOptions): void {
+    const clearOptions = { ...options };
+    delete clearOptions.maxAge;
+    response.clearCookie(name, clearOptions);
+  }
+
+  // Đặt refresh token vào cookie HttpOnly và chỉ trả access token + thông tin
+  // phiên cho JavaScript. Refresh token KHÔNG bao giờ rời server qua body.
+  private issuePublicSession(
+    response: Response,
+    result: { access_token: string; refresh_token: string; user: AuthUserSummary; consent_required: boolean },
+  ): AuthSessionResponse {
+    response.cookie(this.publicRefreshCookie, result.refresh_token, this.publicCookieOptions());
+    return {
+      access_token: result.access_token,
+      user: result.user,
+      consent_required: result.consent_required,
+    };
   }
 
   @Public()
@@ -74,8 +123,13 @@ export class AuthController {
   @Public()
   @Throttle({ default: { ttl: 300_000, limit: 10 } })
   @Post('login')
-  login(@Body() dto: LoginDto, @Ip() ip: string) {
-    return this.auth.login(dto.email, dto.password, ip);
+  async login(
+    @Body() dto: LoginDto,
+    @Ip() ip: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.auth.login(dto.email, dto.password, ip);
+    return this.issuePublicSession(response, result);
   }
 
   @Public()
@@ -109,15 +163,25 @@ export class AuthController {
   @Public()
   @Throttle({ default: { ttl: 300_000, limit: 30 } })
   @Post('oauth/google')
-  googleOAuth(@Body() dto: GoogleOAuthDto, @Ip() ip: string) {
-    return this.auth.oauthLogin('google', dto.id_token, ip);
+  async googleOAuth(
+    @Body() dto: GoogleOAuthDto,
+    @Ip() ip: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.auth.oauthLogin('google', dto.id_token, ip);
+    return this.issuePublicSession(response, result);
   }
 
   @Public()
   @Throttle({ default: { ttl: 300_000, limit: 30 } })
   @Post('oauth/facebook')
-  facebookOAuth(@Body() dto: FacebookOAuthDto, @Ip() ip: string) {
-    return this.auth.oauthLogin('facebook', dto.access_token, ip);
+  async facebookOAuth(
+    @Body() dto: FacebookOAuthDto,
+    @Ip() ip: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.auth.oauthLogin('facebook', dto.access_token, ip);
+    return this.issuePublicSession(response, result);
   }
 
   @Public()
@@ -145,7 +209,7 @@ export class AuthController {
     @Ip() ip: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const refreshToken = this.readAdminRefreshCookie(request);
+    const refreshToken = this.readRefreshCookie(request, this.adminRefreshCookie);
     try {
       const tokens = await this.auth.refreshAdmin(refreshToken ?? '', ip);
       response.cookie(this.adminRefreshCookie, tokens.refresh_token, this.adminCookieOptions());
@@ -154,7 +218,7 @@ export class AuthController {
       // Chỉ xóa cookie khi phiên thật sự không hợp lệ. Lỗi 5xx tạm thời không
       // được phá một refresh token vẫn còn dùng được.
       if (error instanceof AppException && error.code === ErrorCode.AUTH_REQUIRED) {
-        this.clearAdminRefreshCookie(response);
+        this.clearRefreshCookie(response, this.adminRefreshCookie, this.adminCookieOptions());
       }
       throw error;
     }
@@ -164,23 +228,41 @@ export class AuthController {
   @HttpCode(204)
   @Post('admin/logout')
   async adminLogout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
-    const refreshToken = this.readAdminRefreshCookie(request);
-    this.clearAdminRefreshCookie(response);
+    const refreshToken = this.readRefreshCookie(request, this.adminRefreshCookie);
+    this.clearRefreshCookie(response, this.adminRefreshCookie, this.adminCookieOptions());
     if (refreshToken) await this.auth.revokeRefreshToken(refreshToken);
   }
 
   @Public()
   @Throttle({ default: { ttl: 300_000, limit: 30 } })
   @Post('refresh')
-  refresh(@Body() dto: RefreshDto, @Ip() ip: string) {
-    return this.auth.refresh(dto.refresh_token, ip);
+  async refresh(
+    @Req() request: Request,
+    @Ip() ip: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<AuthAccessTokenResponse> {
+    const refreshToken = this.readRefreshCookie(request, this.publicRefreshCookie);
+    try {
+      const tokens = await this.auth.refresh(refreshToken ?? '', ip);
+      response.cookie(this.publicRefreshCookie, tokens.refresh_token, this.publicCookieOptions());
+      return { access_token: tokens.access_token };
+    } catch (error) {
+      // Chỉ xóa cookie khi phiên thật sự không hợp lệ (AUTH_REQUIRED). Lỗi tạm
+      // thời (5xx) hay tranh chấp rotate (CONFLICT) không được phá cookie còn dùng.
+      if (error instanceof AppException && error.code === ErrorCode.AUTH_REQUIRED) {
+        this.clearRefreshCookie(response, this.publicRefreshCookie, this.publicCookieOptions());
+      }
+      throw error;
+    }
   }
 
   @Public()
   @HttpCode(204)
   @Post('logout')
-  logout(@Body() dto: RefreshDto) {
-    return this.auth.revokeRefreshToken(dto.refresh_token);
+  async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    const refreshToken = this.readRefreshCookie(request, this.publicRefreshCookie);
+    this.clearRefreshCookie(response, this.publicRefreshCookie, this.publicCookieOptions());
+    if (refreshToken) await this.auth.revokeRefreshToken(refreshToken);
   }
 
   // Cho phép cả user chưa consent để client biết trạng thái sau verify.

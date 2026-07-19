@@ -117,6 +117,7 @@ Ngoài ra code có 2 module hạ tầng không thuộc bản đồ nghiệp vụ
 - **Prisma**: dùng migration có kiểm soát; các index đặc thù (GIN, partial, expression, full-text) khai bằng raw SQL trong migration khi Prisma chưa hỗ trợ trực tiếp. Partitioning cũng khai bằng raw SQL.
 - **Config/secrets**: mọi bí mật qua biến môi trường/secret manager, không commit. Xem `13-security-and-threat-model.md`.
 - **API stateless giữa request**: không giữ session trong RAM tiến trình; dùng JWT ngắn hạn + refresh token hash/rotation chain trong PostgreSQL `refresh_tokens`. Redis dành cho cache/shared rate limit/lock/queue khi bật, không là nguồn chân lý phiên.
+- **Lưu token phía client (3 app)**: access token chỉ ở RAM tab; refresh token nằm trong **cookie HttpOnly** (`kt_refresh` cho parent/tutor, `kt_admin_refresh` cho admin), không lộ cho JavaScript. Boot app gọi silent `POST /auth/refresh` (cookie tự đính) để khôi phục phiên qua reload thay vì bắt đăng nhập lại. Các app cùng-origin với API (Vite reverse proxy / Next rewrite `/api/v1`) nên cookie `SameSite=Strict` gửi được mà không vướng CSRF cross-site. Chi tiết bảo mật: `13-security-and-threat-model.md` §2.
 - **Observability**: log có `request_id`, metric p50/p95/p99 cho search + payment webhook, health check `/healthz` và `/readyz`. Chi tiết ở `12-non-functional-requirements.md`.
 
 ### Trạng thái triển khai hiện tại (2026-07-16)

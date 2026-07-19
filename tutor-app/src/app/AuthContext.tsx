@@ -3,8 +3,8 @@ import type {
   AuthMeResponse,
   AuthRegisterResponse,
   AuthResetPasswordResponse,
+  AuthSessionResponse,
   AuthVerifyEmailResponse,
-  AuthVerifyResponse,
 } from "@kimthanh-tutor/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,7 +17,7 @@ import {
   useState,
 } from "react";
 import { authApi } from "../lib/api/auth";
-import { appTokenStore, setSessionExpiredHandler } from "../lib/api/client";
+import { apiClient, appTokenStore, setSessionExpiredHandler } from "../lib/api/client";
 import { ApiClientError } from "../lib/api/errors";
 import { disableGoogleAutoSelect } from "../lib/oauth";
 
@@ -42,7 +42,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<AuthMeResponse | null>(null);
-  const [loading, setLoading] = useState(() => appTokenStore.get() !== null);
+  // Luôn thử khôi phục phiên khi boot (cookie HttpOnly có thể còn hợp lệ dù
+  // access token trong RAM đã mất sau reload), nên bắt đầu ở trạng thái loading.
+  const [loading, setLoading] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [accountUnavailable, setAccountUnavailable] = useState(false);
   const queryClient = useQueryClient();
@@ -57,14 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient]);
 
   const loadMe = useCallback(async () => {
-    if (!appTokenStore.get()) {
-      setLoading(false);
-      setMe(null);
-      return null;
-    }
     setLoading(true);
     setSessionError(null);
     try {
+      // Chưa có access token (mới boot/sau reload) → đổi cookie HttpOnly lấy
+      // access token mới trước khi hỏi /auth/me. Khách chưa đăng nhập sẽ nhận
+      // 401 ở bước này và bị dọn phiên sạch.
+      if (!appTokenStore.get()) await apiClient.restoreSession();
       const response = await authApi.me();
       setMe(response);
       return response;
@@ -81,16 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [clearLocalSession]);
 
-  const completeLogin = useCallback(async (verified: AuthVerifyResponse) => {
+  const completeLogin = useCallback(async (verified: AuthSessionResponse) => {
     if (verified.user.status === "suspended" || verified.user.status === "deleted") {
       appTokenStore.clear();
       setAccountUnavailable(true);
       throw new Error("Tài khoản hiện không khả dụng.");
     }
-    appTokenStore.set({
-      access_token: verified.access_token,
-      refresh_token: verified.refresh_token,
-    });
+    // Chỉ giữ access token; refresh token đã nằm trong cookie HttpOnly.
+    appTokenStore.set({ access_token: verified.access_token });
     try {
       const response = await authApi.me();
       setMe(response);
@@ -135,7 +134,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearLocalSession]);
 
   useEffect(() => {
-    if (appTokenStore.get()) void loadMe();
+    // Boot: luôn thử khôi phục phiên từ cookie HttpOnly (giữ đăng nhập qua reload).
+    void loadMe();
   }, [loadMe]);
   useEffect(() => {
     setSessionExpiredHandler(clearLocalSession);

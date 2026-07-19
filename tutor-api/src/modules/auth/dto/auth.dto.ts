@@ -61,12 +61,6 @@ export class ResetPasswordDto {
   password!: string;
 }
 
-export class RefreshDto {
-  @IsString()
-  @IsNotEmpty()
-  refresh_token!: string;
-}
-
 export class GoogleOAuthDto {
   @IsString()
   @IsNotEmpty()

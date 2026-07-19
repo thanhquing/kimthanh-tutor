@@ -33,10 +33,14 @@ import { AdminModule } from './modules/admin/admin.module';
       load: [configuration],
       validate: validateEnv,
     }),
-    // Rate limit toàn cục (13-security). Nhóm nhạy cảm (OTP) siết chặt hơn
-    // bằng @Throttle tại endpoint.
+    // Rate limit toàn cục (13-security), cấu hình qua env `GLOBAL_THROTTLE_*`.
+    // Nhóm auth nhạy cảm siết chặt hơn bằng @Throttle tại endpoint (`AUTH_THROTTLE_*`).
     ThrottlerModule.forRoot([
-      { name: 'default', ttl: 60_000, limit: 120 },
+      {
+        name: 'default',
+        ttl: Number(process.env.GLOBAL_THROTTLE_WINDOW_SECONDS ?? 60) * 1000,
+        limit: Number(process.env.GLOBAL_THROTTLE_LIMIT ?? 120),
+      },
     ]),
     JwtModule.registerAsync({
       global: true,

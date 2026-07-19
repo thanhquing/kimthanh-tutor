@@ -38,18 +38,26 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private dummyAdminPasswordHash: Promise<string> | null = null;
   private dummyUserPasswordHash: Promise<string> | null = null;
-  private readonly adminLockThreshold = 5;
-  private readonly adminLockDurationMs = 15 * 60_000;
-  private readonly userLockThreshold = 10;
-  private readonly userLockDurationMs = 15 * 60_000;
-  private readonly refreshConcurrencyGraceMs = 5_000;
+  // Chính sách khóa tài khoản + grace rotate refresh — cấu hình qua env (xem
+  // config `auth.*`). Fallback bằng giá trị mặc định an toàn nếu thiếu config.
+  private readonly adminLockThreshold: number;
+  private readonly adminLockDurationMs: number;
+  private readonly userLockThreshold: number;
+  private readonly userLockDurationMs: number;
+  private readonly refreshConcurrencyGraceMs: number;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly mail: MailService,
-  ) {}
+  ) {
+    this.adminLockThreshold = config.get<number>('auth.adminLockThreshold') ?? 5;
+    this.adminLockDurationMs = config.get<number>('auth.adminLockDurationMs') ?? 15 * 60_000;
+    this.userLockThreshold = config.get<number>('auth.userLockThreshold') ?? 10;
+    this.userLockDurationMs = config.get<number>('auth.userLockDurationMs') ?? 15 * 60_000;
+    this.refreshConcurrencyGraceMs = config.get<number>('auth.refreshConcurrencyGraceMs') ?? 5_000;
+  }
 
   async adminPasswordLogin(email: string, password: string, ip?: string) {
     const normalizedEmail = email.trim().toLowerCase();
@@ -130,10 +138,14 @@ export class AuthService {
     return email.trim().toLowerCase();
   }
 
-  // Chỉ chấp nhận Gmail hoặc email trường học (domain chứa nhãn `edu`).
+  // Whitelist domain email đăng ký — cấu hình qua env `AUTH_ALLOWED_EMAIL_DOMAINS`
+  // (danh sách exact) + `AUTH_ALLOW_EDU_EMAILS` (bật rule domain chứa nhãn `edu`).
   private assertAllowedEmailDomain(email: string): void {
-    const domain = email.split('@')[1] ?? '';
-    const allowed = domain === 'gmail.com' || /(^|\.)edu(\.|$)/.test(domain);
+    const domain = (email.split('@')[1] ?? '').toLowerCase();
+    const allowedDomains = this.config.get<string[]>('auth.allowedEmailDomains') ?? ['gmail.com'];
+    const allowEdu = this.config.get<boolean>('auth.allowEduEmails') ?? true;
+    const allowed =
+      allowedDomains.includes(domain) || (allowEdu && /(^|\.)edu(\.|$)/.test(domain));
     if (!allowed) {
       throw new AppException(
         ErrorCode.VALIDATION_ERROR,
@@ -416,7 +428,7 @@ export class AuthService {
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
-      scope: 'openid email profile',
+      scope: this.config.get<string>('oauth.googleScope') ?? 'openid email profile',
       state,
       access_type: 'online',
       prompt: 'select_account',

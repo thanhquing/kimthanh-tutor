@@ -18,10 +18,33 @@ export interface AppConfig {
     googleClientSecret: string;
     // redirect_uri đăng ký ở Google Console; server nhận code tại đây.
     googleRedirectUri: string;
+    // Scope xin từ Google (cách nhau khoảng trắng).
+    googleScope: string;
+    // TTL cookie state chống CSRF giữa /start và /callback (ms).
+    stateTtlMs: number;
     // Allowlist origin FE được phép redirect về sau callback (chống open-redirect).
     returnUrls: string[];
     facebookAppId: string;
     facebookAppSecret: string;
+  };
+  // Chính sách xác thực: whitelist email + khóa tài khoản + grace rotate refresh.
+  auth: {
+    allowedEmailDomains: string[];
+    allowEduEmails: boolean;
+    adminLockThreshold: number;
+    adminLockDurationMs: number;
+    userLockThreshold: number;
+    userLockDurationMs: number;
+    refreshConcurrencyGraceMs: number;
+  };
+  // Rate limit: global + nhóm auth nhạy cảm (đơn vị window = ms).
+  throttle: {
+    globalWindowMs: number;
+    globalLimit: number;
+    authWindowMs: number;
+    authStrict: number;
+    authMedium: number;
+    authRelaxed: number;
   };
   password: {
     minLength: number;
@@ -77,12 +100,34 @@ export default (): AppConfig => ({
     googleRedirectUri:
       process.env.GOOGLE_OAUTH_REDIRECT_URI ??
       'http://localhost:3000/api/v1/auth/oauth/google/callback',
+    googleScope: process.env.GOOGLE_OAUTH_SCOPE ?? 'openid email profile',
+    stateTtlMs: parseInt(process.env.OAUTH_STATE_TTL_SECONDS ?? '600', 10) * 1000,
     returnUrls: (process.env.OAUTH_RETURN_URLS ?? 'http://localhost:5174,http://localhost:3001')
       .split(',')
       .map((url) => url.trim().replace(/\/$/, ''))
       .filter(Boolean),
     facebookAppId: process.env.FACEBOOK_APP_ID ?? '',
     facebookAppSecret: process.env.FACEBOOK_APP_SECRET ?? '',
+  },
+  auth: {
+    allowedEmailDomains: (process.env.AUTH_ALLOWED_EMAIL_DOMAINS ?? 'gmail.com')
+      .split(',')
+      .map((d) => d.trim().toLowerCase())
+      .filter(Boolean),
+    allowEduEmails: (process.env.AUTH_ALLOW_EDU_EMAILS ?? 'true') === 'true',
+    adminLockThreshold: parseInt(process.env.AUTH_ADMIN_LOCK_THRESHOLD ?? '5', 10),
+    adminLockDurationMs: parseInt(process.env.AUTH_ADMIN_LOCK_DURATION_SECONDS ?? '900', 10) * 1000,
+    userLockThreshold: parseInt(process.env.AUTH_USER_LOCK_THRESHOLD ?? '10', 10),
+    userLockDurationMs: parseInt(process.env.AUTH_USER_LOCK_DURATION_SECONDS ?? '900', 10) * 1000,
+    refreshConcurrencyGraceMs: parseInt(process.env.AUTH_REFRESH_CONCURRENCY_GRACE_MS ?? '5000', 10),
+  },
+  throttle: {
+    globalWindowMs: parseInt(process.env.GLOBAL_THROTTLE_WINDOW_SECONDS ?? '60', 10) * 1000,
+    globalLimit: parseInt(process.env.GLOBAL_THROTTLE_LIMIT ?? '120', 10),
+    authWindowMs: parseInt(process.env.AUTH_THROTTLE_WINDOW_SECONDS ?? '300', 10) * 1000,
+    authStrict: parseInt(process.env.AUTH_THROTTLE_LIMIT_STRICT ?? '5', 10),
+    authMedium: parseInt(process.env.AUTH_THROTTLE_LIMIT_MEDIUM ?? '10', 10),
+    authRelaxed: parseInt(process.env.AUTH_THROTTLE_LIMIT_RELAXED ?? '30', 10),
   },
   password: {
     minLength: parseInt(process.env.PASSWORD_MIN_LENGTH ?? '8', 10),

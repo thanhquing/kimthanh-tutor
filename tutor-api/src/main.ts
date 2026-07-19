@@ -1,4 +1,8 @@
 import 'reflect-metadata';
+// Nạp .env sớm nhất (trước khi các module/decorator import) để hằng đọc từ
+// process.env lúc import (vd @Throttle nhóm auth, global throttler) thấy đúng
+// giá trị .env ở local dev. Idempotent, không ghi đè env đã có từ môi trường.
+import 'dotenv/config';
 import helmet from 'helmet';
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';

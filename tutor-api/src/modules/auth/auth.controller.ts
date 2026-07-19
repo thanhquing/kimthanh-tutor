@@ -20,6 +20,15 @@ import {
 import { AllowStatus, Public } from '../../common/auth/roles.decorator';
 import { CurrentUser, AuthUser } from '../../common/auth/auth-user';
 
+// Rate limit nhóm auth — cấu hình qua env `AUTH_THROTTLE_*`. Decorator được nạp
+// lúc import module nên đọc trực tiếp process.env (main.ts nạp .env sớm bằng
+// `dotenv/config`); giá trị mặc định trùng hành vi cũ.
+const AUTH_THROTTLE_WINDOW_MS = Number(process.env.AUTH_THROTTLE_WINDOW_SECONDS ?? 300) * 1000;
+const RL_STRICT = Number(process.env.AUTH_THROTTLE_LIMIT_STRICT ?? 5);
+const RL_MEDIUM = Number(process.env.AUTH_THROTTLE_LIMIT_MEDIUM ?? 10);
+const RL_RELAXED = Number(process.env.AUTH_THROTTLE_LIMIT_RELAXED ?? 30);
+const rl = (limit: number) => ({ default: { ttl: AUTH_THROTTLE_WINDOW_MS, limit } });
+
 // Hình dạng trả ra cho app công khai. tutor-api không phụ thuộc package
 // `contracts` (mỗi bên tự khai type); các interface này phải khớp
 // `AuthSessionResponse`/`AuthAccessTokenResponse` trong `packages/contracts`.
@@ -122,7 +131,7 @@ export class AuthController {
       sameSite: 'lax',
       secure: this.config.get<string>('env') === 'production',
       path: `/${this.apiPrefix()}/auth/oauth/google`,
-      maxAge: 600_000,
+      maxAge: this.config.get<number>('oauth.stateTtlMs') ?? 600_000,
     };
   }
 
@@ -143,14 +152,14 @@ export class AuthController {
 
   @Public()
   // Chống spam đăng ký/gửi email: siết theo IP (13-security). 5 lần / 5 phút.
-  @Throttle({ default: { ttl: 300_000, limit: 5 } })
+  @Throttle(rl(RL_STRICT))
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.auth.register(dto.email, dto.password);
   }
 
   @Public()
-  @Throttle({ default: { ttl: 300_000, limit: 10 } })
+  @Throttle(rl(RL_MEDIUM))
   @Post('login')
   async login(
     @Body() dto: LoginDto,
@@ -162,35 +171,35 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { ttl: 300_000, limit: 30 } })
+  @Throttle(rl(RL_RELAXED))
   @Post('email/verify')
   verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.auth.verifyEmail(dto.token);
   }
 
   @Public()
-  @Throttle({ default: { ttl: 300_000, limit: 5 } })
+  @Throttle(rl(RL_STRICT))
   @Post('email/verify/resend')
   resendVerification(@Body() dto: ResendVerificationDto) {
     return this.auth.resendVerification(dto.email);
   }
 
   @Public()
-  @Throttle({ default: { ttl: 300_000, limit: 5 } })
+  @Throttle(rl(RL_STRICT))
   @Post('password/forgot')
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.auth.forgotPassword(dto.email);
   }
 
   @Public()
-  @Throttle({ default: { ttl: 300_000, limit: 10 } })
+  @Throttle(rl(RL_MEDIUM))
   @Post('password/reset')
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.auth.resetPassword(dto.token, dto.password);
   }
 
   @Public()
-  @Throttle({ default: { ttl: 300_000, limit: 30 } })
+  @Throttle(rl(RL_RELAXED))
   @Post('oauth/google')
   async googleOAuth(
     @Body() dto: GoogleOAuthDto,
@@ -202,7 +211,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { ttl: 300_000, limit: 30 } })
+  @Throttle(rl(RL_RELAXED))
   @Post('oauth/facebook')
   async facebookOAuth(
     @Body() dto: FacebookOAuthDto,
@@ -216,7 +225,7 @@ export class AuthController {
   // Bước 1 luồng code server-side: đặt nonce chống CSRF vào cookie rồi redirect
   // người dùng sang Google. `return_to`/`next` được nhúng vào state (base64).
   @Public()
-  @Throttle({ default: { ttl: 300_000, limit: 30 } })
+  @Throttle(rl(RL_RELAXED))
   @Get('oauth/google/start')
   googleOAuthStart(
     @Query('return_to') returnTo: string,
@@ -234,7 +243,7 @@ export class AuthController {
   // Bước 2: Google redirect về đây kèm code. Verify CSRF (nonce), đổi code lấy
   // id_token (client_secret ở server), set cookie phiên rồi redirect về FE.
   @Public()
-  @Throttle({ default: { ttl: 300_000, limit: 30 } })
+  @Throttle(rl(RL_RELAXED))
   @Get('oauth/google/callback')
   async googleOAuthCallback(
     @Query('code') code: string,
@@ -273,7 +282,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { ttl: 300_000, limit: 5 } })
+  @Throttle(rl(RL_STRICT))
   @Post('admin/password')
   async adminPassword(
     @Body() dto: AdminPasswordLoginDto,
@@ -290,7 +299,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { ttl: 300_000, limit: 30 } })
+  @Throttle(rl(RL_RELAXED))
   @Post('admin/refresh')
   async adminRefresh(
     @Req() request: Request,
@@ -322,7 +331,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { ttl: 300_000, limit: 30 } })
+  @Throttle(rl(RL_RELAXED))
   @Post('refresh')
   async refresh(
     @Req() request: Request,

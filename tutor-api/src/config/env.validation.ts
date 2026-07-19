@@ -32,10 +32,29 @@ const base = {
   GOOGLE_OAUTH_REDIRECT_URI: z
     .string()
     .default('http://localhost:3000/api/v1/auth/oauth/google/callback'),
+  GOOGLE_OAUTH_SCOPE: z.string().default('openid email profile'),
+  OAUTH_STATE_TTL_SECONDS: z.coerce.number().int().positive().default(600),
   // Allowlist origin FE được redirect về sau callback (chống open-redirect).
   OAUTH_RETURN_URLS: z.string().default('http://localhost:5174,http://localhost:3001'),
   FACEBOOK_APP_ID: z.string().default(''),
   FACEBOOK_APP_SECRET: z.string().default(''),
+
+  // Chính sách xác thực (whitelist email + khóa tài khoản + grace rotate).
+  AUTH_ALLOWED_EMAIL_DOMAINS: z.string().default('gmail.com'),
+  AUTH_ALLOW_EDU_EMAILS: z.enum(['true', 'false']).default('true'),
+  AUTH_ADMIN_LOCK_THRESHOLD: z.coerce.number().int().positive().default(5),
+  AUTH_ADMIN_LOCK_DURATION_SECONDS: z.coerce.number().int().positive().default(900),
+  AUTH_USER_LOCK_THRESHOLD: z.coerce.number().int().positive().default(10),
+  AUTH_USER_LOCK_DURATION_SECONDS: z.coerce.number().int().positive().default(900),
+  AUTH_REFRESH_CONCURRENCY_GRACE_MS: z.coerce.number().int().nonnegative().default(5000),
+
+  // Rate limit (global + nhóm auth). Window tính bằng giây.
+  GLOBAL_THROTTLE_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
+  GLOBAL_THROTTLE_LIMIT: z.coerce.number().int().positive().default(120),
+  AUTH_THROTTLE_WINDOW_SECONDS: z.coerce.number().int().positive().default(300),
+  AUTH_THROTTLE_LIMIT_STRICT: z.coerce.number().int().positive().default(5),
+  AUTH_THROTTLE_LIMIT_MEDIUM: z.coerce.number().int().positive().default(10),
+  AUTH_THROTTLE_LIMIT_RELAXED: z.coerce.number().int().positive().default(30),
 
   PASSWORD_MIN_LENGTH: z.coerce.number().int().positive().default(8),
   PASSWORD_MAX_LENGTH: z.coerce.number().int().positive().default(128),

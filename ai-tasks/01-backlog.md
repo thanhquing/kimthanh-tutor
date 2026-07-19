@@ -2,7 +2,7 @@
 
 Ghi chú trạng thái code ngày 2026-07-19:
 
-- Các API phục vụ Flow 1-12 đã verify end-to-end bằng cURL; Flow 4/5/6 rerun ngày 2026-07-19 cho trial inbox/activation/CAS; unit API mới nhất 126 test.
+- Các API phục vụ Flow 1-12 đã verify end-to-end bằng cURL; Flow 6/9 rerun ngày 2026-07-19 cho class detail/state/review; unit API mới nhất 131 test.
 - Scaffold `TA-00`, `TM-00`, `AD-00` đã DONE; các dòng có ghi "API" không đồng nghĩa màn business frontend đã hoàn tất. Trạng thái chính xác nằm ở task list và `14-active-work.md`.
 
 ## Nhóm việc 1: Nền tảng

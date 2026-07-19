@@ -328,4 +328,36 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px s
 @media (min-width: 720px) { .trial-detail dl { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 639px) { .trial-heading { align-items: stretch; flex-direction: column; } .trial-card-main { flex-direction: column; } .trial-actions { width: 100%; } .trial-actions .button { flex: 1; } .trial-result { flex-wrap: wrap; } }
 
+/* ---- Classes + state machine (TA-06) ---- */
+.class-list-panel { min-height: 380px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }
+.class-list-panel > .state { min-height: 346px; }
+.class-group + .class-group { margin-top: 22px; }
+.class-group .section-heading { margin-bottom: 10px; }
+.class-grid { display: grid; gap: 10px; }
+.class-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 104px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-muted); }
+.class-card-icon { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 12px; color: var(--brand-700); background: var(--brand-50); }
+.class-card-copy { display: grid; min-width: 0; gap: 5px; }
+.class-card-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.class-card-title h3 { margin: 0; overflow-wrap: anywhere; font-size: 15px; }
+.class-card-copy p, .class-card-copy small { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--ink-600); font-size: 12px; }
+.class-open { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 10px; color: var(--brand-700); }
+.class-open:hover { background: var(--brand-50); }
+.class-load-more { display: flex; margin: 18px auto 0; }
+.back-link { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 13px; color: var(--brand-700); font-size: 13px; font-weight: 700; }
+.class-detail-heading { min-height: 96px; }
+.class-detail-grid { display: grid; gap: 16px; align-items: start; }
+.class-info-panel, .class-actions-panel { min-height: 300px; }
+.class-detail-list { display: grid; gap: 0; margin: 0; }
+.class-detail-list div { display: grid; grid-template-columns: minmax(110px, .55fr) minmax(0, 1.45fr); gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+.class-detail-list dt { color: var(--ink-500); font-size: 12px; font-weight: 700; }
+.class-detail-list dd { margin: 0; overflow-wrap: anywhere; color: var(--ink-800); font-size: 13px; }
+.class-domain-note { display: flex; align-items: flex-start; gap: 8px; margin: 15px 0 0; padding: 11px 12px; border-radius: var(--radius-sm); color: #75500a; background: #fff7e3; font-size: 12px; }
+.class-transition-actions { display: grid; gap: 9px; }
+.class-quick-links { display: grid; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.class-quick-links a, .class-quick-links span { display: flex; min-height: 42px; align-items: center; gap: 8px; padding: 9px 11px; border-radius: var(--radius-sm); color: var(--ink-700); background: var(--surface-muted); font-size: 13px; font-weight: 650; }
+.class-quick-links a:hover { color: var(--brand-800); background: var(--brand-50); }
+.muted-copy { color: var(--ink-500); font-size: 13px; }
+@media (min-width: 720px) { .class-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .class-detail-grid { grid-template-columns: minmax(0, 1.4fr) minmax(280px, .6fr); } }
+@media (max-width: 639px) { .class-detail-heading { align-items: flex-start; flex-direction: column; } .class-card { grid-template-columns: auto minmax(0, 1fr); } .class-open { grid-column: 1 / -1; width: 100%; background: var(--brand-50); } }
+
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

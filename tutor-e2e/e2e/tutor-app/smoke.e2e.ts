@@ -3,7 +3,7 @@ import { loginViaPassword } from "./helpers";
 import { E2E_TRIAL_SUBJECT } from "../lib/seed";
 
 // Smoke tutor-app: một phiên đăng nhập email+password bao phủ TA-02 (hồ sơ),
-// TA-03 (lịch), TA-04 (dashboard), TA-05 (trial), điều hướng trong cùng phiên.
+// TA-03 (lịch), TA-04 (dashboard), TA-05 (trial), TA-06 (class state), điều hướng trong cùng phiên.
 test("tutor-app: dashboard, trial inbox, hồ sơ và lịch rảnh trên browser thật", async ({ page }) => {
   await page.addInitScript(() => {
     const measuredWindow = window as typeof window & { __ktCls?: number };
@@ -59,6 +59,33 @@ test("tutor-app: dashboard, trial inbox, hồ sơ và lịch rảnh trên browse
   await expect(trialCard.getByText("Lớp học thử đã được tạo.")).toBeVisible();
   await expect(trialCard.getByRole("link", { name: /Mở lớp/ })).toBeVisible();
   await expect(trialCard.getByText(/không cần kích hoạt/i)).toBeVisible();
+
+  // --- TA-06: detail owner-safe và state machine dùng expected_version ---
+  const classDetail = page.waitForResponse(
+    (r) => /\/classes\/[^/]+$/.test(new URL(r.url()).pathname) && r.request().method() === "GET",
+  );
+  await trialCard.getByRole("link", { name: /Mở lớp/ }).click();
+  expect((await classDetail).status()).toBe(200);
+  await expect(page.getByRole("heading", { name: E2E_TRIAL_SUBJECT })).toBeVisible();
+  await expect(page.getByText(/không phải lịch hợp đồng đã xác nhận/i)).toBeVisible();
+
+  const startClass = page.waitForResponse(
+    (r) => r.url().includes("/transition") && r.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Bắt đầu / tiếp tục" }).click();
+  expect((await startClass).status()).toBe(201);
+  await expect(page.getByText("Đang học")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Mở sổ đầu bài" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Tạm dừng lớp" }).click();
+  const pauseDialog = page.getByRole("dialog");
+  await expect(pauseDialog).toBeVisible();
+  const pauseClass = page.waitForResponse(
+    (r) => r.url().includes("/transition") && r.request().method() === "POST",
+  );
+  await pauseDialog.getByRole("button", { name: "Tạm dừng" }).click();
+  expect((await pauseClass).status()).toBe(201);
+  await expect(page.getByText("Tạm dừng")).toBeVisible();
 
   await page.locator(".sidebar").getByRole("link", { name: "Lịch rảnh", exact: true }).click();
   await page.waitForURL((url) => url.pathname === "/availability");

@@ -8,6 +8,7 @@ const taskByPath: Record<string, string> = {
   "/trials": "TA-05",
   "/classes": "TA-06",
   "/lesson-logs": "TA-07",
+  "/reviews": "TA-11",
   "/billing": "TA-09",
   "/payout-accounts": "TA-08",
   "/qr-records": "TA-10",

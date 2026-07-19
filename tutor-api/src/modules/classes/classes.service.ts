@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { ClassContract, LessonLog } from "@prisma/client";
+import { ClassContract, LessonLog, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AppException } from "../../common/errors/app.exception";
 import { ErrorCode } from "../../common/errors/error-codes";
@@ -12,20 +12,50 @@ import {
   encodeCursor,
 } from "../../common/pagination/keyset";
 import {
+  ClassesMineQueryDto,
   LessonLogDto,
   LessonLogsQueryDto,
   TransitionDto,
   UpdateLessonLogDto,
 } from "./dto/class.dto";
+import { AuthUser } from "../../common/auth/auth-user";
 
-const TRANSITIONS: Record<string, Set<string>> = {
-  trial_accepted: new Set(["active", "cancelled"]),
-  active: new Set(["paused", "completed_pending_review", "cancelled"]),
-  paused: new Set(["active", "cancelled"]),
-  completed_pending_review: new Set(["completed"]),
-  completed: new Set(),
-  cancelled: new Set(),
+type ClassTransitionTarget =
+  | "active"
+  | "paused"
+  | "completed_pending_review"
+  | "cancelled";
+
+const TUTOR_TRANSITIONS: Record<string, ClassTransitionTarget[]> = {
+  trial_accepted: ["active", "cancelled"],
+  active: ["paused", "completed_pending_review", "cancelled"],
+  paused: ["active", "cancelled"],
+  completed_pending_review: [],
+  completed: [],
+  cancelled: [],
 };
+
+const PARENT_TRANSITIONS: Record<string, ClassTransitionTarget[]> = {
+  trial_accepted: ["cancelled"],
+  active: ["cancelled"],
+  paused: ["cancelled"],
+  completed_pending_review: [],
+  completed: [],
+  cancelled: [],
+};
+
+const CLASS_RELATIONS = {
+  parentProfile: { select: { id: true, displayName: true } },
+  student: { select: { id: true, name: true, grade: true } },
+  trialRequest: {
+    select: { teachingMode: true, preferredSchedule: true },
+  },
+} satisfies Prisma.ClassContractInclude;
+
+type ClassWithRelations = Prisma.ClassContractGetPayload<{
+  include: typeof CLASS_RELATIONS;
+}>;
+type ClassActor = "parent" | "tutor";
 
 @Injectable()
 export class ClassesService {
@@ -34,64 +64,101 @@ export class ClassesService {
     private readonly outbox: OutboxService,
   ) {}
 
-  async mine(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { parentProfile: true, tutorProfile: true },
-    });
-    if (!user) {
-      throw new AppException(
-        ErrorCode.RESOURCE_NOT_FOUND,
-        "User không tồn tại",
-      );
+  async mine(user: AuthUser, query: ClassesMineQueryDto) {
+    const roles = query.role
+      ? user.roles.includes(query.role)
+        ? [query.role]
+        : []
+      : (["parent", "tutor"] as const).filter((role) =>
+          user.roles.includes(role),
+        );
+    const OR: Prisma.ClassContractWhereInput[] = [];
+    if (roles.includes("parent") && user.parentProfileId) {
+      OR.push({ parentProfileId: user.parentProfileId });
     }
+    if (roles.includes("tutor") && user.tutorProfileId) {
+      OR.push({ tutorProfileId: user.tutorProfileId });
+    }
+    if (OR.length === 0) return { items: [], next_cursor: null };
 
-    const OR = [];
-    if (user.parentProfile) OR.push({ parentProfileId: user.parentProfile.id });
-    if (user.tutorProfile) OR.push({ tutorProfileId: user.tutorProfile.id });
-    if (OR.length === 0) return { items: [] };
-
-    const items = await this.prisma.classContract.findMany({
-      where: { OR },
+    const limit = clampLimit(query.limit, 20, 50);
+    const cursorWhere = this.updatedAtCursorWhere(query.cursor);
+    const rows = await this.prisma.classContract.findMany({
+      where: {
+        AND: [
+          { OR },
+          ...(query.status ? [{ status: query.status }] : []),
+          ...(query.cursor ? [cursorWhere] : []),
+        ],
+      },
+      include: CLASS_RELATIONS,
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      take: 100,
+      take: limit + 1,
     });
-    return { items: items.map((c) => this.toClass(c)) };
+    const page = buildKeyset(rows, limit, (item) =>
+      encodeCursor(item.updatedAt.toISOString(), item.id),
+    );
+    return {
+      items: page.items.map((klass) =>
+        this.toClassDetail(klass, this.actorFor(user, klass)),
+      ),
+      next_cursor: page.next_cursor,
+    };
   }
 
-  async transition(userId: string, id: string, dto: TransitionDto) {
-    const current = await this.requireClassForUser(userId, id);
-    const allowed = TRANSITIONS[current.status] ?? new Set<string>();
-    if (!allowed.has(dto.to)) {
+  async detail(user: AuthUser, id: string) {
+    const { klass, actor } = await this.requireClassForActor(user, id);
+    return this.toClassDetail(klass, actor);
+  }
+
+  async transition(user: AuthUser, id: string, dto: TransitionDto) {
+    const { klass: current, actor } = await this.requireClassForActor(user, id);
+    const allowed = this.transitionsFor(actor, current.status);
+    if (
+      dto.expected_version !== undefined &&
+      dto.expected_version !== current.version
+    ) {
+      this.throwClassConflict(current, actor);
+    }
+    if (!allowed.includes(dto.to)) {
       throw new AppException(
         ErrorCode.INVALID_STATE_TRANSITION,
         `Không thể chuyển lớp từ ${current.status} sang ${dto.to}`,
+        { class_contract: this.toClassDetail(current, actor) },
       );
     }
-
     const updated = await this.prisma.$transaction(async (tx) => {
       const result = await tx.classContract.updateMany({
-        where: { id, version: current.version, status: current.status },
+        where: {
+          id,
+          version: dto.expected_version ?? current.version,
+          status: current.status,
+          ...(actor === "tutor"
+            ? { tutorProfileId: user.tutorProfileId! }
+            : { parentProfileId: user.parentProfileId! }),
+        },
         data: {
           status: dto.to,
           version: { increment: 1 },
           ...(dto.to === "active" && !current.startedAt
             ? { startedAt: new Date() }
             : {}),
-          ...(["completed_pending_review", "completed", "cancelled"].includes(
-            dto.to,
-          )
+          ...(["completed_pending_review", "cancelled"].includes(dto.to)
             ? { endedAt: new Date() }
             : {}),
         },
       });
       if (result.count !== 1) {
-        throw new AppException(
-          ErrorCode.CONFLICT,
-          "Lớp vừa được cập nhật bởi thao tác khác",
-        );
+        const latest = await tx.classContract.findUnique({
+          where: { id },
+          include: CLASS_RELATIONS,
+        });
+        this.throwClassConflict(latest ?? current, actor);
       }
-      const next = await tx.classContract.findUniqueOrThrow({ where: { id } });
+      const next = await tx.classContract.findUniqueOrThrow({
+        where: { id },
+        include: CLASS_RELATIONS,
+      });
       await this.outbox.emit(tx, {
         aggregateType: "class_contract",
         aggregateId: id,
@@ -100,7 +167,7 @@ export class ClassesService {
       });
       return next;
     });
-    return this.toClass(updated);
+    return this.toClassDetail(updated, actor);
   }
 
   async createLessonLog(userId: string, id: string, dto: LessonLogDto) {
@@ -216,29 +283,20 @@ export class ClassesService {
     return this.toLessonLog(updated);
   }
 
-  private async requireClassForUser(userId: string, id: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { parentProfile: true, tutorProfile: true },
-    });
-    if (!user) {
-      throw new AppException(
-        ErrorCode.RESOURCE_NOT_FOUND,
-        "User không tồn tại",
-      );
+  private async requireClassForActor(user: AuthUser, id: string) {
+    const OR: Prisma.ClassContractWhereInput[] = [];
+    if (user.roles.includes("parent") && user.parentProfileId) {
+      OR.push({ parentProfileId: user.parentProfileId });
+    }
+    if (user.roles.includes("tutor") && user.tutorProfileId) {
+      OR.push({ tutorProfileId: user.tutorProfileId });
+    }
+    if (OR.length === 0) {
+      throw new AppException(ErrorCode.FORBIDDEN_ROLE, "Không thuộc lớp");
     }
     const klass = await this.prisma.classContract.findFirst({
-      where: {
-        id,
-        OR: [
-          ...(user.parentProfile
-            ? [{ parentProfileId: user.parentProfile.id }]
-            : []),
-          ...(user.tutorProfile
-            ? [{ tutorProfileId: user.tutorProfile.id }]
-            : []),
-        ],
-      },
+      where: { id, OR },
+      include: CLASS_RELATIONS,
     });
     if (!klass) {
       throw new AppException(
@@ -246,7 +304,7 @@ export class ClassesService {
         "Không tìm thấy lớp",
       );
     }
-    return klass;
+    return { klass, actor: this.actorFor(user, klass) };
   }
 
   private async requireTutorClass(userId: string, id: string) {
@@ -310,6 +368,79 @@ export class ClassesService {
       ended_at: c.endedAt?.toISOString() ?? null,
       created_at: c.createdAt.toISOString(),
       updated_at: c.updatedAt.toISOString(),
+    };
+  }
+
+  private toClassDetail(c: ClassWithRelations, actor: ClassActor) {
+    return {
+      ...this.toClass(c),
+      parent: c.parentProfile
+        ? { id: c.parentProfile.id, display_name: c.parentProfile.displayName }
+        : null,
+      student: c.student
+        ? { id: c.student.id, name: c.student.name, grade: c.student.grade }
+        : null,
+      requested_teaching_mode: c.trialRequest?.teachingMode ?? null,
+      requested_schedule: c.trialRequest?.preferredSchedule ?? null,
+      capabilities: {
+        transitions: this.transitionsFor(actor, c.status),
+        can_create_lesson_log:
+          actor === "tutor" && ["active", "paused"].includes(c.status),
+        can_view_review:
+          actor === "tutor" &&
+          ["completed_pending_review", "completed"].includes(c.status),
+      },
+    };
+  }
+
+  private actorFor(user: AuthUser, klass: ClassContract): ClassActor {
+    if (
+      user.roles.includes("tutor") &&
+      user.tutorProfileId === klass.tutorProfileId
+    ) {
+      return "tutor";
+    }
+    if (
+      user.roles.includes("parent") &&
+      user.parentProfileId === klass.parentProfileId
+    ) {
+      return "parent";
+    }
+    throw new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy lớp");
+  }
+
+  private transitionsFor(
+    actor: ClassActor,
+    status: string,
+  ): ClassTransitionTarget[] {
+    const transitions =
+      actor === "tutor" ? TUTOR_TRANSITIONS[status] : PARENT_TRANSITIONS[status];
+    return [...(transitions ?? [])];
+  }
+
+  private throwClassConflict(klass: ClassWithRelations, actor: ClassActor): never {
+    throw new AppException(
+      ErrorCode.CONFLICT,
+      "Lớp vừa được cập nhật bởi thao tác khác",
+      { class_contract: this.toClassDetail(klass, actor) },
+    );
+  }
+
+  private updatedAtCursorWhere(cursor?: string): Prisma.ClassContractWhereInput {
+    if (!cursor) return {};
+    const decoded = decodeCursor(cursor);
+    if (!decoded || typeof decoded[0] !== "string") {
+      throw new AppException(ErrorCode.VALIDATION_ERROR, "Cursor không hợp lệ");
+    }
+    const updatedAt = new Date(decoded[0]);
+    if (Number.isNaN(updatedAt.getTime())) {
+      throw new AppException(ErrorCode.VALIDATION_ERROR, "Cursor không hợp lệ");
+    }
+    return {
+      OR: [
+        { updatedAt: { lt: updatedAt } },
+        { updatedAt, id: { lt: decoded[1] } },
+      ],
     };
   }
 

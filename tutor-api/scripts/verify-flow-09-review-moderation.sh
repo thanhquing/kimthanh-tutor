@@ -61,7 +61,8 @@ complete_http="$(curl -sS -o /tmp/flow09-class-complete-pending.json -w "%{http_
   -H "Content-Type: application/json" \
   -H "$TUTOR_AUTH" \
   --data '{
-    "to": "completed_pending_review"
+    "to": "completed_pending_review",
+    "expected_version": 1
   }')"
 cat /tmp/flow09-class-complete-pending.json
 echo

@@ -106,8 +106,9 @@ Snapshot 2026-07-16: catalog endpoint đã implement; 16 suite / 93 unit test AP
 | POST | `/trials/:id/decline` | tutor | `{ reason, expected_version? }` | trial | `trial_requests`,`outbox_events` | Reason bắt buộc, trim ≤500, lưu riêng; CAS `pending+version` ✅ |
 | POST | `/trials/:id/cancel` | parent | `{ expected_version? }` | trial | `trial_requests`,`outbox_events` | Chỉ pending của mình; CAS `pending+version` ✅ |
 | POST | `/activation/complete` | guest(token) | `{ activation_token }` | `{ user, parent_profile, class_contract, consent_required }` | `activation_tokens`,`users`,`parent_profiles`,`leads`,`trial_requests`,`class_contracts` | Convert lead → parent; token hash + expiry + consume atomically ✅ |
-| GET | `/classes/mine` | parent/tutor | — | list | `class_contracts` | Thuộc lớp ✅ |
-| POST | `/classes/:id/transition` | tutor/parent | `{ to }` | class | `class_contracts`,`outbox_events` | State machine + optimistic lock ✅ |
+| GET | `/classes/mine` | parent/tutor | `?role&status?&cursor?&limit?` | `{ items, next_cursor }` | `class_contracts` + relation | Owner-safe, keyset `updated_at,id`, relation summary + capability actor-specific ✅ |
+| GET | `/classes/:id` | parent/tutor | — | class detail | `class_contracts` + relation | Thành viên lớp; không tải list để dò; lịch/mode ghi rõ là đề xuất trial ✅ |
+| POST | `/classes/:id/transition` | tutor/parent | `{ to, expected_version? }` | class detail | `class_contracts`,`outbox_events` | Ma trận theo actor + CAS; conflict trả `details.class_contract`; `completed` chỉ qua review ✅ |
 
 ## 6. Lesson logs → Dashboard
 

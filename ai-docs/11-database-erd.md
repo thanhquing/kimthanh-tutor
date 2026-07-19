@@ -596,6 +596,8 @@ Chi tiết chiến lược ở `12-non-functional-requirements.md`. Tối thiể
 3. Khi review `published` → cập nhật `tutor_profiles.rating_avg/rating_count` (trong transaction hoặc qua outbox).
 4. Sửa review đến `editable_until`, lưu `review_edits`.
 
+List lớp theo owner/status dùng composite index `(tutor_profile_id|parent_profile_id, status, updated_at, id)` và keyset; detail join quan hệ bằng một query bounded, không tải toàn list để dò ID.
+
 ### 5. Gia sư tạo QR thanh toán học phí
 
 1. Mua gói QR → webhook active `subscriptions(tutor_qr)`.

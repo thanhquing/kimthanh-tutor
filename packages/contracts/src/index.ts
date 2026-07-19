@@ -498,6 +498,36 @@ export interface ClassSummary {
   updated_at: string;
 }
 
+export type ClassTransitionTarget = Extract<
+  ClassStatus,
+  "active" | "paused" | "completed_pending_review" | "cancelled"
+>;
+
+export interface ClassDetail extends ClassSummary {
+  parent: { id: string; display_name: string } | null;
+  student: { id: string; name: string; grade: string } | null;
+  /** Giá trị người dùng đề xuất ở yêu cầu học thử, không phải lịch hợp đồng đã xác nhận. */
+  requested_teaching_mode: TeachingMode | null;
+  requested_schedule: string | null;
+  capabilities: {
+    transitions: ClassTransitionTarget[];
+    can_create_lesson_log: boolean;
+    can_view_review: boolean;
+  };
+}
+
+export interface ClassesMineQuery {
+  role?: "parent" | "tutor";
+  status?: ClassStatus;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface ClassTransitionInput {
+  to: ClassTransitionTarget;
+  expected_version?: number;
+}
+
 export interface DashboardClassSummary {
   id: string;
   subject: string;

@@ -21,6 +21,8 @@ const AvailabilityPage = lazy(() => import("../pages/AvailabilityPage").then((mo
 const DashboardPage = lazy(() => import("../pages/DashboardPage").then((module) => ({ default: module.DashboardPage })));
 const ProfilePage = lazy(() => import("../pages/ProfilePage").then((module) => ({ default: module.ProfilePage })));
 const TrialsPage = lazy(() => import("../pages/TrialsPage").then((module) => ({ default: module.TrialsPage })));
+const ClassesPage = lazy(() => import("../pages/ClassesPage").then((module) => ({ default: module.ClassesPage })));
+const ClassDetailPage = lazy(() => import("../pages/ClassDetailPage").then((module) => ({ default: module.ClassDetailPage })));
 
 function FeatureRoute({ children }: { children: ReactNode }) {
   return <Suspense fallback={<div className="panel"><LoadingState label="Đang mở màn hình…" /></div>}>{children}</Suspense>;
@@ -43,7 +45,9 @@ export function App() {
         <Route path="/availability/*" element={<FeatureRoute><AvailabilityPage /></FeatureRoute>} />
         <Route path="/dashboard/*" element={<FeatureRoute><DashboardPage /></FeatureRoute>} />
         <Route path="/trials/*" element={<FeatureRoute><TrialsPage /></FeatureRoute>} />
-        {navigation.filter((item) => !["/dashboard", "/profile", "/availability", "/trials"].includes(item.path)).map((item) => <Route key={item.path} path={`${item.path}/*`} element={<PlaceholderPage item={item} />} />)}
+        <Route path="/classes" element={<FeatureRoute><ClassesPage /></FeatureRoute>} />
+        <Route path="/classes/:id" element={<FeatureRoute><ClassDetailPage /></FeatureRoute>} />
+        {navigation.filter((item) => !["/dashboard", "/profile", "/availability", "/trials", "/classes"].includes(item.path)).map((item) => <Route key={item.path} path={`${item.path}/*`} element={<PlaceholderPage item={item} />} />)}
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes></AuthProvider>

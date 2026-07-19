@@ -2,7 +2,7 @@
 
 Tất cả task khởi tạo ở trạng thái `TODO`. Quy tắc trạng thái, commit và Definition of Done: `09-frontend-task-governance.md`. Sai lệch mock cần xử lý: `13-mock-ui-ux-audit.md`.
 
-Snapshot 2026-07-19: `TA-00`–`TA-05` DONE theo evidence bên dưới; `TA-06` là `Current task`. Placeholder route của TA-06–TA-13 không phải feature đã hoàn tất.
+Snapshot 2026-07-19: `TA-00`–`TA-06` DONE theo evidence bên dưới; `TA-07` là `Current task`. Placeholder route của TA-07–TA-13 không phải feature đã hoàn tất.
 
 ## Thứ tự đề xuất
 
@@ -14,7 +14,7 @@ Snapshot 2026-07-19: `TA-00`–`TA-05` DONE theo evidence bên dưới; `TA-06` 
 | 4 | TA-03 Lịch available/busy | TA-01 | DONE |
 | 5 | TA-04 Dashboard công việc | TA-02, TA-03 | DONE |
 | 6 | TA-05 Inbox yêu cầu học thử | TA-01 | DONE |
-| 7 | TA-06 Lớp và state machine | TA-05 | TODO |
+| 7 | TA-06 Lớp và state machine | TA-05 | DONE |
 | 8 | TA-07 Sổ đầu bài | TA-06 | TODO |
 | 9 | TA-08 Tài khoản nhận học phí | TA-01 | TODO |
 | 10 | TA-09 Checkout/gói `tutor_qr` | TA-01 | TODO |
@@ -182,8 +182,12 @@ Evidence hoàn tất:
 
 ## TA-06 — Danh sách lớp, chi tiết và state machine
 
-- Trạng thái: TODO
-- Commit: —
+- Trạng thái: DONE
+- Owner: `codex/root`
+- Started: 2026-07-19
+- Completed: 2026-07-19
+- Commit lookup: `git log --oneline --grep='TA-06' -1`
+- Blocker: —
 - Mock: `classes.html`, `class-detail.html`. API: Classes. Flow 5, 6, 9.
 
 Scope:
@@ -199,6 +203,14 @@ Nghiệm thu và test:
 - Không có transition trái state; concurrent transition trả conflict và refresh; cancelled/completed không còn action sai.
 - Test matrix state/actor/action; component test confirm/conflict/deep link; service test ownership/optimistic lock khi refactor.
 - Flow 5/6/9 cURL pass, thêm transition invalid và lớp của tutor khác.
+
+Evidence hoàn tất:
+
+- List keyset/group canonical state và detail deep-link owner-safe; relation summary chỉ dùng parent/student và mode/schedule **đề xuất** từ trial, không invent fee/lịch hợp đồng. Hai route lazy riêng, loading/error/empty ổn định.
+- API thêm `GET /classes/:id`, list max 50 keyset + composite index; capability/transition matrix tách tutor/parent, DTO không nhận transition thủ công `completed`. Mutation CAS owner+status+version, conflict trả `details.class_contract`; UI confirm pause/cancel/end và giữ conflict state không flash action stale.
+- Quick link sổ đầu bài/review chỉ hiện theo capability server. QR không render ở detail vì read model class chưa có capability payout+subscription; QR vẫn đi qua dashboard/TA-10, không suy diễn quyền ở client.
+- API lint/build + 18 suite/131 test; app lint/build + 23 file/116 test; contracts/Prisma/scripts xanh. Docker Flow 6/9 pass ngày 2026-07-19. Playwright app/smoke thoát mã 0: accept trial → detail GET 200 → start + confirm pause POST 201, regression session/dashboard/availability/profile xanh.
+- Checklist xanh trong scope: `A01`, `A04`, `A09`, `API1`, `API3`, `API5`, `C3`, `D5`, `D7`, `D8`, `E1`, `E3`, `E5`; `API4`, `E2`, `E7` có evidence TA-06 nhưng giữ vàng vì gap hạ tầng toàn hệ thống.
 
 ## TA-07 — Tạo, xem và sửa sổ đầu bài
 

@@ -230,8 +230,11 @@ Trường chính:
 - `tutor_profile_id`
 - `subject`
 - `status`: trial_accepted, active, paused, completed_pending_review, completed, cancelled
+- `version`: optimistic lock cho transition
 - `started_at`
 - `ended_at`
+
+Read model lớp có thể join tên hiển thị phụ huynh, học sinh/khối và `teaching_mode`/`preferred_schedule` của `TrialRequest` cho đúng thành viên lớp. Hai giá trị sau chỉ là **đề xuất ban đầu**, không phải fee/schedule hợp đồng; MVP chưa thêm dữ liệu hợp đồng không có nguồn sự thật.
 
 ### LessonLog
 

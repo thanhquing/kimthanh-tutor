@@ -23,6 +23,7 @@ import {
 import { SearchQueryDto } from "../search/dto/search-query.dto";
 import { AdminPasswordLoginDto } from "../auth/dto/auth.dto";
 import { DeclineTrialDto, TrialActionDto, TrialMineQueryDto } from "../trials/dto/trial.dto";
+import { ClassesMineQueryDto, TransitionDto } from "../classes/dto/class.dto";
 
 function errorsFor<T extends object>(Cls: new () => T, payload: object) {
   const instance = plainToInstance(Cls, payload);
@@ -33,6 +34,13 @@ function errorsFor<T extends object>(Cls: new () => T, payload: object) {
 }
 
 describe("DTO validation contracts", () => {
+  it("validates class filters and optimistic transition input", () => {
+    expect(errorsFor(ClassesMineQueryDto, { status: "ended" })).toHaveLength(1);
+    expect(errorsFor(ClassesMineQueryDto, { role: "tutor", status: "paused", limit: "20" })).toEqual([]);
+    expect(errorsFor(TransitionDto, { to: "completed" })).toHaveLength(1);
+    expect(errorsFor(TransitionDto, { to: "paused", expected_version: -1 })).toHaveLength(1);
+    expect(errorsFor(TransitionDto, { to: "paused", expected_version: 0 })).toEqual([]);
+  });
   it("validates trial filters, expected version and non-empty decline reason", () => {
     expect(errorsFor(TrialMineQueryDto, { status: "unknown" })).toHaveLength(1);
     expect(errorsFor(TrialMineQueryDto, { status: "cancelled", limit: "20" })).toEqual([]);

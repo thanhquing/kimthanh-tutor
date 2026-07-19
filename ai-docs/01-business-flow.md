@@ -161,6 +161,8 @@ Khi gia sư chấp nhận:
 - Hệ thống gửi link kích hoạt/đăng ký cho phụ huynh nếu phụ huynh chưa có tài khoản.
 - Accept/decline/cancel dùng `expected_version` + compare-and-swap; client nhận trạng thái hiện tại trong lỗi `409` nếu thua race.
 
+Khi quản lý lớp, API list/detail khóa theo thành viên lớp và trả capability theo actor. Gia sư mới được bắt đầu/tạm dừng/kết thúc sang `completed_pending_review`; phụ huynh chỉ có thể hủy ở trạng thái còn học. Mọi transition gửi `expected_version`; `completed` chỉ được tạo bởi review hợp lệ, không phải nút transition thủ công. Hình thức/lịch lấy từ yêu cầu học thử phải ghi rõ là **đề xuất**, không phải điều khoản hợp đồng.
+
 ### 3.4 Sổ đầu bài
 
 Sau mỗi buổi học, gia sư ghi:

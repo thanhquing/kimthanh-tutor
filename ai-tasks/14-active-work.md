@@ -8,9 +8,9 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-06` |
+| Task | `TA-07` |
 | App | `tutor-app` |
-| Title | Danh sách lớp, chi tiết và state machine |
+| Title | Tạo, xem và sửa sổ đầu bài |
 | Source | `ai-tasks/10-tutor-app-task-list.md` |
 | Status | `TODO` |
 | Owner | — |
@@ -18,15 +18,15 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 | Branch/worktree | `main` |
 | Blocker | — |
 
-Lệnh cho AI mới: nhận đúng `TA-06`; không tự chuyển sang task khác.
+Lệnh cho AI mới: nhận đúng `TA-07`; không tự chuyển sang task khác.
 
 ## Last completed
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-05` — Inbox yêu cầu học thử |
-| Commit | Tra bằng `git log --oneline --grep='TA-05' -1` |
-| Evidence | Inbox owner-safe filter/keyset, privacy fail-closed, capability action, CAS accept/decline/cancel + conflict UI, class link/activation state và chống spam guest IP/phone. API 18 suite/126 test, app 20 file/109 test, lint/build/contracts xanh; Docker Flow 4 và Flow 6 (gồm Flow 5) pass 2026-07-19. Playwright tutor-app 3 pass/1 skip OAuth, regression session/dashboard/availability/profile xanh. Checklist scope xanh: A01/A04/A09/API1/API3/API5/API6/C3/D5/D7/D8/E3/E5. |
+| Task | `TA-06` — Danh sách lớp, chi tiết và state machine |
+| Commit | Tra bằng `git log --oneline --grep='TA-06' -1` |
+| Evidence | List/detail owner-safe + relation summary/capability actor-specific; class enum chuẩn, keyset/index, confirm destructive action và CAS conflict state. API 18 suite/131 test, app 23 file/116 test, lint/build/contracts/Prisma xanh; Docker Flow 6/9 pass. Playwright accept→detail→start/pause và regression app thoát mã 0. Checklist scope xanh: A01/A04/A09/API1/API3/API5/C3/D5/D7/D8/E1/E3/E5. |
 
 ## Global queue
 

@@ -11,6 +11,7 @@ import type {
   AuthResetPasswordRequest,
   AuthSessionResponse,
   AdminUserStatusMutation,
+  ClassDetail,
   DashboardOverview,
   TutorDashboardOverview,
   MediaAssetStatus,
@@ -246,10 +247,35 @@ const tutorOverview = {
   partial_errors: ["pending_trials"],
 } satisfies TutorDashboardOverview;
 
+const classDetail = {
+  id: "class_01",
+  trial_request_id: "trial_01",
+  parent_profile_id: "parent_01",
+  student_id: "student_01",
+  tutor_profile_id: "tutor_01",
+  subject: "math",
+  status: "active",
+  version: 2,
+  started_at: "2026-07-01T00:00:00.000Z",
+  ended_at: null,
+  created_at: "2026-06-20T00:00:00.000Z",
+  updated_at: "2026-07-15T00:00:00.000Z",
+  parent: { id: "parent_01", display_name: "Anh Minh" },
+  student: { id: "student_01", name: "Minh Châu", grade: "9" },
+  requested_teaching_mode: "online",
+  requested_schedule: "Thứ 2, 4 sau 19:00",
+  capabilities: {
+    transitions: ["paused", "completed_pending_review", "cancelled"],
+    can_create_lesson_log: true,
+    can_view_review: false,
+  },
+} satisfies ClassDetail;
+
 assert.deepEqual(roundTrip(student), student);
 assert.deepEqual(roundTrip(lockedDetail), lockedDetail);
 assert.deepEqual(roundTrip(overview), overview);
 assert.deepEqual(roundTrip(tutorOverview), tutorOverview);
+assert.deepEqual(roundTrip(classDetail), classDetail);
 
 const publishResponse = { status: "published" } satisfies TutorProfilePublishResponse;
 const mediaUploadRequest = { kind: "avatar", content_type: "image/png", size: 20_480 } satisfies MediaUploadRequest;

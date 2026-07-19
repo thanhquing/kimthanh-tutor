@@ -100,7 +100,8 @@ Quy tắc:
 - Chấp nhận/từ chối yêu cầu dạy thử.
 - Inbox trial hỗ trợ filter đủ 5 trạng thái + keyset; response không trả contact PII khi policy chưa chốt, trả capability/activation state. Accept/decline gửi `expected_version`; xung đột `409` kèm `details.trial` mới nhất để UI bỏ action cũ. Lý do decline lưu trường riêng đã trim; activation `link_created` chỉ có nghĩa link đã tạo, không khẳng định worker đã gửi.
 - Xem danh sách lớp.
-- Cập nhật trạng thái lớp.
+- Xem detail lớp owner-safe với relation summary tối thiểu và capability theo actor; list dùng keyset `updated_at,id`.
+- Cập nhật trạng thái lớp bằng `expected_version`; conflict `409` trả `details.class_contract`. Gia sư điều khiển bắt đầu/tạm dừng/kết thúc, parent chỉ được hủy; `completed` do review hợp lệ tạo.
 - Tạo sổ đầu bài.
 - Cập nhật sổ đầu bài của mình trong khoảng thời gian cho phép.
 - Xem dashboard công việc owner-safe qua aggregate giới hạn kích thước: trạng thái hồ sơ, yêu cầu học thử chờ, lớp `trial_accepted/active` kèm hoạt động sổ gần nhất, QR chờ thu và capability gói QR. Lỗi một widget được cô lập qua `partial_errors`; không suy ra “quá hạn ghi sổ” khi domain chưa có lịch buổi học.

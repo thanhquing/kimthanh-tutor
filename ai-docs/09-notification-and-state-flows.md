@@ -87,6 +87,7 @@ Quy tắc:
 - Chỉ gia sư gắn với lớp mới được tạo sổ đầu bài.
 - Chỉ phụ huynh gắn với lớp mới được xem bảng điều khiển.
 - Chỉ lớp `completed_pending_review` hoặc `completed` mới có đánh giá.
+- Transition là actor-specific và CAS theo `status+version`: tutor bắt đầu/tạm dừng/tiếp tục/kết thúc; parent chỉ hủy khi lớp chưa kết thúc. Không cho client transition trực tiếp sang `completed`; review hợp lệ thực hiện bước đó.
 
 ## Luồng trạng thái `Subscription`
 

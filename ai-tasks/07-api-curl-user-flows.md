@@ -1107,7 +1107,8 @@ curl -sS -X POST "$API/classes/$CLASS_ID/transition" \
   -H "$JSON" \
   -H "$TUTOR_AUTH" \
   --data '{
-    "to": "active"
+    "to": "active",
+    "expected_version": 0
   }'
 ```
 
@@ -1453,7 +1454,8 @@ curl -sS -X POST "$API/classes/$CLASS_ID/transition" \
   -H "$JSON" \
   -H "$TUTOR_AUTH" \
   --data '{
-    "to": "completed_pending_review"
+    "to": "completed_pending_review",
+    "expected_version": 1
   }'
 ```
 

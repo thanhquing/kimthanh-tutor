@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { ClassesService } from "./classes.service";
 import {
+  ClassesMineQueryDto,
   LessonLogDto,
   LessonLogsQueryDto,
   TransitionDto,
@@ -14,8 +15,14 @@ export class ClassesController {
 
   @Roles("parent", "tutor")
   @Get("mine")
-  mine(@CurrentUser() user: AuthUser) {
-    return this.classes.mine(user.userId);
+  mine(@CurrentUser() user: AuthUser, @Query() query: ClassesMineQueryDto) {
+    return this.classes.mine(user, query);
+  }
+
+  @Roles("parent", "tutor")
+  @Get(":id")
+  detail(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.classes.detail(user, id);
   }
 
   @Roles("tutor", "parent")
@@ -25,7 +32,7 @@ export class ClassesController {
     @Param("id") id: string,
     @Body() dto: TransitionDto,
   ) {
-    return this.classes.transition(user.userId, id, dto);
+    return this.classes.transition(user, id, dto);
   }
 
   @Roles("tutor")

@@ -16,10 +16,10 @@ docker compose up --build --abort-on-container-exit verify
 
 Kết quả API/unit mới nhất: ✅ pass ngày 2026-07-19:
 
-- Full Jest API: 18 suite / 126 test pass.
+- Full Jest API: 18 suite / 131 test pass.
 - API lint và Nest production build pass.
-- `tutor-app`: 20 file / 109 test, lint và Vite production build pass; build lazy-split dashboard/profile/availability/trials.
-- `@kimthanh-tutor/contracts`: serialization tests pass (gồm `TutorDashboardOverview`, `TrialRequestSummary`).
+- `tutor-app`: 23 file / 116 test, lint và Vite production build pass; build lazy-split dashboard/profile/availability/trials/classes/detail.
+- `@kimthanh-tutor/contracts`: serialization tests pass (gồm `TutorDashboardOverview`, `TrialRequestSummary`, `ClassDetail`).
 
 Evidence Docker/flow mới nhất cho TA-04 ngày 2026-07-19:
 
@@ -33,6 +33,12 @@ Evidence TA-05 ngày 2026-07-19:
 - Docker rebuild áp dụng `decline_reason`, index inbox/phone và cardinality nhiều Lead → một Parent; Flow 4 rerun pass cả ca lặp lại contact parent cũ, Flow 6 pass (bao gồm Flow 5).
 - Flow 5/6 xác nhận list filter + keyset, `contact=null`, capability fail-closed; accept gửi `expected_version`; stale double accept trả 409 + `details.trial.status=accepted` và class link.
 - `pnpm --filter @kimthanh-tutor/e2e test:app`: 3 pass, 1 skip OAuth; Chrome đọc GET inbox 200, mở detail privacy/schedule warning, POST accept 201, render class link + activation state; regression session/dashboard/availability/profile xanh.
+
+Evidence TA-06 ngày 2026-07-19:
+
+- Docker rebuild Prisma/Nest pass; Flow 6 pass list keyset + detail owner-safe có relation summary, parent pause bị chặn, class lạ 404, CAS start + stale conflict; lesson/dashboard regression xanh.
+- Flow 9 pass: tutor chuyển `active → completed_pending_review` bằng expected version; review hợp lệ của parent mới đưa class sang `completed`, report/moderation giữ xanh.
+- Playwright tutor-app và smoke riêng thoát mã 0: accept trial → class detail GET 200 → start POST 201 → confirm pause POST 201; regression session/dashboard/availability/profile xanh. OAuth tiếp tục skip khi thiếu client id.
 
 File liên quan:
 

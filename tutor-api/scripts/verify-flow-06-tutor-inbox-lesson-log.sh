@@ -4,6 +4,7 @@ set -eu
 API_BASE_URL="${API_BASE_URL:-http://localhost:3000}"
 API_PREFIX="${API_PREFIX:-api/v1}"
 API="$API_BASE_URL/$API_PREFIX"
+PSQL_URL="${PSQL_URL:-postgresql://postgres:postgres@db:5432/tutor}"
 TUTOR_PHONE="${TUTOR_PHONE:-095$(date +%H%M%S)}"
 PARENT_PHONE="${PARENT_PHONE:-096$(date +%H%M%S)}"
 
@@ -49,6 +50,8 @@ echo "== Flow 6 setup: parent-authenticated pending trial via Flow 5 =="
 TUTOR_PHONE="$TUTOR_PHONE" PARENT_PHONE="$PARENT_PHONE" sh /app/tutor-api/scripts/verify-flow-05-parent-onboarding-trial.sh
 TUTOR_TOKEN="$(json_get /tmp/flow02-otp-verify.json access_token)"
 TUTOR_AUTH="Authorization: Bearer $TUTOR_TOKEN"
+PARENT_TOKEN="$(json_get /tmp/flow01-otp-verify.json access_token)"
+PARENT_AUTH="Authorization: Bearer $PARENT_TOKEN"
 TRIAL_ID="$(json_get /tmp/flow05-trial.json id)"
 
 echo "== Flow 6 Step 1: tutor views trial inbox =="
@@ -78,6 +81,37 @@ require_json_value /tmp/flow06-accept.json trial.status accepted
 require_json_value /tmp/flow06-accept.json class_contract.status trial_accepted
 CLASS_ID="$(json_get /tmp/flow06-accept.json class_contract.id)"
 
+echo "== Flow 6 Step 2c: tutor lists and opens owner-safe class detail =="
+classes_http="$(curl -sS -o /tmp/flow06-classes.json -w "%{http_code}" \
+  -H "$TUTOR_AUTH" \
+  "$API/classes/mine?role=tutor&limit=20")"
+require_code "$classes_http" "200" "Tutor class list" /tmp/flow06-classes.json
+json_array_contains_id /tmp/flow06-classes.json items "$CLASS_ID" || fail "Class list did not include $CLASS_ID"
+require_json_value /tmp/flow06-classes.json items.0.capabilities.transitions "active,cancelled"
+detail_http="$(curl -sS -o /tmp/flow06-class-detail.json -w "%{http_code}" -H "$TUTOR_AUTH" "$API/classes/$CLASS_ID")"
+cat /tmp/flow06-class-detail.json
+echo
+require_code "$detail_http" "200" "Tutor class detail" /tmp/flow06-class-detail.json
+require_json_value /tmp/flow06-class-detail.json id "$CLASS_ID"
+require_json_value /tmp/flow06-class-detail.json student.name "Minh Chau"
+require_json_value /tmp/flow06-class-detail.json requested_teaching_mode online
+require_json_value /tmp/flow06-class-detail.json capabilities.can_create_lesson_log false
+
+echo "== Flow 6 Step 2d: actor matrix and ownership fail closed =="
+parent_pause_http="$(curl -sS -o /tmp/flow06-parent-pause.json -w "%{http_code}" \
+  -X POST "$API/classes/$CLASS_ID/transition" -H "Content-Type: application/json" -H "$PARENT_AUTH" \
+  --data '{"to":"paused","expected_version":0}')"
+require_code "$parent_pause_http" "409" "Parent cannot pause class" /tmp/flow06-parent-pause.json
+FOREIGN_USER_ID="01KXFOREIGNUSER00000000000"
+FOREIGN_TUTOR_ID="01KXFOREIGNTUTOR0000000000"
+FOREIGN_CLASS_ID="01KXFOREIGNCLASS0000000000"
+psql "$PSQL_URL" -v ON_ERROR_STOP=1 \
+  -c "insert into users (id, roles, status, updated_at) values ('$FOREIGN_USER_ID', ARRAY['tutor'], 'active', now()) on conflict (id) do update set roles=excluded.roles, status=excluded.status, updated_at=now();" \
+  -c "insert into tutor_profiles (id, user_id, display_name, status, updated_at) values ('$FOREIGN_TUTOR_ID', '$FOREIGN_USER_ID', 'Foreign Tutor', 'published', now()) on conflict (id) do update set user_id=excluded.user_id, status=excluded.status, updated_at=now();" \
+  -c "insert into class_contracts (id, tutor_profile_id, subject, status, updated_at) values ('$FOREIGN_CLASS_ID', '$FOREIGN_TUTOR_ID', 'math', 'active', now()) on conflict (id) do update set tutor_profile_id=excluded.tutor_profile_id, status=excluded.status, updated_at=now();" >/dev/null
+foreign_http="$(curl -sS -o /tmp/flow06-foreign-class.json -w "%{http_code}" -H "$TUTOR_AUTH" "$API/classes/$FOREIGN_CLASS_ID")"
+require_code "$foreign_http" "404" "Foreign class detail" /tmp/flow06-foreign-class.json
+
 echo "== Flow 6 Step 2b: stale double accept returns current state =="
 double_http="$(curl -sS -o /tmp/flow06-double-accept.json -w "%{http_code}" \
   -X POST "$API/trials/$TRIAL_ID/accept" \
@@ -96,13 +130,23 @@ transition_http="$(curl -sS -o /tmp/flow06-transition-active.json -w "%{http_cod
   -H "Content-Type: application/json" \
   -H "$TUTOR_AUTH" \
   --data '{
-    "to": "active"
+    "to": "active",
+    "expected_version": 0
   }')"
 cat /tmp/flow06-transition-active.json
 echo
 require_code "$transition_http" "201" "Transition class active" /tmp/flow06-transition-active.json
 require_json_value /tmp/flow06-transition-active.json id "$CLASS_ID"
 require_json_value /tmp/flow06-transition-active.json status active
+require_json_value /tmp/flow06-transition-active.json capabilities.can_create_lesson_log true
+
+echo "== Flow 6 Step 3b: stale transition returns current state =="
+stale_class_http="$(curl -sS -o /tmp/flow06-stale-class.json -w "%{http_code}" \
+  -X POST "$API/classes/$CLASS_ID/transition" -H "Content-Type: application/json" -H "$TUTOR_AUTH" \
+  --data '{"to":"active","expected_version":0}')"
+require_code "$stale_class_http" "409" "Stale class transition" /tmp/flow06-stale-class.json
+require_json_value /tmp/flow06-stale-class.json details.class_contract.status active
+require_json_value /tmp/flow06-stale-class.json details.class_contract.version 1
 
 echo "== Flow 6 Step 4: create lesson log =="
 log_http="$(curl -sS -o /tmp/flow06-lesson-log.json -w "%{http_code}" \

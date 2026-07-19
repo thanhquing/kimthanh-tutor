@@ -757,6 +757,8 @@ model ClassContract {
 
   @@index([parentProfileId, status])
   @@index([tutorProfileId, status])
+  @@index([parentProfileId, status, updatedAt, id])
+  @@index([tutorProfileId, status, updatedAt, id])
   @@map("class_contracts")
 }
 

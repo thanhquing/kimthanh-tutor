@@ -123,6 +123,7 @@ Trạng thái 2026-07-16: limiter hiện dùng `@nestjs/throttler` in-memory. Ph
 | Upload mã độc/nội dung xấu | Signed upload + validate + quét virus + kiểm duyệt |
 | Rò rỉ PII trẻ vị thành niên | Phân loại PII + hạn chế log + retention + ẩn danh (`14-...`) |
 | Mất sự kiện (thông báo/cấp quyền) | Outbox at-least-once + retry + dead-letter |
+| Lộ secret | Secret manager + không log + quay vòng |
 
 ### Review threat model TA-05 — inbox trial
 
@@ -130,4 +131,10 @@ Trạng thái 2026-07-16: limiter hiện dùng `@nestjs/throttler` in-memory. Ph
 - **Double-submit/race parent cancel:** accept/decline/cancel compare-and-swap theo `status=pending` + `version`; lỗi `409` chỉ trả read model đã redaction để UI cập nhật state, không trả contact snapshot.
 - **IDOR/contact leak:** query khóa theo `parentProfileId`/`tutorProfileId`; presenter luôn trả `contact=null`, `can_view_contact=false` khi policy còn mở. Client không log, đưa student/contact vào URL hoặc snapshot.
 - **Thông báo chưa dispatch:** response dùng từ `link_created`, không tuyên bố “đã gửi”; side-effect chỉ emit outbox trong transaction.
-| Lộ secret | Secret manager + không log + quay vòng |
+
+### Review threat model TA-06 — class state machine
+
+- **IDOR/detail enumeration:** `GET /classes/:id` và list dựng owner predicate từ profile ID trong phiên; class lạ trả `404`. Không tải toàn list rồi dò ở client.
+- **Broken function/state authorization:** capability và transition matrix tách tutor/parent. Tutor mới bắt đầu/tạm dừng/kết thúc; parent chỉ hủy; client không thể transition thủ công sang `completed` để bypass review.
+- **Lost update/double transition:** mutation CAS theo owner + `status` + `version`; lỗi `409` trả read model class hiện tại để client loại action stale, không tự retry mutation.
+- **Dữ liệu trẻ em:** tên/khối chỉ trả cho thành viên trực tiếp của lớp, không log/analytics/snapshot; URL chỉ chứa class ID. Fee/schedule hợp đồng không tồn tại nên UI không dựng dữ liệu giả từ đề xuất trial.

@@ -23,13 +23,13 @@ Health: `GET /healthz`, `GET /readyz` (readyz kiểm tra DB).
 
 ## Verify bằng Docker Compose
 
-Từ thư mục gốc repo:
+`docker-compose.yml` nằm ngay trong `tutor-api/` (build context tự chứa). Chạy tại đây:
 
 ```bash
 docker compose up --build --abort-on-container-exit verify
 ```
 
-Compose dựng PostgreSQL, build API image, chạy `prisma db push`, sau đó script `tutor-api/scripts/verify-api-io.sh` kiểm tra schema, DB bằng `psql`, health/readyz và luồng OTP fallback/local bằng cURL. Non-production OTP dùng mã cố định `272727`; Google/Facebook OAuth là đường đăng ký/đăng nhập chính và cần provider token thật để E2E ngoài môi trường mock/unit test. Checklist chi tiết nằm ở `../ai-tasks/06-verification.md`.
+Compose dựng PostgreSQL, build API image, chạy `prisma db push`, sau đó script `scripts/verify-api-io.sh` kiểm tra schema, DB bằng `psql`, health/readyz và luồng OTP fallback/local bằng cURL. Non-production OTP dùng mã cố định `272727`; Google/Facebook OAuth là đường đăng ký/đăng nhập chính và cần provider token thật để E2E ngoài môi trường mock/unit test. Checklist chi tiết nằm ở `../ai-tasks/06-verification.md`.
 
 ## Trạng thái hiện tại
 

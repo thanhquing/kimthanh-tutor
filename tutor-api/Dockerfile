@@ -10,10 +10,11 @@ RUN apt-get update \
     postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
-COPY tutor-api/package*.json ./
+# Build context = thư mục tutor-api (xem docker-compose.yml `context: .`).
+COPY package*.json ./
 RUN npm ci
 
-COPY tutor-api ./
+COPY . ./
 RUN npx prisma generate && npm run build
 
 EXPOSE 3000

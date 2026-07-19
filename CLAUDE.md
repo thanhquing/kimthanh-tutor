@@ -50,7 +50,7 @@ pnpm dev:market       # tutor-market dev
 pnpm dev:app          # tutor-app dev
 pnpm dev:admin        # tutor-admin dev
 
-# E2E smoke browser thật (cần API dockerized: docker compose up -d db api; Node ≥ 20)
+# E2E smoke browser thật (cần API dockerized: `cd tutor-api && docker compose up -d db api`; Node ≥ 20)
 pnpm --filter @kimthanh-tutor/e2e test         # cả 3 app; hoặc test:app | test:admin | test:market
 ```
 
@@ -67,10 +67,11 @@ pnpm lint                     # eslint --fix
 
 Health: `GET /healthz`, `GET /readyz` (readyz kiểm tra DB).
 
-**Verify E2E bằng Docker Compose** (từ root): dựng PostgreSQL + API, `prisma db push`, rồi chạy `tutor-api/scripts/verify-api-io.sh` + các script `verify-flow-*.sh`:
+**Verify E2E bằng Docker Compose** (compose thuộc `tutor-api/` — chạy **từ `tutor-api/`**): dựng PostgreSQL + API, `prisma db push`, rồi chạy `scripts/verify-api-io.sh` + các script `verify-flow-*.sh`:
 
 ```bash
-docker compose up --build --abort-on-container-exit verify
+cd tutor-api && docker compose up --build --abort-on-container-exit verify
+# hoặc từ root: docker compose -f tutor-api/docker-compose.yml up --build --abort-on-container-exit verify
 ```
 
 ---

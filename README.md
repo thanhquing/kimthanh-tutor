@@ -14,10 +14,10 @@ Không gian làm việc cho hệ thống gia sư giai đoạn 1.
 
 ## Verify local bằng Docker Compose
 
-Chạy API + PostgreSQL và kiểm tra schema/database/cURL:
+Compose thuộc `tutor-api/` (chạy từ đó). Dựng API + PostgreSQL và kiểm tra schema/database/cURL:
 
 ```bash
-docker compose up --build --abort-on-container-exit verify
+cd tutor-api && docker compose up --build --abort-on-container-exit verify
 ```
 
 Xem checklist chi tiết ở `ai-tasks/06-verification.md`.

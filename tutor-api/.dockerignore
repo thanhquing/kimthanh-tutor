@@ -1,0 +1,11 @@
+# Loại khỏi build context (context = thư mục tutor-api). QUAN TRỌNG: .env không
+# được bake vào image (secret); node_modules/dist build lại trong image.
+node_modules
+dist
+.env
+.env.*
+!.env.example
+.gitignore
+.DS_Store
+coverage
+*.log

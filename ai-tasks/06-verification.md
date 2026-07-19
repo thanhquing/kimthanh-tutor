@@ -4,6 +4,8 @@ File này ghi lại các bước kiểm chứng đã có để tránh mất dấ
 
 ## Docker Compose: API + Schema + Database + cURL
 
+> **Vị trí:** `docker-compose.yml` nằm trong `tutor-api/` — **chạy mọi lệnh `docker compose ...` dưới đây từ thư mục `tutor-api/`** (hoặc từ root thêm `-f tutor-api/docker-compose.yml`). Cú pháp lệnh không đổi; đường dẫn `/app/tutor-api/scripts/...` trong container giữ nguyên.
+
 Trạng thái: ✅ đã thêm cấu hình verify tự động.
 
 Kết quả chạy gần nhất: ✅ pass ngày 2026-07-14 bằng:
@@ -27,7 +29,7 @@ Evidence Docker/flow gần nhất vẫn là 2026-07-14:
 
 File liên quan:
 
-- `docker-compose.yml`
+- `tutor-api/docker-compose.yml`
 - `tutor-api/Dockerfile`
 - `tutor-api/scripts/verify-api-io.sh`
 

@@ -1,3 +1,7 @@
+# Stack dev/verify của tutor-api (db + api + verify). Chạy từ thư mục tutor-api/.
+# `name` cố định để tên project không đổi theo thư mục.
+name: kimthanh-tutor
+
 services:
   db:
     image: postgres:16-alpine
@@ -16,12 +20,13 @@ services:
   api:
     image: kimthanh-tutor-api:local
     build:
+      # Context = thư mục tutor-api (nơi đặt compose file). Build tự chứa.
       context: .
-      dockerfile: tutor-api/Dockerfile
-    # Secret/creds của tutor-api nạp từ file .env của chính package (gitignored,
-    # không bake vào image). Khối `environment:` dưới ghi đè giá trị hạ tầng docker.
+      dockerfile: Dockerfile
+    # Secret/creds nạp từ .env của chính package (gitignored, không bake vào image).
+    # Khối `environment:` dưới ghi đè giá trị hạ tầng docker.
     env_file:
-      - tutor-api/.env
+      - .env
     environment:
       NODE_ENV: development
       PORT: 3000

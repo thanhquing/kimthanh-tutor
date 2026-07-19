@@ -15,6 +15,11 @@ export interface AppConfig {
   };
   oauth: {
     googleClientId: string;
+    googleClientSecret: string;
+    // redirect_uri đăng ký ở Google Console; server nhận code tại đây.
+    googleRedirectUri: string;
+    // Allowlist origin FE được phép redirect về sau callback (chống open-redirect).
+    returnUrls: string[];
     facebookAppId: string;
     facebookAppSecret: string;
   };
@@ -68,6 +73,14 @@ export default (): AppConfig => ({
   },
   oauth: {
     googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+    googleRedirectUri:
+      process.env.GOOGLE_OAUTH_REDIRECT_URI ??
+      'http://localhost:3000/api/v1/auth/oauth/google/callback',
+    returnUrls: (process.env.OAUTH_RETURN_URLS ?? 'http://localhost:5174,http://localhost:3001')
+      .split(',')
+      .map((url) => url.trim().replace(/\/$/, ''))
+      .filter(Boolean),
     facebookAppId: process.env.FACEBOOK_APP_ID ?? '',
     facebookAppSecret: process.env.FACEBOOK_APP_SECRET ?? '',
   },

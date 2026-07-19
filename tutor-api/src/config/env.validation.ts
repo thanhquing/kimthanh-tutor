@@ -28,6 +28,12 @@ const base = {
   OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
 
   GOOGLE_CLIENT_ID: z.string().default(''),
+  GOOGLE_CLIENT_SECRET: z.string().default(''),
+  GOOGLE_OAUTH_REDIRECT_URI: z
+    .string()
+    .default('http://localhost:3000/api/v1/auth/oauth/google/callback'),
+  // Allowlist origin FE được redirect về sau callback (chống open-redirect).
+  OAUTH_RETURN_URLS: z.string().default('http://localhost:5174,http://localhost:3001'),
   FACEBOOK_APP_ID: z.string().default(''),
   FACEBOOK_APP_SECRET: z.string().default(''),
 
@@ -90,11 +96,12 @@ const schema = z
         message: 'CORS_ORIGINS bắt buộc ở production',
       });
     }
-    if (!env.GOOGLE_CLIENT_ID.trim()) {
+    if (!env.GOOGLE_CLIENT_ID.trim() || !env.GOOGLE_CLIENT_SECRET.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['GOOGLE_CLIENT_ID'],
-        message: 'GOOGLE_CLIENT_ID bắt buộc ở production để verify Google ID token',
+        message:
+          'GOOGLE_CLIENT_ID và GOOGLE_CLIENT_SECRET bắt buộc ở production cho luồng OAuth code server-side',
       });
     }
     if (!env.FACEBOOK_APP_ID.trim() || !env.FACEBOOK_APP_SECRET.trim()) {

@@ -12,6 +12,7 @@ function config(env = 'test') {
         env,
         apiPrefix: 'api/v1',
         'jwt.refreshTtl': 1_209_600,
+        'oauth.returnUrls': ['http://localhost:5174', 'http://localhost:3001'],
       };
       return values[key];
     }),
@@ -22,7 +23,12 @@ function response() {
   return {
     cookie: jest.fn(),
     clearCookie: jest.fn(),
+    redirect: jest.fn(),
   } as unknown as Response;
+}
+
+function oauthState(parts: { n?: string; r?: string; p?: string }) {
+  return Buffer.from(JSON.stringify(parts)).toString('base64url');
 }
 
 describe('AuthController admin cookie session', () => {
@@ -247,5 +253,108 @@ describe('AuthController public session cookie', () => {
 
     expect(auth.revokeRefreshToken).toHaveBeenCalledWith('user-refresh-token');
     expect(res.clearCookie).toHaveBeenCalledWith('kt_refresh', expect.objectContaining({ path: '/api/v1/auth' }));
+  });
+});
+
+describe('AuthController Google OAuth code flow', () => {
+  const summary = { id: 'user-1', phone: null, email: 'p@gmail.com', status: 'active' as const };
+
+  it('start sets a Lax CSRF cookie and redirects to the Google auth URL', () => {
+    const auth = {
+      buildGoogleAuthUrl: jest.fn().mockReturnValue('https://accounts.google.com/o/oauth2/v2/auth?x=1'),
+    } as unknown as AuthService;
+    const controller = new AuthController(auth, config('production'));
+    const res = response();
+
+    controller.googleOAuthStart('http://localhost:5174', '/dashboard', res);
+
+    expect(res.cookie).toHaveBeenCalledWith(
+      'kt_oauth_state',
+      expect.any(String),
+      expect.objectContaining({ httpOnly: true, sameSite: 'lax', secure: true, path: '/api/v1/auth/oauth/google' }),
+    );
+    // state truyền cho Google phải nhúng đúng nonce (khớp cookie), base allowlist, next.
+    const state = (auth.buildGoogleAuthUrl as jest.Mock).mock.calls[0][0] as string;
+    const nonce = (res.cookie as jest.Mock).mock.calls[0][1] as string;
+    const decoded = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
+    expect(decoded).toEqual({ n: nonce, r: 'http://localhost:5174', p: '/dashboard' });
+    expect(res.redirect).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/v2/auth?x=1');
+  });
+
+  it('start falls back to the first allowlisted base for an unknown return_to and sanitizes next', () => {
+    const auth = { buildGoogleAuthUrl: jest.fn().mockReturnValue('https://google') } as unknown as AuthService;
+    const controller = new AuthController(auth, config());
+    const res = response();
+
+    controller.googleOAuthStart('https://evil.example', '//evil.example/x', res);
+
+    const state = (auth.buildGoogleAuthUrl as jest.Mock).mock.calls[0][0] as string;
+    const decoded = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
+    expect(decoded.r).toBe('http://localhost:5174'); // không dùng origin lạ
+    expect(decoded.p).toBe('/'); // "//evil" bị chặn open-redirect
+  });
+
+  it('callback exchanges the code, sets the session cookie and redirects back to the FE', async () => {
+    const auth = {
+      oauthGoogleCode: jest.fn().mockResolvedValue({
+        access_token: 'access',
+        refresh_token: 'refresh',
+        user: summary,
+        auth_provider: 'google',
+        consent_required: false,
+      }),
+    } as unknown as AuthService;
+    const controller = new AuthController(auth, config());
+    const state = oauthState({ n: 'nonce-1', r: 'http://localhost:5174', p: '/classes' });
+    const req = { headers: { cookie: `kt_oauth_state=nonce-1` } } as Request;
+    const res = response();
+
+    await controller.googleOAuthCallback('auth-code', state, '', '1.2.3.4', req, res);
+
+    expect(auth.oauthGoogleCode).toHaveBeenCalledWith('auth-code', '1.2.3.4');
+    expect(res.cookie).toHaveBeenCalledWith('kt_refresh', 'refresh', expect.objectContaining({ path: '/api/v1/auth' }));
+    expect(res.clearCookie).toHaveBeenCalledWith('kt_oauth_state', expect.objectContaining({ path: '/api/v1/auth/oauth/google' }));
+    expect(res.redirect).toHaveBeenCalledWith('http://localhost:5174/classes');
+  });
+
+  it('callback rejects a state/nonce mismatch (CSRF) without minting a session', async () => {
+    const auth = { oauthGoogleCode: jest.fn() } as unknown as AuthService;
+    const controller = new AuthController(auth, config());
+    const state = oauthState({ n: 'attacker-nonce', r: 'http://localhost:5174', p: '/classes' });
+    const req = { headers: { cookie: 'kt_oauth_state=real-nonce' } } as Request;
+    const res = response();
+
+    await controller.googleOAuthCallback('code', state, '', '1.2.3.4', req, res);
+
+    expect(auth.oauthGoogleCode).not.toHaveBeenCalled();
+    expect(res.cookie).not.toHaveBeenCalledWith('kt_refresh', expect.anything(), expect.anything());
+    expect(res.redirect).toHaveBeenCalledWith('http://localhost:5174/login?oauth_error=state');
+  });
+
+  it('callback redirects with denied error when Google returns error / no code', async () => {
+    const auth = { oauthGoogleCode: jest.fn() } as unknown as AuthService;
+    const controller = new AuthController(auth, config());
+    const state = oauthState({ n: 'n1', r: 'http://localhost:3001', p: '/account' });
+    const req = { headers: { cookie: 'kt_oauth_state=n1' } } as Request;
+    const res = response();
+
+    await controller.googleOAuthCallback('', state, 'access_denied', '1.2.3.4', req, res);
+
+    expect(auth.oauthGoogleCode).not.toHaveBeenCalled();
+    expect(res.redirect).toHaveBeenCalledWith('http://localhost:3001/login?oauth_error=denied');
+  });
+
+  it('callback redirects with failed error when code exchange throws', async () => {
+    const auth = {
+      oauthGoogleCode: jest.fn().mockRejectedValue(new AppException(ErrorCode.AUTH_REQUIRED, 'x')),
+    } as unknown as AuthService;
+    const controller = new AuthController(auth, config());
+    const state = oauthState({ n: 'n1', r: 'http://localhost:5174', p: '/classes' });
+    const req = { headers: { cookie: 'kt_oauth_state=n1' } } as Request;
+    const res = response();
+
+    await controller.googleOAuthCallback('bad-code', state, '', '1.2.3.4', req, res);
+
+    expect(res.redirect).toHaveBeenCalledWith('http://localhost:5174/login?oauth_error=failed');
   });
 });

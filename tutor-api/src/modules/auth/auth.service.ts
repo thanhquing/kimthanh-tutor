@@ -394,7 +394,62 @@ export class AuthService {
       provider === 'google'
         ? await this.verifyGoogleToken(token)
         : await this.verifyFacebookToken(token);
+    return this.completeOAuth(profile, ip);
+  }
 
+  // Luồng Authorization Code server-side (Google): đổi code lấy id_token bằng
+  // client_secret (không rời server), verify rồi register-or-login.
+  async oauthGoogleCode(code: string, ip?: string) {
+    const idToken = await this.exchangeGoogleCode(code);
+    const profile = await this.verifyGoogleToken(idToken);
+    return this.completeOAuth(profile, ip);
+  }
+
+  // URL redirect người dùng sang Google để cấp quyền (bước /start).
+  buildGoogleAuthUrl(state: string): string {
+    const clientId = this.config.get<string>('oauth.googleClientId');
+    const redirectUri = this.config.get<string>('oauth.googleRedirectUri');
+    if (!clientId || !redirectUri) {
+      throw new AppException(ErrorCode.AUTH_REQUIRED, 'Chưa cấu hình Google OAuth trên server');
+    }
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'openid email profile',
+      state,
+      access_type: 'online',
+      prompt: 'select_account',
+    });
+    return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  }
+
+  private async exchangeGoogleCode(code: string): Promise<string> {
+    const clientId = this.config.get<string>('oauth.googleClientId');
+    const clientSecret = this.config.get<string>('oauth.googleClientSecret');
+    const redirectUri = this.config.get<string>('oauth.googleRedirectUri');
+    if (!clientId || !clientSecret || !redirectUri) {
+      throw new AppException(ErrorCode.AUTH_REQUIRED, 'Chưa cấu hình Google OAuth trên server');
+    }
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }).toString(),
+    });
+    if (!response.ok) {
+      throw new AppException(ErrorCode.AUTH_REQUIRED, 'Không đổi được mã Google');
+    }
+    const data = (await response.json()) as Record<string, unknown>;
+    return this.requiredString(data.id_token, 'Google token thiếu id_token');
+  }
+
+  private async completeOAuth(profile: VerifiedOAuthProfile, ip?: string) {
     const user = await this.resolveOAuthUser(profile);
     const tokens = await this.issueTokens(user.id, ip);
     return {
@@ -405,7 +460,7 @@ export class AuthService {
         email: user.email,
         status: user.status,
       },
-      auth_provider: provider,
+      auth_provider: profile.provider,
       consent_required: user.status === 'pending_consent',
     };
   }

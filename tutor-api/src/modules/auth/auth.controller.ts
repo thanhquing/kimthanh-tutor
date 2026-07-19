@@ -1,6 +1,7 @@
-import { Body, Controller, Get, HttpCode, Ip, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Post, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
+import { randomUUID } from 'node:crypto';
 import type { CookieOptions, Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { AppException } from '../../common/errors/app.exception';
@@ -44,6 +45,8 @@ export class AuthController {
   private readonly publicRefreshCookie = 'kt_refresh';
   // Admin console: cookie riêng, path riêng để cô lập với app công khai.
   private readonly adminRefreshCookie = 'kt_admin_refresh';
+  // OAuth code flow: cookie ngắn hạn giữ nonce chống CSRF giữa /start và /callback.
+  private readonly oauthStateCookie = 'kt_oauth_state';
 
   constructor(
     private readonly auth: AuthService,
@@ -110,6 +113,32 @@ export class AuthController {
       user: result.user,
       consent_required: result.consent_required,
     };
+  }
+
+  private oauthStateCookieOptions(): CookieOptions {
+    return {
+      httpOnly: true,
+      // Lax (không Strict): cookie phải được gửi khi Google redirect top-level về callback.
+      sameSite: 'lax',
+      secure: this.config.get<string>('env') === 'production',
+      path: `/${this.apiPrefix()}/auth/oauth/google`,
+      maxAge: 600_000,
+    };
+  }
+
+  // Chỉ cho redirect về origin trong allowlist (chống open-redirect); sai → base đầu tiên.
+  private resolveReturnBase(returnTo: string | undefined): string {
+    const allow = this.config.get<string[]>('oauth.returnUrls') ?? [];
+    const fallback = allow[0] ?? '';
+    if (!returnTo) return fallback;
+    const normalized = returnTo.replace(/\/$/, '');
+    return allow.includes(normalized) ? normalized : fallback;
+  }
+
+  // Chỉ nhận path nội bộ mở đầu bằng đúng một "/" (chống open-redirect qua next).
+  private safeNextPath(next: string | undefined): string {
+    if (!next || !next.startsWith('/') || next.startsWith('//')) return '/';
+    return next;
   }
 
   @Public()
@@ -182,6 +211,65 @@ export class AuthController {
   ) {
     const result = await this.auth.oauthLogin('facebook', dto.access_token, ip);
     return this.issuePublicSession(response, result);
+  }
+
+  // Bước 1 luồng code server-side: đặt nonce chống CSRF vào cookie rồi redirect
+  // người dùng sang Google. `return_to`/`next` được nhúng vào state (base64).
+  @Public()
+  @Throttle({ default: { ttl: 300_000, limit: 30 } })
+  @Get('oauth/google/start')
+  googleOAuthStart(
+    @Query('return_to') returnTo: string,
+    @Query('next') next: string,
+    @Res() response: Response,
+  ) {
+    const nonce = randomUUID();
+    const base = this.resolveReturnBase(returnTo);
+    const path = this.safeNextPath(next);
+    const state = Buffer.from(JSON.stringify({ n: nonce, r: base, p: path })).toString('base64url');
+    response.cookie(this.oauthStateCookie, nonce, this.oauthStateCookieOptions());
+    response.redirect(this.auth.buildGoogleAuthUrl(state));
+  }
+
+  // Bước 2: Google redirect về đây kèm code. Verify CSRF (nonce), đổi code lấy
+  // id_token (client_secret ở server), set cookie phiên rồi redirect về FE.
+  @Public()
+  @Throttle({ default: { ttl: 300_000, limit: 30 } })
+  @Get('oauth/google/callback')
+  async googleOAuthCallback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Query('error') error: string,
+    @Ip() ip: string,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    const cookieNonce = this.readRefreshCookie(request, this.oauthStateCookie);
+    this.clearRefreshCookie(response, this.oauthStateCookie, this.oauthStateCookieOptions());
+
+    let parsed: { n?: string; r?: string; p?: string } = {};
+    try {
+      parsed = JSON.parse(Buffer.from(state ?? '', 'base64url').toString('utf8')) as typeof parsed;
+    } catch {
+      // state hỏng → xử lý như CSRF fail bên dưới
+    }
+    const base = this.resolveReturnBase(parsed.r);
+    const path = this.safeNextPath(parsed.p);
+
+    // CSRF: state trong URL phải khớp nonce trong cookie của chính browser này.
+    if (!cookieNonce || !parsed.n || parsed.n !== cookieNonce) {
+      return response.redirect(`${base}/login?oauth_error=state`);
+    }
+    if (error || !code) {
+      return response.redirect(`${base}/login?oauth_error=denied`);
+    }
+    try {
+      const result = await this.auth.oauthGoogleCode(code, ip);
+      response.cookie(this.publicRefreshCookie, result.refresh_token, this.publicCookieOptions());
+      return response.redirect(`${base}${path}`);
+    } catch {
+      return response.redirect(`${base}/login?oauth_error=failed`);
+    }
   }
 
   @Public()

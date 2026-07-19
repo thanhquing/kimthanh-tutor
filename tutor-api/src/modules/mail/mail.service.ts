@@ -58,18 +58,26 @@ export class MailService {
       return;
     }
 
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${apiKey}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ from, to, subject, html }),
-    });
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '');
-      this.logger.error(`Resend gửi email thất bại (${response.status}): ${detail}`);
-      throw new Error('Không gửi được email');
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ from, to, subject, html }),
+      });
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        throw new Error(`Resend ${response.status}: ${detail}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Resend gửi email thất bại tới ${to}: ${message}`);
+      // Prod: ném để không âm thầm nuốt email quan trọng. Non-prod: chỉ log —
+      // không để lỗi gửi email (vd Resend test-mode chặn recipient) làm hỏng
+      // luồng đăng ký/reset; `dev_*_link` do caller trả là fallback để test.
+      if (isProd) throw new Error('Không gửi được email');
     }
   }
 

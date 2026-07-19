@@ -8,9 +8,9 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-04` |
+| Task | `TA-05` |
 | App | `tutor-app` |
-| Title | Dashboard "việc cần làm hôm nay" |
+| Title | Inbox yêu cầu học thử |
 | Source | `ai-tasks/10-tutor-app-task-list.md` |
 | Status | `TODO` |
 | Owner | — |
@@ -18,15 +18,15 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 | Branch/worktree | — |
 | Blocker | — |
 
-Lệnh cho AI mới: nhận đúng `TA-04`; không tự chuyển sang task khác.
+Lệnh cho AI mới: nhận đúng `TA-05`; không tự chuyển sang task khác.
 
 ## Last completed
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-03` — Lịch available/busy theo tuần |
-| Commit | Tra bằng `git log --oneline --grep='TA-03' -1` |
-| Evidence | tutor-app lint sạch + build xanh + test 87 pass; **E2E smoke browser thật (Playwright + Chrome, API dockerized) xanh**: `e2e/availability.e2e.ts` (TA-03: login→thêm/xóa khung giờ, POST 201/DELETE 200) + `e2e/profile.e2e.ts` (TA-02: tải hồ sơ). Dựng `lib/availability` mapper/overlap/grid/validation + `AvailabilityPage` (grid tuần + list + modal, optimistic rollback). Chốt quy ước `day_of_week` 0=T2..6=CN và loại lịch available/busy — cập nhật `ai-docs/05`, `ai-tasks/05`. `verify-flow-02` pass gồm case mới 2b/2c/2d. **Kèm foundational fix R-01** (`ApiClient` bind native fetch, tutor-app + tutor-market) + harness Playwright (R-02/R-03 phần tutor-app) — xem `16-remediation-backlog.md`. 3 commit: process (`b931f31`), backlog (`9721b49`), rồi fix + harness + TA-03. Browser visual skill không khả dụng nên dùng Playwright/Chrome headless làm bằng chứng |
+| Task | `TA-04` — Dashboard “việc cần làm hôm nay” |
+| Commit | Tra bằng `git log --oneline --grep='TA-04' -1` |
+| Evidence | Aggregate owner-safe `/dashboard/tutor/overview`, section song song + failure isolation, latest log bounded không N+1, capability CTA thật và không suy diễn overdue. API 120 test, app 100 test, lint/build/contracts xanh; Flow 6/10 pass Docker 2026-07-19. Playwright Chrome project tutor-app 3 pass/1 skip OAuth; smoke dashboard GET 200 + reload session + CLS < 0.1, regression profile/availability xanh. Checklist 🟢: A01/A03/A09/C3/D2/D5/D7, API1/API5/E1. E2E seed chạy compose đúng cwd `tutor-api/`. |
 
 ## Global queue
 

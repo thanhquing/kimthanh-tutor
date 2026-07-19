@@ -23,6 +23,6 @@ Phương thức đăng nhập hoạt động chính là email + password (đăng
 - `src/lib`: format UTC/VND và capability guard.
 - `src/styles`: design tokens và responsive workspace shell bám mock.
 
-Các màn hiện là placeholder có chủ đích của `TA-00`; business flow được triển khai theo từng task tiếp theo trong `ai-tasks/10-tutor-app-task-list.md`.
+Các màn đã có API thật: auth/consent (`TA-01`), hồ sơ/media (`TA-02`), lịch rảnh/bận (`TA-03`) và dashboard công việc (`TA-04`). Route business còn lại vẫn là placeholder có chủ đích và được triển khai theo `ai-tasks/10-tutor-app-task-list.md`.
 
-Trạng thái: `TA-00` DONE; `TA-01` đang triển khai auth thật, role/status guard và legal consent gate. Chưa xem placeholder của các task sau là feature đã hoàn tất.
+Trạng thái: `TA-00`–`TA-04` DONE; current task `TA-05` (inbox yêu cầu học thử). Không xem placeholder của các task sau là feature đã hoàn tất.

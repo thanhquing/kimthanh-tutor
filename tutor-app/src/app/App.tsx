@@ -1,6 +1,6 @@
+import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AccountUnavailablePage, ForbiddenPage } from "../pages/AccessStatePages";
-import { AvailabilityPage } from "../pages/AvailabilityPage";
 import { ConsentPage } from "../pages/ConsentPage";
 import { LoginPage } from "../pages/LoginPage";
 import {
@@ -10,12 +10,20 @@ import {
   VerifyEmailPage,
 } from "../pages/AuthPasswordPages";
 import { PlaceholderPage } from "../pages/PlaceholderPage";
-import { ProfilePage } from "../pages/ProfilePage";
 import { NotFoundPage } from "../pages/NotFoundPage";
+import { LoadingState } from "../components/states/LoadingState";
 import { AuthProvider } from "./AuthContext";
 import { AppShell } from "./AppShell";
 import { navigation } from "./navigation";
 import { TutorAccessGate } from "./TutorAccessGate";
+
+const AvailabilityPage = lazy(() => import("../pages/AvailabilityPage").then((module) => ({ default: module.AvailabilityPage })));
+const DashboardPage = lazy(() => import("../pages/DashboardPage").then((module) => ({ default: module.DashboardPage })));
+const ProfilePage = lazy(() => import("../pages/ProfilePage").then((module) => ({ default: module.ProfilePage })));
+
+function FeatureRoute({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<div className="panel"><LoadingState label="Đang mở màn hình…" /></div>}>{children}</Suspense>;
+}
 
 export function App() {
   return (
@@ -30,9 +38,10 @@ export function App() {
       <Route path="/account-unavailable" element={<AccountUnavailablePage />} />
       <Route element={<TutorAccessGate><AppShell /></TutorAccessGate>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/profile/*" element={<ProfilePage />} />
-        <Route path="/availability/*" element={<AvailabilityPage />} />
-        {navigation.filter((item) => item.path !== "/profile" && item.path !== "/availability").map((item) => <Route key={item.path} path={`${item.path}/*`} element={<PlaceholderPage item={item} />} />)}
+        <Route path="/profile/*" element={<FeatureRoute><ProfilePage /></FeatureRoute>} />
+        <Route path="/availability/*" element={<FeatureRoute><AvailabilityPage /></FeatureRoute>} />
+        <Route path="/dashboard/*" element={<FeatureRoute><DashboardPage /></FeatureRoute>} />
+        {navigation.filter((item) => !["/dashboard", "/profile", "/availability"].includes(item.path)).map((item) => <Route key={item.path} path={`${item.path}/*`} element={<PlaceholderPage item={item} />} />)}
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes></AuthProvider>

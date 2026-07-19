@@ -123,4 +123,17 @@ require_json_value /tmp/flow06-lesson-log-patch.json id "$LESSON_LOG_ID"
 require_json_value /tmp/flow06-lesson-log-patch.json absorption_level good
 require_json_value /tmp/flow06-lesson-log-patch.json tutor_note "Da nam bai sau khi sua loi."
 
+echo "== Flow 6 Step 6: read tutor work dashboard aggregate =="
+dashboard_http="$(curl -sS -o /tmp/flow06-tutor-dashboard.json -w "%{http_code}" \
+  -H "$TUTOR_AUTH" \
+  "$API/dashboard/tutor/overview")"
+cat /tmp/flow06-tutor-dashboard.json
+echo
+require_code "$dashboard_http" "200" "Tutor dashboard overview" /tmp/flow06-tutor-dashboard.json
+require_json_value /tmp/flow06-tutor-dashboard.json summary.pending_trials 0
+require_json_value /tmp/flow06-tutor-dashboard.json summary.teaching_classes 1
+require_json_value /tmp/flow06-tutor-dashboard.json partial_errors ""
+json_array_contains_id /tmp/flow06-tutor-dashboard.json teaching_classes "$CLASS_ID" || fail "Tutor dashboard did not include class_id $CLASS_ID"
+require_json_value /tmp/flow06-tutor-dashboard.json teaching_classes.0.latest_lesson.id "$LESSON_LOG_ID"
+
 echo "OK: Flow 6 Tutor inbox + lesson log verified end-to-end for trial_id $TRIAL_ID class_id $CLASS_ID lesson_log_id $LESSON_LOG_ID"

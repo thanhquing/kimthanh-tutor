@@ -13,9 +13,12 @@ const ADMIN_ID = "e2eadmin000000000000000000";
 // Truy cập DB/API qua chính docker-compose (service `db`/`api`) — không hardcode
 // tên container, không nhúng credential DB (đã nằm trong docker-compose.yml).
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+const TUTOR_API_ROOT = join(REPO_ROOT, "tutor-api");
 function composeExec(service: string, command: string, env: string[] = []): void {
   const envFlags = env.map((e) => `-e ${e}`).join(" ");
-  execSync(`docker compose exec -T ${envFlags} ${service} ${command}`, { cwd: REPO_ROOT, stdio: "ignore" });
+  // docker-compose.yml thuộc tutor-api/; chạy từ root sẽ không tìm thấy file
+  // sau khi Docker assets được gom về đúng bounded app.
+  execSync(`docker compose exec -T ${envFlags} ${service} ${command}`, { cwd: TUTOR_API_ROOT, stdio: "ignore" });
 }
 
 function tokenFromLink(link: unknown): string | null {

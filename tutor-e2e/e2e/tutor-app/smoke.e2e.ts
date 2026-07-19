@@ -1,11 +1,42 @@
 import { expect, test } from "@playwright/test";
 import { loginViaPassword } from "./helpers";
 
-// Smoke tutor-app: một phiên đăng nhập email+password bao phủ TA-02 (hồ sơ) và
-// TA-03 (lịch), điều hướng giữa màn bằng client-side nav (token memory-only nên
-// không reload).
-test("tutor-app: hồ sơ (TA-02) và lịch rảnh (TA-03) trên browser thật", async ({ page }) => {
-  await loginViaPassword(page, "/availability");
+// Smoke tutor-app: một phiên đăng nhập email+password bao phủ TA-02 (hồ sơ),
+// TA-03 (lịch) và TA-04 (dashboard), điều hướng client-side trong cùng phiên.
+test("tutor-app: dashboard (TA-04), hồ sơ (TA-02) và lịch rảnh (TA-03) trên browser thật", async ({ page }) => {
+  await page.addInitScript(() => {
+    const measuredWindow = window as typeof window & { __ktCls?: number };
+    measuredWindow.__ktCls = 0;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const shift = entry as PerformanceEntry & { value: number; hadRecentInput: boolean };
+        if (!shift.hadRecentInput) measuredWindow.__ktCls = (measuredWindow.__ktCls ?? 0) + shift.value;
+      }
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+  const dashboard = page.waitForResponse(
+    (r) => r.url().includes("/dashboard/tutor/overview") && r.request().method() === "GET",
+  );
+  await loginViaPassword(page, "/dashboard");
+
+  // --- TA-04: aggregate owner-safe đọc qua API thật ---
+  expect((await dashboard).status()).toBe(200);
+  await expect(page.getByRole("heading", { name: /Chào E2E/ })).toBeVisible();
+  await expect(page.locator(".dashboard-stat", { hasText: "Hồ sơ" })).toBeVisible();
+
+  // Reload sâu đo skeleton → nội dung thật, đồng thời chứng minh session cookie
+  // khôi phục được query. Dashboard private đặt budget CLS < 0.1.
+  const dashboardReload = page.waitForResponse(
+    (r) => r.url().includes("/dashboard/tutor/overview") && r.request().method() === "GET",
+  );
+  await page.reload();
+  expect((await dashboardReload).status()).toBe(200);
+  await expect(page.getByRole("heading", { name: /Chào E2E/ })).toBeVisible();
+  const cls = await page.evaluate(() => (window as typeof window & { __ktCls?: number }).__ktCls ?? 0);
+  expect(cls).toBeLessThan(0.1);
+
+  await page.locator(".sidebar").getByRole("link", { name: "Lịch rảnh", exact: true }).click();
+  await page.waitForURL((url) => url.pathname === "/availability");
 
   // --- TA-03: lịch rảnh — thêm rồi xóa khung giờ (POST 201 / DELETE 200) ---
   await expect(page.getByRole("heading", { name: "Lịch rảnh trong tuần" })).toBeVisible();

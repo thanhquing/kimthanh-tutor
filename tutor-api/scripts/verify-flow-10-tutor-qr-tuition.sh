@@ -109,6 +109,19 @@ require_json_value /tmp/flow10-qr-record.json collection_status created
 require_json_value /tmp/flow10-qr-record.json transfer_content "Hoc phi thang 07/2026 - Minh Chau"
 QR_RECORD_ID="$(json_get /tmp/flow10-qr-record.json id)"
 
+echo "== Flow 10 Step 1b: dashboard exposes pending QR and active capability =="
+dashboard_http="$(curl -sS -o /tmp/flow10-tutor-dashboard.json -w "%{http_code}" \
+  -H "$TUTOR_AUTH" \
+  "$API/dashboard/tutor/overview")"
+cat /tmp/flow10-tutor-dashboard.json
+echo
+require_code "$dashboard_http" "200" "Tutor dashboard QR overview" /tmp/flow10-tutor-dashboard.json
+require_json_value /tmp/flow10-tutor-dashboard.json qr_subscription.status active
+require_json_value /tmp/flow10-tutor-dashboard.json capabilities.has_payout_account true
+require_json_value /tmp/flow10-tutor-dashboard.json capabilities.has_active_qr_access true
+require_json_value /tmp/flow10-tutor-dashboard.json capabilities.can_create_qr true
+json_array_contains_id /tmp/flow10-tutor-dashboard.json pending_qr_records "$QR_RECORD_ID" || fail "Tutor dashboard did not include pending qr_record_id $QR_RECORD_ID"
+
 echo "== Flow 10 Step 2: list QR records =="
 list_http="$(curl -sS -o /tmp/flow10-qr-list.json -w "%{http_code}" \
   -H "$TUTOR_AUTH" \

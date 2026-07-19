@@ -12,6 +12,7 @@ import type {
   AuthSessionResponse,
   AdminUserStatusMutation,
   DashboardOverview,
+  TutorDashboardOverview,
   MediaAssetStatus,
   MediaUploadRequest,
   MediaUploadResponse,
@@ -159,9 +160,65 @@ const overview = {
   }],
 } satisfies DashboardOverview;
 
+const tutorOverview = {
+  profile: {
+    id: "tutor_01",
+    display_name: "Nguyễn An",
+    status: "published",
+    moderation_status: "approved",
+  },
+  summary: { pending_trials: 1, teaching_classes: 1, pending_qr_records: 1 },
+  pending_trials: [{
+    id: "trial_01",
+    subject: "math",
+    grade: 8,
+    teaching_mode: "online",
+    created_at: "2026-07-15T00:00:00.000Z",
+  }],
+  teaching_classes: [{
+    id: "class_01",
+    subject: "math",
+    status: "active",
+    latest_lesson: {
+      id: "lesson_01",
+      lesson_at: "2026-07-15T00:00:00.000Z",
+      subject: "fractions",
+    },
+    can_create_lesson_log: true,
+    updated_at: "2026-07-15T00:00:00.000Z",
+  }],
+  pending_qr_records: [{
+    id: "qr_01",
+    class_contract_id: "class_01",
+    amount: 800_000,
+    collection_status: "created",
+    created_at: "2026-07-15T00:00:00.000Z",
+  }],
+  qr_subscription: {
+    id: "sub_01",
+    type: "tutor_qr",
+    scope_ref_id: null,
+    payment_id: "payment_01",
+    status: "active",
+    auto_renew: false,
+    starts_at: "2026-07-01T00:00:00.000Z",
+    current_period_end: "2026-08-01T00:00:00.000Z",
+    cancelled_at: null,
+    created_at: "2026-07-01T00:00:00.000Z",
+    updated_at: "2026-07-01T00:00:00.000Z",
+  },
+  capabilities: {
+    has_payout_account: true,
+    has_active_qr_access: true,
+    can_create_qr: true,
+  },
+  partial_errors: ["pending_trials"],
+} satisfies TutorDashboardOverview;
+
 assert.deepEqual(roundTrip(student), student);
 assert.deepEqual(roundTrip(lockedDetail), lockedDetail);
 assert.deepEqual(roundTrip(overview), overview);
+assert.deepEqual(roundTrip(tutorOverview), tutorOverview);
 
 const publishResponse = { status: "published" } satisfies TutorProfilePublishResponse;
 const mediaUploadRequest = { kind: "avatar", content_type: "image/png", size: 20_480 } satisfies MediaUploadRequest;

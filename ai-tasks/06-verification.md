@@ -14,18 +14,19 @@ Kết quả chạy gần nhất: ✅ pass ngày 2026-07-14 bằng:
 docker compose up --build --abort-on-container-exit verify
 ```
 
-Kết quả API/unit mới nhất: ✅ pass ngày 2026-07-16:
+Kết quả API/unit mới nhất: ✅ pass ngày 2026-07-19:
 
-- Full Jest API: 16 suite / 93 test pass.
+- Full Jest API: 18 suite / 120 test pass.
 - API lint và Nest production build pass.
-- `tutor-admin`: 6 file / 15 test, lint và Vite production build pass.
-- `@kimthanh-tutor/contracts`: serialization tests pass.
+- `tutor-app`: 18 file / 100 test, lint và Vite production build pass; build lazy-split dashboard/profile/availability.
+- `@kimthanh-tutor/contracts`: serialization tests pass (gồm `TutorDashboardOverview`).
 
-Evidence Docker/flow gần nhất vẫn là 2026-07-14:
+Evidence Docker/flow mới nhất cho TA-04 ngày 2026-07-19:
 
 - `docker compose up -d --build api`: Prisma generate + Nest build pass.
-- `docker compose exec -T api sh /app/tutor-api/scripts/verify-flow-12-tutor-admin-ops.sh`: Flow 12 pass end-to-end.
-- Regression cURL sau refactor billing/access: Flow 7 và Flow 10 pass ngày 2026-07-14; Flow 10 script đã đọc giá `tutor_qr` từ checkout output thay vì hard-code để tương thích `product_pricing`.
+- Flow 6 pass gồm `GET /dashboard/tutor/overview`: lớp active có latest lesson đúng, `pending_trials=0`, không có `partial_errors`.
+- Flow 10 pass gồm dashboard thấy subscription `tutor_qr=active`, payout/access/can-create capability đều `true` và QR `created` nằm trong `pending_qr_records`.
+- `pnpm --filter @kimthanh-tutor/e2e test:app`: 3 pass, 1 skip OAuth khi thiếu client id; smoke TA-04 nhận GET dashboard `200`, render dữ liệu thật, reload sâu giữ phiên và CLS < 0.1. Chạy riêng smoke cuối: 1 pass.
 
 File liên quan:
 
@@ -70,11 +71,11 @@ Script flow UI đã có:
 - `tutor-api/scripts/verify-flow-03-guest-search-paywall.sh`: chạy kịch bản 3 end-to-end bằng cURL, gồm tạo tutor published qua Flow 2, search public, xem detail locked/paywall.
 - `tutor-api/scripts/verify-flow-04-guest-trial-activation.sh`: chạy kịch bản 4 end-to-end bằng cURL, gồm guest tạo trial, tutor accept, guest complete activation token.
 - `tutor-api/scripts/verify-flow-05-parent-onboarding-trial.sh`: chạy kịch bản 5 end-to-end bằng cURL, gồm parent login/consent, bootstrap parent profile, tạo student, gửi trial, xem trial mine.
-- `tutor-api/scripts/verify-flow-06-tutor-inbox-lesson-log.sh`: chạy kịch bản 6 end-to-end bằng cURL, gồm tutor inbox, accept trial, chuyển class active, tạo và sửa lesson log.
+- `tutor-api/scripts/verify-flow-06-tutor-inbox-lesson-log.sh`: chạy kịch bản 6 end-to-end bằng cURL, gồm tutor inbox, accept trial, chuyển class active, tạo/sửa lesson log và đọc aggregate dashboard (latest lesson, counts, partial errors).
 - `tutor-api/scripts/verify-flow-07-parent-dashboard-tracking.sh`: chạy kịch bản 7 end-to-end bằng cURL, gồm overview miễn phí, detail locked, checkout `parent_tracking`, giả lập webhook SePay, mở dashboard detail.
 - `tutor-api/scripts/verify-flow-08-single-unlock-profile.sh`: chạy kịch bản 8 end-to-end bằng cURL, gồm checkout `single_unlock`, giả lập webhook SePay, xem tutor detail unlocked.
 - `tutor-api/scripts/verify-flow-09-review-moderation.sh`: chạy kịch bản 9 end-to-end bằng cURL, gồm complete class, parent review, tutor report, admin moderate; script tự grant admin role trong DB verify.
-- `tutor-api/scripts/verify-flow-10-tutor-qr-tuition.sh`: chạy kịch bản 10 end-to-end bằng cURL, gồm checkout + webhook gói `tutor_qr`, tạo QR học phí vào tài khoản gia sư, list QR, mark collected.
+- `tutor-api/scripts/verify-flow-10-tutor-qr-tuition.sh`: chạy kịch bản 10 end-to-end bằng cURL, gồm checkout + webhook gói `tutor_qr`, tạo QR học phí vào tài khoản gia sư, xác minh dashboard capability + QR chờ thu, list QR, mark collected.
 - `tutor-api/scripts/verify-flow-11-admin-moderation-ops.sh`: chạy kịch bản 11 end-to-end bằng cURL, gồm moderation queue, admin set tutor status, tra payment paid, xem audit log.
 - `tutor-api/scripts/verify-flow-12-tutor-admin-ops.sh`: chạy kịch bản 12 end-to-end bằng cURL, gồm dashboard stats, user list/detail, khóa account, system logs, setup VietQR nền tảng, setup pricing, toggle paid feature theo user, xác minh checkout đọc pricing/account/override, và dùng lại moderation queue.
 
@@ -132,7 +133,7 @@ Cách chạy:
 
 ```bash
 export PATH="$HOME/.nvm/versions/node/v20.20.2/bin:$PATH"   # Node ≥ 20 (.nvmrc)
-docker compose up -d db api                                 # API tại localhost:3000
+docker compose -f tutor-api/docker-compose.yml up -d db api # API tại localhost:3000
 pnpm --filter @kimthanh-tutor/e2e test                      # cả 3 app
 pnpm --filter @kimthanh-tutor/e2e test:app                  # hoặc test:admin | test:market
 ```
@@ -140,9 +141,9 @@ pnpm --filter @kimthanh-tutor/e2e test:app                  # hoặc test:admin 
 Nguyên tắc bảo mật của harness:
 
 - **Không hardcode secret.** Password admin + password gia sư sinh ngẫu nhiên lúc chạy, lưu vào `tutor-e2e/.e2e-state/` (gitignored); link verify/reset đọc từ `dev_verification_link`/`dev_reset_link` trong response API. Chỉ định danh tài khoản test (email) là hằng số, không phải thông tin DB.
-- **Không nhúng credential/tên container.** Seed truy cập DB/API qua `docker compose exec db|api` (service từ chính compose file), không hardcode tên container hay mật khẩu DB.
+- **Không nhúng credential/tên container.** Seed chạy `docker compose exec db|api` với cwd `tutor-api/` (vị trí compose thật), không hardcode tên container hay mật khẩu DB.
 - Dev không dính CORS/IPv4-IPv6 nhờ dev proxy `/api` trong `vite.config.ts` của tutor-app/tutor-admin; tutor-market SSR fetch server-side.
-- Throttle auth là 5 lần/5 phút theo IP → gộp login trong một smoke khi có thể; access token tutor/parent chỉ ở RAM nhưng refresh token nằm trong cookie HttpOnly `kt_refresh` nên phiên giữ qua reload (boot gọi `/auth/refresh`), `page.goto` route bảo vệ vẫn vào được.
+- Throttle auth theo IP (`register` strict 5/5 phút, `login` medium 10/5 phút) → gộp login trong một smoke khi có thể; access token tutor/parent chỉ ở RAM nhưng refresh token nằm trong cookie HttpOnly `kt_refresh` nên phiên giữ qua reload.
 
 ## Quy tắc cập nhật docs sau mỗi task API
 

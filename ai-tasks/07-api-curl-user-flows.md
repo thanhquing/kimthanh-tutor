@@ -25,11 +25,11 @@ Nguyên tắc khi test UI/API:
 | 3 | Guest search + paywall | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-03-guest-search-paywall.sh`; script tự tạo tutor published qua Flow 2 |
 | 4 | Guest trial + activation | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-04-guest-trial-activation.sh`; script tự tạo tutor published qua Flow 2 |
 | 5 | Parent onboarding + trial | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-05-parent-onboarding-trial.sh`; đã refactor `POST /parents/me` trả email để UI reload profile |
-| 6 | Tutor inbox + lesson log | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-06-tutor-inbox-lesson-log.sh`; script tự tạo parent trial qua Flow 5 |
+| 6 | Tutor inbox + lesson log | Verified | Pass end-to-end ngày 2026-07-19 bằng `tutor-api/scripts/verify-flow-06-tutor-inbox-lesson-log.sh`; gồm aggregate dashboard owner-safe thấy class/latest lesson, counts đúng và không partial error |
 | 7 | Parent dashboard + tracking checkout | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-07-parent-dashboard-tracking.sh`; đã refactor overview trả `latest_lesson`, detail chưa mua trả `PAYMENT_REQUIRED`, billing entitlement có `status` |
 | 8 | Single unlock profile | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-08-single-unlock-profile.sh`; fixture dev chưa seed media/review nên unlocked detail trả `intro_video_url=null`, `reviews=[]` |
 | 9 | Review + moderation | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-09-review-moderation.sh`; script tự grant admin role trong DB verify |
-| 10 | Tutor QR tuition | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-10-tutor-qr-tuition.sh`; script tự checkout + webhook gói `tutor_qr` trước khi tạo QR học phí, giá đọc từ checkout để tương thích `product_pricing` |
+| 10 | Tutor QR tuition | Verified | Pass end-to-end ngày 2026-07-19 bằng `tutor-api/scripts/verify-flow-10-tutor-qr-tuition.sh`; sau checkout + webhook, aggregate dashboard xác nhận subscription/capability và QR chờ thu trước khi mark-collected |
 | 11 | Admin moderation | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-11-admin-moderation-ops.sh`; script dùng Flow 8 để có paid `single_unlock` và tutor pending moderation |
 | 12 | Tutor Admin Control Center | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-12-tutor-admin-ops.sh`; đã thêm API dashboard/users/logs/platform VietQR/pricing/paid-feature override, checkout đọc pricing/account/override |
 
@@ -1165,6 +1165,41 @@ Expected output:
 }
 ```
 
+### Step 6. Đọc dashboard công việc gia sư
+
+```bash
+curl -sS "$API/dashboard/tutor/overview" \
+  -H "$TUTOR_AUTH"
+```
+
+Expected output rút gọn:
+
+```json
+{
+  "summary": {
+    "pending_trials": 0,
+    "teaching_classes": 1,
+    "pending_qr_records": 0
+  },
+  "teaching_classes": [
+    {
+      "id": "01K...",
+      "status": "active",
+      "latest_lesson": { "id": "01K...", "lesson_at": "2026-07-14T12:30:00.000Z" },
+      "can_create_lesson_log": true
+    }
+  ],
+  "capabilities": {
+    "has_payout_account": true,
+    "has_active_qr_access": false,
+    "can_create_qr": false
+  },
+  "partial_errors": []
+}
+```
+
+UI state: hiển thị hoạt động gần nhất/chưa có log; không suy diễn “quá hạn ghi sổ” khi chưa có lesson schedule.
+
 ---
 
 ## Kịch bản 7: Parent Dashboard - Overview, paywall detail, checkout tracking
@@ -1556,6 +1591,15 @@ UI state:
 
 - Hiển thị QR.
 - Hiển thị disclaimer: nền tảng không xác nhận dòng tiền học phí.
+
+### Step 1b. Dashboard thấy QR chờ thu và capability hợp lệ
+
+```bash
+curl -sS "$API/dashboard/tutor/overview" \
+  -H "$TUTOR_AUTH"
+```
+
+Expected: `qr_subscription.status=active`, ba capability payout/access/create đều `true`, và `pending_qr_records` chứa `QR_RECORD_ID` với `collection_status=created`. Dashboard vẫn phải nhắc đây là trạng thái gia sư tự đối chiếu, không phải nền tảng xác nhận tiền vào ngân hàng.
 
 ### Step 2. Danh sách QR
 

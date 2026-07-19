@@ -150,13 +150,16 @@ export class AccessService {
         'Tính năng QR đang bị tắt cho user này',
       );
     }
+    if (await this.hasActiveSubscription(userId, 'tutor_qr')) return;
+    throw new AppException(
+      ErrorCode.SUBSCRIPTION_EXPIRED,
+      'Cần gói QR còn hiệu lực để tạo mã thanh toán',
+    );
+  }
 
-    const ok = await this.hasActiveSubscription(userId, 'tutor_qr');
-    if (!ok) {
-      throw new AppException(
-        ErrorCode.SUBSCRIPTION_EXPIRED,
-        'Cần gói QR còn hiệu lực để tạo mã thanh toán',
-      );
-    }
+  async hasTutorQrAccess(userId: string): Promise<boolean> {
+    const override = await this.paidFeatures.overrideState(userId, 'tutor_qr');
+    if (override !== null) return override;
+    return this.hasActiveSubscription(userId, 'tutor_qr');
   }
 }

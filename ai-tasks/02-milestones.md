@@ -1,9 +1,9 @@
 # Các Mốc Triển Khai
 
-Trạng thái code ngày 2026-07-16:
+Trạng thái code ngày 2026-07-19:
 
-- Backend `tutor-api` có module cho Flow 1-12 và giữ evidence E2E ngày 2026-07-14; unit mới nhất 93 test.
-- Ba frontend đã hoàn tất scaffold (`TA-00`, `TM-00`, `AD-00`); business UI phần lớn còn theo queue, hiện tại là `TA-01`.
+- Backend `tutor-api` có module cho Flow 1-12; Flow 6/10 rerun E2E ngày 2026-07-19 và unit mới nhất 120 test.
+- Ba frontend đã hoàn tất scaffold (`TA-00`, `TM-00`, `AD-00`); tutor-app đã xong TA-01–TA-04, current task là `TA-05`.
 - Các mốc dưới đây theo dõi sản phẩm tổng thể; API contract pass không đồng nghĩa frontend/provider/worker/production infrastructure đã hoàn tất.
 
 ## Mốc 0: Tài liệu sẵn sàng
@@ -40,7 +40,7 @@ Công việc:
 
 ## Mốc 2: Xác thực và cổng pháp lý
 
-Trạng thái: API parent/tutor đã có; admin auth/session `AD-00` đã có; UI tutor/market consent/auth còn `TA-01`/`TM-03`.
+Trạng thái: API parent/tutor đã có; admin auth/session `AD-00` đã có; tutor auth/consent `TA-01` đã DONE, market auth/consent còn `TM-03`.
 
 Mục tiêu:
 

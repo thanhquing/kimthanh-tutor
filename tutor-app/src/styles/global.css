@@ -241,4 +241,55 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px s
 .auth-links a:hover { text-decoration: underline; }
 .auth-notice { margin: 12px 0 0; padding: 10px 12px; border-radius: var(--radius-sm); color: var(--success-600); background: var(--success-50); font-size: 13px; font-weight: 600; }
 
+/* ---- Dashboard công việc ---- */
+.dashboard-heading-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.dashboard-heading-actions .button { gap: 7px; }
+.dashboard-partial-banner { display: flex; align-items: center; gap: 9px; margin: 0 0 14px; padding: 11px 14px; border: 1px solid #f3d59c; border-radius: var(--radius-md); color: #7a510b; background: #fff7e7; }
+.dashboard-partial-banner span { flex: 1; }
+.dashboard-stats { display: grid; gap: 12px; margin-bottom: 16px; }
+.dashboard-stat { display: flex; min-width: 0; min-height: 126px; flex-direction: column; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }
+.dashboard-stat > span { color: var(--ink-500); font-size: 11px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
+.dashboard-stat > strong { margin: 7px 0 5px; overflow-wrap: anywhere; font-size: 22px; line-height: 1.25; }
+.dashboard-stat-hint { margin-top: auto; font-size: 12px; }
+.tone-text-ok { color: var(--success-600); }
+.tone-text-warn { color: #8a5a06; }
+.tone-text-danger { color: var(--danger-600); }
+.tone-text-mute { color: var(--ink-500); }
+.tone-text-pending { color: var(--brand-700); }
+.dashboard-grid { display: grid; gap: 16px; align-items: start; }
+.dashboard-panel { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }
+.dashboard-panel-head { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+.dashboard-panel-head h2 { margin: 0; font-size: 15px; }
+.dashboard-panel .empty-state { min-height: 230px; padding: 22px; }
+.dashboard-list { list-style: none; margin: 0; padding: 0; }
+.dashboard-list li { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 86px; padding: 13px 16px; border-bottom: 1px solid var(--line-soft); }
+.dashboard-list li:last-child { border-bottom: 0; }
+.dashboard-list li > div { display: grid; min-width: 0; gap: 2px; }
+.dashboard-list strong { overflow-wrap: anywhere; font-size: 14px; }
+.dashboard-list span { color: var(--ink-600); font-size: 12px; }
+.dashboard-list small { color: var(--ink-500); }
+.button.small { min-height: 34px; padding: 7px 10px; font-size: 12px; }
+.dashboard-inline-error { display: flex; min-height: 230px; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 22px; color: var(--danger-600); text-align: center; }
+.dashboard-actions { display: grid; gap: 9px; padding: 16px; }
+.dashboard-actions a { display: flex; min-height: 44px; align-items: center; gap: 9px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink-700); background: var(--surface-muted); font-weight: 650; }
+.dashboard-actions a:hover { border-color: var(--brand-600); color: var(--brand-800); background: var(--brand-50); }
+.dashboard-skeleton-heading { width: min(520px, 100%); min-height: 92px; margin-bottom: 18px; padding: 10px 0; }
+.dashboard-skeleton .dashboard-stat { justify-content: center; }
+.dashboard-skeleton .dashboard-panel { min-height: 310px; padding: 20px; }
+.dashboard-skeleton .skeleton span { display: block; width: 100%; }
+
+@media (min-width: 580px) {
+  .dashboard-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 860px) {
+  .dashboard-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 639px) {
+  .dashboard-heading { flex-direction: column; }
+  .dashboard-heading-actions { width: 100%; }
+  .dashboard-heading-actions .button { flex: 1 1 160px; }
+}
+
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

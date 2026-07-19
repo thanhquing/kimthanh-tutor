@@ -8,6 +8,12 @@ import { PaginationQueryDto } from '../../common/pagination/pagination.dto';
 export class DashboardController {
   constructor(private readonly dashboard: DashboardService) {}
 
+  @Roles('tutor')
+  @Get('tutor/overview')
+  tutorOverview(@CurrentUser() user: AuthUser) {
+    return this.dashboard.tutorOverview(user.userId);
+  }
+
   @Roles('parent')
   @Get('students/:id/overview')
   studentOverview(@CurrentUser() user: AuthUser, @Param('id') id: string) {

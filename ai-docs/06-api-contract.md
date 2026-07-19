@@ -102,6 +102,7 @@ Quy tắc:
 - Cập nhật trạng thái lớp.
 - Tạo sổ đầu bài.
 - Cập nhật sổ đầu bài của mình trong khoảng thời gian cho phép.
+- Xem dashboard công việc owner-safe qua aggregate giới hạn kích thước: trạng thái hồ sơ, yêu cầu học thử chờ, lớp `trial_accepted/active` kèm hoạt động sổ gần nhất, QR chờ thu và capability gói QR. Lỗi một widget được cô lập qua `partial_errors`; không suy ra “quá hạn ghi sổ” khi domain chưa có lịch buổi học.
 - Quản lý gói QR định kỳ.
 - Quản lý tài khoản nhận tiền để tạo QR học phí.
 - Tạo QR/link thanh toán.

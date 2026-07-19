@@ -517,6 +517,69 @@ export interface DashboardDetail {
   timeline: KeysetPage<DashboardTimelineItem>;
 }
 
+export type TutorDashboardSection =
+  | "pending_trials"
+  | "teaching_classes"
+  | "pending_qr_records"
+  | "qr_subscription";
+
+export interface TutorDashboardTrial {
+  id: string;
+  subject: string;
+  grade: number | null;
+  teaching_mode: TeachingMode | null;
+  created_at: string;
+}
+
+export interface TutorDashboardClass {
+  id: string;
+  subject: string;
+  status: Extract<ClassStatus, "trial_accepted" | "active">;
+  latest_lesson: {
+    id: string;
+    lesson_at: string;
+    subject: string;
+  } | null;
+  can_create_lesson_log: boolean;
+  updated_at: string;
+}
+
+export interface TutorDashboardQrRecord {
+  id: string;
+  class_contract_id: string | null;
+  amount: number;
+  collection_status: Extract<CollectionStatus, "created" | "sent">;
+  created_at: string;
+}
+
+/**
+ * Read model owner-safe cho `GET /dashboard/tutor/overview`.
+ * Mỗi danh sách chỉ là preview có giới hạn; `summary` giữ tổng chính xác.
+ */
+export interface TutorDashboardOverview {
+  profile: {
+    id: string;
+    display_name: string;
+    status: TutorProfileStatus;
+    moderation_status: ModerationStatus;
+  };
+  summary: {
+    pending_trials: number;
+    teaching_classes: number;
+    pending_qr_records: number;
+  };
+  pending_trials: TutorDashboardTrial[];
+  teaching_classes: TutorDashboardClass[];
+  pending_qr_records: TutorDashboardQrRecord[];
+  qr_subscription: SubscriptionSummary | null;
+  capabilities: {
+    has_payout_account: boolean;
+    has_active_qr_access: boolean;
+    can_create_qr: boolean;
+  };
+  partial_errors: TutorDashboardSection[];
+}
+
 export type CollectionStatus =
   "created" | "sent" | "marked_collected" | "cancelled";
 

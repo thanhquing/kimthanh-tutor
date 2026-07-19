@@ -20,7 +20,7 @@ Nguyên tắc khi test UI/API:
 
 | Flow | Màn hình chính | Status | Blocker / ghi chú |
 | --- | --- | --- | --- |
-| 1 | Login + Consent Gate | Verified | Email + password (register → verify email → login) là đường register/login chính; pass ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-01-auth-consent.sh` (register+verify+login thay OTP); script tự seed legal documents dev. Google OAuth server-side verify bằng browser/E2E |
+| 1 | Login + Consent Gate | Verified | Email + password (register → verify email → login) là đường register/login chính; pass ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-01-auth-consent.sh` (register → verify email → login); script tự seed legal documents dev. Google OAuth server-side verify bằng browser/E2E |
 | 2 | Tutor profile setup | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-02-tutor-profile.sh`; đã refactor `POST /tutors/me/payout-accounts` trả đủ safe UI shape |
 | 3 | Guest search + paywall | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-03-guest-search-paywall.sh`; script tự tạo tutor published qua Flow 2 |
 | 4 | Guest trial + activation | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-04-guest-trial-activation.sh`; script tự tạo tutor published qua Flow 2 |

@@ -22,7 +22,7 @@ Tài liệu mô tả lược đồ dữ liệu giai đoạn 1 ở mức thiết 
 1. **Chuẩn hóa dữ liệu tìm kiếm**: `subjects/grade_levels/teaching_modes/offline_areas` tách thành bảng con (hoặc mảng + GIN) thay vì chuỗi CSV → index và lọc được ở tải cao.
 2. **Denormalize điểm đánh giá**: thêm `rating_avg`, `rating_count` vào `tutor_profiles` → không phải AGG `reviews` mỗi lần search.
 3. **Thêm `leads`**: chứa yêu cầu dạy thử của khách chưa có tài khoản (guest) → phễu không gãy.
-4. **Thêm bảng tài chính/vận hành thiếu**: `refunds`, `idempotency_keys`, `webhook_events`, `outbox_events`, `audit_logs`, `legal_documents`, `tutor_payout_accounts`, `review_edits`, `media_assets`, `otp_requests`.
+4. **Thêm bảng tài chính/vận hành thiếu**: `refunds`, `idempotency_keys`, `webhook_events`, `outbox_events`, `audit_logs`, `legal_documents`, `tutor_payout_accounts`, `review_edits`, `media_assets`.
 5. **Ràng buộc duy nhất & tương tranh** rõ ràng (chống double-accept, review trùng, race webhook).
 6. **`subscriptions` gắn scope theo học sinh** cho gói `parent_tracking` (theo quyết định sản phẩm: tính theo mỗi con).
 7. **`profile_unlocks` mặc định vĩnh viễn** (`expires_at = null`) theo quyết định sản phẩm.
@@ -102,18 +102,6 @@ erDiagram
         string consent_method
         string ip_address "🔒"
         string user_agent "🔒"
-    }
-
-    OTP_REQUESTS {
-        char id PK
-        string channel "sms|email"
-        string destination "🔒 hash SĐT/email"
-        string code_hash "hash mã, không lưu plaintext"
-        int attempts
-        datetime expires_at
-        datetime consumed_at
-        string request_ip "🔒"
-        datetime created_at
     }
 
     PARENT_PROFILES {
@@ -558,7 +546,7 @@ Chi tiết chiến lược ở `12-non-functional-requirements.md`. Tối thiể
 | --- | --- | --- | --- |
 | Tìm kiếm gia sư công khai | `tutor_profiles` + bảng chuẩn hóa + `rating_avg` | Không ghi | Chỉ bản xem thử; **không** AGG review runtime (dùng cột denormalized); keyset pagination |
 | Chi tiết gia sư công khai | `tutor_profiles`, `profile_unlocks`, `subscriptions`, `reviews`, `media_assets` | Không ghi | Mở chi tiết khi có unlock/VIP hợp lệ; video chỉ trả signed URL khi có quyền |
-| Xác thực/consent | `users`, `auth_accounts`, `admin_credentials`, `refresh_tokens`, `otp_requests`, `legal_documents`, `legal_consents` | như trái | Parent/tutor dùng email + password hoặc Google OAuth server-side; admin dùng email/password scrypt + lock/rate limit; refresh hash/rotation/revocation nằm trong PostgreSQL; mọi nhánh vẫn kiểm tra status/role và consent ở server |
+| Xác thực/consent | `users`, `auth_accounts`, `admin_credentials`, `refresh_tokens`, `email_tokens`, `legal_documents`, `legal_consents` | như trái | Parent/tutor dùng email + password hoặc Google OAuth server-side; admin dùng email/password scrypt + lock/rate limit; refresh hash/rotation/revocation nằm trong PostgreSQL; mọi nhánh vẫn kiểm tra status/role và consent ở server |
 | Hồ sơ phụ huynh | `parent_profiles`, `students` | như trái | Chỉ sửa dữ liệu của chính mình (ownership check) |
 | Hồ sơ gia sư | `tutor_profiles`, bảng chuẩn hóa, `tutor_availabilities`, `media_assets` | như trái | Chỉ sửa hồ sơ của mình; media qua signed upload + kiểm duyệt |
 | Payout account | `tutor_payout_accounts` | như trái | Chỉ gia sư sở hữu; số tài khoản là PII |
@@ -623,4 +611,4 @@ Chi tiết chiến lược ở `12-non-functional-requirements.md`. Tối thiể
 - **rating_avg**: cập nhật khi review đổi trạng thái, không tính runtime khi search.
 - **Search**: mặc định Postgres (bảng chuẩn hóa đã index + `ILIKE` cho `school_name`); GIN trigram/`tsvector` là nâng cấp index theo ngưỡng; vượt ngưỡng ở `15-...` thì đồng bộ Meilisearch qua outbox. Nghiệp vụ đọc qua `SearchPort` nên chỉ đổi adapter, không đổi schema.
 - **Partition-ready**: `lesson_logs`, `notifications`, `audit_logs`, `outbox_events` thiết kế để partition theo tháng khi lớn.
-- **Retention/ẩn danh**: `otp_requests`, `webhook_events`, `outbox_events(done)` có TTL dọn định kỳ; xóa user → ẩn danh PII, giữ bản ghi tài chính.
+- **Retention/ẩn danh**: `email_tokens`, `webhook_events`, `outbox_events(done)` có TTL dọn định kỳ; xóa user → ẩn danh PII, giữ bản ghi tài chính.

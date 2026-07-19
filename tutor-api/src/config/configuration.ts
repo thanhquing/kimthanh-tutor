@@ -9,10 +9,6 @@ export interface AppConfig {
     accessTtl: number;
     refreshTtl: number;
   };
-  otp: {
-    ttlSeconds: number;
-    maxAttempts: number;
-  };
   oauth: {
     googleClientId: string;
     googleClientSecret: string;
@@ -89,10 +85,6 @@ export default (): AppConfig => ({
     refreshSecret: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh',
     accessTtl: parseInt(process.env.JWT_ACCESS_TTL ?? '900', 10),
     refreshTtl: parseInt(process.env.JWT_REFRESH_TTL ?? '1209600', 10),
-  },
-  otp: {
-    ttlSeconds: parseInt(process.env.OTP_TTL_SECONDS ?? '300', 10),
-    maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS ?? '5', 10),
   },
   oauth: {
     googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',

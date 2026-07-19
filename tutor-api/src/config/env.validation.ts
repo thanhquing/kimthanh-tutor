@@ -24,9 +24,6 @@ const base = {
   JWT_ACCESS_TTL: z.coerce.number().int().positive().default(900),
   JWT_REFRESH_TTL: z.coerce.number().int().positive().default(1_209_600),
 
-  OTP_TTL_SECONDS: z.coerce.number().int().positive().default(300),
-  OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
-
   GOOGLE_CLIENT_ID: z.string().default(''),
   GOOGLE_CLIENT_SECRET: z.string().default(''),
   GOOGLE_OAUTH_REDIRECT_URI: z

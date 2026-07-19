@@ -186,11 +186,11 @@ Các điểm dưới đây bổ sung tầng kỹ thuật cho bản thiết kế,
 - Vấn đề: dữ liệu học sinh (trẻ vị thành niên) + PII không có phân loại/consent/retention; chưa nhắc Nghị định 13/2023/NĐ-CP.
 - Điều chỉnh: doc `14-data-privacy-and-compliance.md` (phân loại PII, consent giám hộ, retention, ẩn danh khi xóa).
 
-## 20. Thiếu chống lạm dụng OTP/scraping/đi vòng nền tảng
+## 20. Thiếu chống lạm dụng/scraping/đi vòng nền tảng
 
 - Vấn đề: chỉ có mã lỗi `RATE_LIMITED`, không chính sách; nguy cơ mất doanh thu do đi vòng nền tảng.
-- Điều chỉnh: rate limit đa tầng, OTP hash + cooldown, ẩn liên hệ + phát hiện liên hệ ngoài + signed URL. Xem `13`.
+- Điều chỉnh: rate limit đa tầng, khóa tài khoản tạm sau nhiều lần đăng nhập sai (CAS), ẩn liên hệ + phát hiện liên hệ ngoài + signed URL. Xem `13`.
 
 ## 21. Thiếu bảng vận hành/tài chính & quy ước dữ liệu
 
-- Điều chỉnh: thêm `refunds`, `idempotency_keys`, `webhook_events`, `outbox_events`, `audit_logs`, `legal_documents`, `tutor_payout_accounts`, `media_assets`, `review_edits`, `otp_requests`; quy ước ULID/UTC/tiền-nguyên/soft delete/enum-CHECK. Xem `11`, `15`.
+- Điều chỉnh: thêm `refunds`, `idempotency_keys`, `webhook_events`, `outbox_events`, `audit_logs`, `legal_documents`, `tutor_payout_accounts`, `media_assets`, `review_edits`; quy ước ULID/UTC/tiền-nguyên/soft delete/enum-CHECK. Xem `11`, `15`.

@@ -30,7 +30,7 @@ Các task frontend được chứng nhận `DONE` bằng **unit/component test (
 
 - Dựng **một** package chung `tutor-e2e/` (thay vì rải rác trong từng app): Playwright multi-project + multi-webServer, Chrome hệ thống, seed dùng chung, chạy `pnpm --filter @kimthanh-tutor/e2e test`.
 - Smoke hiện có: `tutor-app` (TA-02 hồ sơ + TA-03 lịch trong một phiên login), `tutor-admin` (AD-00 login→overview), `tutor-market` (TM-00 home search SSR).
-- Không hardcode secret: password admin sinh ngẫu nhiên (gitignored), OTP đọc từ `dev_code`; DB/API qua `docker compose exec`.
+- Không hardcode secret: password admin sinh ngẫu nhiên (gitignored), link verify email đọc từ `dev_verification_link`; DB/API qua `docker compose exec`.
 - Smoke theo từng feature tiếp tục thêm vào `tutor-e2e` qua DoD mới. Các task `DONE` cũ còn thiếu smoke chuyên biệt vẫn ghi "browser-unverified" cho tới khi có smoke tương ứng.
 
 ### R-04 — Test ranh giới thật (P1) — ✅ DONE

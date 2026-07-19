@@ -68,7 +68,7 @@ Nguyên tắc: **xóa cứng PII, giữ bản ghi tài chính/pháp lý ở dạ
 
 | Dữ liệu | Chính sách đề xuất |
 | --- | --- |
-| `otp_requests` | Xóa/ẩn sau khi dùng hoặc hết hạn (vài giờ) |
+| `email_tokens` | Xóa/ẩn sau khi dùng hoặc hết hạn (verify/reset, vài giờ–1 ngày) |
 | `webhook_events`, `outbox_events(done)` | TTL dọn định kỳ (vd 30–90 ngày) |
 | `notifications` | Dọn/nén sau vài tháng |
 | `audit_logs`, `payments`, `refunds`, `legal_consents` | Giữ lâu theo nghĩa vụ pháp lý/kế toán (append-only) |

@@ -115,7 +115,7 @@ Nghiệm thu và test:
 
 Scope:
 
-- Google/Facebook OAuth thật và OTP fallback đúng two-step request ID; không fake OAuth toast.
+- Google OAuth server-side thật (nút = link tới `/auth/oauth/google/start`; Facebook là đích lâu dài); không fake OAuth toast.
 - Route `/activation`: nhận one-time token từ link, gọi activation complete atomically, nhận user/parent/class context rồi bắt consent trước khi vào parent area.
 - Consent full-screen scroll 100%, terms+privacy IDs/version/checksum, không close; handle consumed/expired activation token và active consent version.
 - `next` allowlist, wrong role/suspended/logout/refresh; bootstrap parent profile chỉ sau active consent.
@@ -123,7 +123,7 @@ Scope:
 Nghiệm thu và test:
 
 - Guest trial accepted có thể hoàn tất activation đúng một lần; không tạo account active trước consent; expired/reused token rõ cách xử lý.
-- Unit callback/OTP/activation mapper; component consent/open redirect/error; API test nếu activation response cần bổ sung.
+- Unit callback/activation mapper; component consent/open redirect/error; API test nếu activation response cần bổ sung.
 - `verify-flow-01-auth-consent.sh`, `04-guest-trial-activation.sh`, `05-parent-onboarding-trial.sh` pass.
 
 ## TM-04 — Hồ sơ phụ huynh và CRUD học sinh

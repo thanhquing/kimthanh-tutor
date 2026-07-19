@@ -314,21 +314,6 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-model OtpRequest {
-  id          String    @id @db.Char(26)
-  channel     String // sms | email
-  destination String // hash SĐT/email
-  codeHash    String    @map("code_hash")
-  attempts    Int       @default(0)
-  expiresAt   DateTime  @map("expires_at") @db.Timestamptz
-  consumedAt  DateTime? @map("consumed_at") @db.Timestamptz
-  requestIp   String?   @map("request_ip")
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
-
-  @@index([destination, createdAt])
-  @@map("otp_requests")
-}
-
 // ---------- Parent ----------
 model ParentProfile {
   id          String    @id @db.Char(26)

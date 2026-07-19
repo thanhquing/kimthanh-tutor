@@ -1,21 +1,8 @@
-import { createHash, randomBytes, randomInt, scrypt, timingSafeEqual } from 'crypto';
+import { createHash, randomBytes, scrypt, timingSafeEqual } from 'crypto';
 
-// Hash một chiều cho OTP/destination (13-security: không lưu plaintext).
+// Hash một chiều sha256 (13-security: không lưu plaintext) — dùng để hash refresh token.
 export const sha256 = (input: string): string =>
   createHash('sha256').update(input).digest('hex');
-
-export const hashOtp = (code: string, salt: string): string =>
-  sha256(`${salt}:${code}`);
-
-export const safeEqualHex = (a: string, b: string): boolean => {
-  const ba = Buffer.from(a, 'hex');
-  const bb = Buffer.from(b, 'hex');
-  if (ba.length !== bb.length) return false;
-  return timingSafeEqual(ba, bb);
-};
-
-export const generateOtpCode = (): string =>
-  randomInt(0, 1_000_000).toString().padStart(6, '0');
 
 // Token bí mật ngẫu nhiên (refresh token). Trả plaintext cho client, lưu hash.
 export const randomToken = (bytes = 32): string =>
@@ -37,7 +24,7 @@ const derivePasswordKey = (password: string, salt: Buffer): Promise<Buffer> =>
     );
   });
 
-/** Hash mật khẩu admin bằng scrypt; không dùng chung hash OTP nhanh. */
+/** Hash mật khẩu bằng scrypt (chậm, chống brute-force); không dùng sha256 nhanh. */
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
   const key = await derivePasswordKey(password, salt);

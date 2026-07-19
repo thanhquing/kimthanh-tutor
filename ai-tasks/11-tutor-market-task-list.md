@@ -110,7 +110,7 @@ Nghiệm thu và test:
 - Trạng thái: INPROGRESS (auth email+password + consent + guard DONE; activation + OAuth còn lại)
 - Commit: tra bằng `git log --oneline --grep='TM-03' -1`
 - Mock: `login.html`, `consent.html`; mock còn thiếu màn activation. API: Auth/Consent/Activation. Flow 1, 4, 5.
-- Đã làm: đăng nhập/đăng ký **email + password** (register→verify email→login→forgot/reset), consent full-screen scroll-gate, `PrivateGuard` client cho khu vực phụ huynh (chưa đăng nhập→/login, chưa consent→/consent, bị khóa→/account-unavailable), Next rewrite `/api`→API + token memory-only, `next` allowlist. AuthProvider client + api client auth. Trang: login/register/forgot-password/reset-password/verify-email/consent/account-unavailable/forbidden. E2E smoke phụ huynh login→/account pass.
+- Đã làm: đăng nhập/đăng ký **email + password** (register→verify email→login→forgot/reset), consent full-screen scroll-gate, `PrivateGuard` client cho khu vực phụ huynh (chưa đăng nhập→/login, chưa consent→/consent, bị khóa→/account-unavailable), Next rewrite `/api`→API, access token memory-only + refresh token cookie HttpOnly `kt_refresh` (giữ phiên qua reload — R-05), `next` allowlist. AuthProvider client + api client auth. Trang: login/register/forgot-password/reset-password/verify-email/consent/account-unavailable/forbidden. E2E smoke phụ huynh login→/account + reload giữ phiên (R-05) pass.
 - Còn lại (follow-up): route `/activation` (one-time token từ trial accepted — gắn với Flow 4/TM-05), OAuth Google/Facebook thật (khi có app client), bootstrap parent profile (TM-04).
 
 Scope:

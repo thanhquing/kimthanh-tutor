@@ -11,7 +11,7 @@ Tài liệu này liệt kê các mối đe dọa chính và biện pháp bắt b
 
 ## 2. Xác thực & phiên (auth/session)
 
-- **Google/Facebook OAuth** là đích đăng nhập chính về lâu dài (server verify token trực tiếp với provider — `GOOGLE_CLIENT_ID`, Facebook app id/secret — không tin profile client gửi). Hiện chưa có app client nên phương thức hoạt động là **email + password** cho parent/tutor.
+- **Đăng nhập parent/tutor**: **email + password** và **Google OAuth (server-side, đã hoạt động)** là hai phương thức đang chạy; **Facebook OAuth** là đích lâu dài. Server verify token trực tiếp với provider (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, Facebook app id/secret), không tin profile client gửi. Chi tiết luồng Google server-side ở gạch đầu dòng "Google OAuth" phía dưới.
 - Console `tutor-admin` dùng email/password riêng đã provision ngoài UI. Chỉ lưu scrypt hash trong `admin_credentials`, kiểm tra role `admin` và trạng thái ở server, dùng thông báo sai credential chung, rate limit theo IP và khóa credential 15 phút sau 5 lần sai. Counter sai phải tăng bằng compare-and-swap/ghi nguyên tử để request song song không làm mất increment. Access token chỉ ở RAM; refresh token admin nằm trong cookie HttpOnly, `SameSite=Strict`, `Secure` ở production, quay vòng nguyên tử mỗi lần khôi phục và bị thu hồi khi logout. Rotation chỉ một request được claim token cũ; xung đột multi-tab trong grace ngắn không được revoke/clear token con của request thắng, còn reuse sau grace phải thu hồi mọi refresh token đang hoạt động của user. Rotate password cũng phải thu hồi mọi refresh token đang hoạt động. Không có đăng ký/quên mật khẩu public cho admin.
 - **Email + password (parent/tutor)**: chỉ nhận email `@gmail.com` hoặc domain chứa `edu`. Password scrypt (`user_credentials`), thông báo sai credential chung, khóa tạm sau nhiều lần sai (CAS nguyên tử như admin), rate limit login theo IP. **SĐT chỉ để liên hệ, không đăng nhập** (bỏ OTP-SMS để giảm chi phí + bề mặt tấn công).
 - **Google OAuth (server-side Authorization Code)**: đăng nhập/đăng ký Google chạy hoàn toàn phía server để không lộ token/secret ra browser. `GET /auth/oauth/google/start` đặt nonce chống CSRF vào cookie `kt_oauth_state` (HttpOnly, `SameSite=Lax` để nhận được khi Google redirect top-level về) rồi redirect sang Google; `GET /auth/oauth/google/callback` verify `state==nonce`, đổi `code` lấy `id_token` bằng `client_secret` (chỉ ở server, không rời máy chủ), verify `aud`/email-verified, register-or-login, set cookie phiên `kt_refresh` rồi redirect về FE. `return_to` phải thuộc allowlist `OAUTH_RETURN_URLS` và `next` phải là path nội bộ (chống open-redirect). FE boot dùng silent `/auth/refresh` (R-05) để nhận access token — không có token nào nằm trong URL.
@@ -88,7 +88,7 @@ Cơ sở dữ liệu gia sư là tài sản; đối thủ có thể cào để s
 
 | Đối tượng | Lý do | Chiến lược |
 | --- | --- | --- |
-| Gửi/nhập OTP | Chống brute-force + đốt tiền SMS | Theo SĐT + IP + thiết bị, cooldown, CAPTCHA |
+| Login/register/forgot | Chống brute-force credential | Theo IP, khóa tạm sau nhiều lần sai (CAS), cooldown |
 | Search/chi tiết công khai | Chống scraping/DoS | Theo IP + fingerprint; token bucket Redis khi bật shared limiter |
 | Tạo trial request (guest) | Chống spam gia sư | Theo IP + SĐT lead, giới hạn/giờ |
 | Tạo phiên thanh toán | Chống lạm dụng | Theo user + idempotency key |
@@ -106,7 +106,7 @@ Trạng thái 2026-07-16: limiter hiện dùng `@nestjs/throttler` in-memory. Ph
 
 ## 11. Ghi log an toàn & audit
 
-- **Không log PII/secret** (SĐT đầy đủ, mã OTP, token, số tài khoản). Mask khi cần.
+- **Không log PII/secret** (SĐT đầy đủ, mật khẩu, token, số tài khoản). Mask khi cần.
 - `audit_logs` cho hành động nhạy cảm (admin, thay đổi quyền, hoàn tiền, kiểm duyệt) — append-only.
 - Log có `request_id` để trace nhưng không lộ dữ liệu nhạy cảm.
 
@@ -117,7 +117,7 @@ Trạng thái 2026-07-16: limiter hiện dùng `@nestjs/throttler` in-memory. Ph
 | Giả mạo webhook để mở khóa miễn phí | Verify chữ ký + đối chiếu số tiền + chống trùng |
 | Double-accept/ race trạng thái | Optimistic lock (`version`) + transaction |
 | IDOR (xem dữ liệu người khác) | Ownership check ở service, fail closed |
-| Brute-force OTP / đốt SMS | Rate limit + hash + cooldown + CAPTCHA |
+| Brute-force credential (login) | Rate limit + khóa tạm + hash password (scrypt) + cooldown |
 | Scraping DB gia sư | Rate limit + phân tầng dữ liệu + phát hiện bất thường |
 | Đi vòng nền tảng (mất doanh thu) | Ẩn liên hệ + phát hiện liên hệ ngoài + signed URL + ToS |
 | Upload mã độc/nội dung xấu | Signed upload + validate + quét virus + kiểm duyệt |

@@ -29,16 +29,16 @@ Health: `GET /healthz`, `GET /readyz` (readyz kiểm tra DB).
 docker compose up --build --abort-on-container-exit verify
 ```
 
-Compose dựng PostgreSQL, build API image, chạy `prisma db push`, sau đó script `scripts/verify-api-io.sh` kiểm tra schema, DB bằng `psql`, health/readyz và luồng OTP fallback/local bằng cURL. Non-production OTP dùng mã cố định `272727`; Google/Facebook OAuth là đường đăng ký/đăng nhập chính và cần provider token thật để E2E ngoài môi trường mock/unit test. Checklist chi tiết nằm ở `../ai-tasks/06-verification.md`.
+Compose dựng PostgreSQL, build API image, chạy `prisma db push`, sau đó script `scripts/verify-api-io.sh` kiểm tra schema, DB bằng `psql`, health/readyz và luồng auth email + password (register → verify email → login) bằng cURL. Non-production thiếu `RESEND_API_KEY` sẽ trả `dev_verification_link`/`dev_reset_link` để test link verify/reset; Google OAuth luồng Authorization Code server-side cần `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` thật để E2E ngoài môi trường mock/unit test. Checklist chi tiết nằm ở `../ai-tasks/06-verification.md`.
 
 ## Trạng thái hiện tại
 
 - Đã có cấu hình dự án, **Prisma schema đầy đủ theo ERD** (`prisma/schema.prisma`) và hạ tầng cross-cutting: config, PrismaModule, guard JWT + vai trò, filter lỗi chuẩn, keyset pagination, request-id, util ULID/hash, health.
 - Các module nghiệp vụ trong catalog đã có service/controller/test trọng yếu: `auth`, `consent`, `search`, `tutors`, `parents`, `billing`, `trials`, `classes`, `dashboard`, `reviews`, `qr`, `notifications`, `admin`.
 - Flow cURL 1-12 trong `../ai-tasks/07-api-curl-user-flows.md` đã Verified ngày 2026-07-14. Lần chạy unit gần nhất ngày 2026-07-16: 16 suite / 93 test pass; lint và Nest build pass.
-- Auth parent/tutor dùng Google/Facebook OAuth làm đường chính; OTP SĐT là fallback/local với mã `272727` cho tới khi chốt provider gửi OTP production. Admin dùng email/password scrypt được provision ngoài UI, access token ở RAM phía client và refresh token hash quay vòng trong PostgreSQL qua cookie HttpOnly.
+- Auth parent/tutor dùng email + password (register → verify email qua link → login → forgot/reset) và Google OAuth luồng Authorization Code server-side (`/auth/oauth/google/start` → `/callback`); đã bỏ OTP-SMS, SĐT chỉ để liên hệ. Chỉ nhận email domain whitelist (mặc định `gmail.com`) hoặc domain chứa nhãn `edu`. Admin dùng email/password scrypt được provision ngoài UI, access token ở RAM phía client và refresh token hash quay vòng trong PostgreSQL qua cookie HttpOnly.
 - Admin refresh rotation chạy transaction với claim nguyên tử và grace 5 giây cho xung đột multi-tab; reuse sau grace thu hồi mọi refresh token còn hoạt động của user. Rotate password bằng `pnpm admin:set-password` cũng thu hồi toàn bộ phiên refresh còn hoạt động.
-- Side-effect nền như gửi OTP thật, worker outbox/notification, object storage thật, provider OAuth production hardening và provider webhook thật vẫn là phần tích hợp hạ tầng.
+- Email giao dịch (verify email, reset password) gửi qua Resend (`RESEND_API_KEY`); prod cần `MAIL_FROM` thuộc domain đã verify. Side-effect nền như worker outbox/notification, object storage thật, provider OAuth production hardening và provider webhook thật vẫn là phần tích hợp hạ tầng.
 - Danh mục endpoint chi tiết, quyền và quy tắc nghiệm thu nằm ở `../ai-tasks/05-api-endpoints.md`.
 
 Provision hoặc rotate password cho user đã có role `admin`:
@@ -58,7 +58,7 @@ Xem `../ai-tasks/03-ai-working-rules.md` và `../ai-docs/15`: ULID, UTC, tiền 
 - Xử lý màn khóa trả phí, mở khóa hồ sơ, gói VIP, gói theo dõi bảng điều khiển và gói QR gia sư.
 - Quản lý yêu cầu dạy thử, chấp nhận lớp, hợp đồng lớp học và kết thúc lớp.
 - Lưu sổ đầu bài, bài tập về nhà, mức độ tiếp thu, dòng thời gian và dữ liệu biểu đồ.
-- Gửi thông báo/link kích hoạt qua email/SMS hoặc nhà cung cấp tương đương.
+- Gửi thông báo/link kích hoạt (verify email, reset password) qua email (Resend) hoặc nhà cung cấp tương đương.
 - Lưu consent pháp lý khi đăng ký tài khoản.
 
 ## Ranh giới trách nhiệm

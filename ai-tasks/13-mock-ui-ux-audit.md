@@ -21,7 +21,7 @@ Phạm vi đã đọc: toàn bộ HTML/CSS/JS trong `kimthanh-tutor-mock/public/
 
 | Mock | Màn/ý đồ | Task |
 | --- | --- | --- |
-| `login.html`, `consent.html` | OAuth/OTP và cổng pháp lý | TA-01 |
+| `login.html`, `consent.html` | đăng nhập email+password/OAuth và cổng pháp lý | TA-01 |
 | `dashboard.html` | việc cần làm hôm nay | TA-04 |
 | `profile.html` | hồ sơ, media, checklist/publish | TA-02 |
 | `availability.html` | lịch available/busy theo tuần | TA-03 |
@@ -42,7 +42,7 @@ Phạm vi đã đọc: toàn bộ HTML/CSS/JS trong `kimthanh-tutor-mock/public/
 | --- | --- | --- |
 | `index.html`, `search.html` | search/filter/list | TM-01; `search.html` chỉ alias |
 | `tutor.html`, `tutor-detail.html` | preview/paywall/unlocked detail | TM-02; alias không phải màn mới |
-| `login.html`, `consent.html` | OAuth/OTP/legal | TM-03 |
+| `login.html`, `consent.html` | đăng nhập email+password/OAuth/legal | TM-03 |
 | `parent-profile.html`, `account.html` | hồ sơ phụ huynh/gói | TM-04/TM-08; alias |
 | `students.html`, `student-form.html` | CRUD học sinh | TM-04 |
 | `trial-form.html`, `trials.html` | guest/parent trial, trạng thái/cancel | TM-05 |
@@ -80,7 +80,7 @@ Phạm vi đã đọc: toàn bộ HTML/CSS/JS trong `kimthanh-tutor-mock/public/
 | UX-001 | Critical | Market checkout nhận `amount` từ query string; client có thể sửa giá. | Checkout chỉ gửi `product_type/target_ref_id`; server trả amount/pricing. TM-02, TM-08, TA-09. |
 | UX-002 | Critical | Mock có nút “Tôi đã thanh toán” tự bật gói QR bằng localStorage. | Xóa hoàn toàn; chỉ webhook `paid` cấp quyền, UI poll API. TA-09. |
 | UX-003 | Critical | Consent tutor được tick sẵn, không scroll, không document/version; market gửi sai DTO từng document. | Full-screen non-dismissible; tải active docs; scroll 100%; POST hai ID cùng `scroll_reached_bottom`. TA-01, TM-03. |
-| UX-004 | Critical | Login mock OTP gửi `{phone}`/verify `{phone,code}`, khác API `{channel,destination}` và `{request_id,code}`; OAuth chỉ giả lập. | Typed auth client + provider SDK/config + request ID. TA-01, TM-03, AD-00. |
+| UX-004 | Critical | Login mock OTP gửi `{phone}`/verify `{phone,code}` và OAuth chỉ giả lập; API hiện dùng **email + password** (register → verify email qua link → login) + **Google OAuth server-side**, đã bỏ OTP-SMS. | Typed auth client theo API email+password; nút Google trỏ `/auth/oauth/google/start` (FE không cần client id). TA-01, TM-03, AD-00. |
 | UX-005 | Critical | Mock tutor class dùng `trial/ended`; API dùng `trial_accepted/completed_pending_review/completed/cancelled`. | Dùng state machine từ contracts, confirm destructive transition, optimistic conflict UI. TA-06. |
 | UX-006 | Critical | Market dashboard đọc `avg_absorption/items/taught_at/absorption`, khác response `summary`, `timeline.items`, `lesson_at`, `absorption_level`. | Typed mapper và biểu đồ theo enum/count thực. TM-07. |
 | UX-007 | High | `tutor.html` kiểm tra `(unlock_via || []).includes(...)` dù `unlock_via` là string/null và sản phẩm nằm ở `paywall.products`; paywall có thể không có CTA. | Render capability từ `unlock_state` + `paywall.products`. TM-02. |

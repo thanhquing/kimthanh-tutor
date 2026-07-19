@@ -104,7 +104,7 @@ Nếu phụ huynh chưa có tài khoản (guest):
 
 ### 3.1 Đăng ký và hồ sơ
 
-Gia sư đăng ký/đăng nhập chính bằng Google hoặc Facebook. Số điện thoại OTP chỉ là fallback/local cho tới khi có provider gửi OTP thật; local dùng mã cố định `272727`.
+Gia sư đăng ký/đăng nhập bằng email + mật khẩu (đăng ký → xác minh email qua link → đăng nhập; quên mật khẩu qua email). Google OAuth (Authorization Code phía server) đã hoạt động; Facebook OAuth là đích lâu dài. Số điện thoại chỉ để liên hệ, không dùng để đăng nhập.
 
 Bắt buộc:
 
@@ -191,7 +191,7 @@ Khi đã kích hoạt:
 Sau khi gia sư chấp nhận yêu cầu:
 
 - Phụ huynh nhận link kích hoạt.
-- Phụ huynh tạo tài khoản bằng số điện thoại/email.
+- Phụ huynh tạo tài khoản bằng email + mật khẩu (số điện thoại chỉ để liên hệ).
 - Phụ huynh bắt buộc hoàn tất popup điều khoản/chính sách.
 - Tài khoản được liên kết với lớp/học sinh vừa chốt.
 

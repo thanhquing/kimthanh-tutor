@@ -65,7 +65,7 @@ Required files:
 - `index.html`: redirect/landing shell that immediately links or forwards to `search.html`; also works if opened directly.
 - `search.html`: booking-style search home + tutor results.
 - `tutor-detail.html`: tutor detail with locked/unlocked paywall.
-- `login.html`: OAuth/OTP demo.
+- `login.html`: email + password + Google demo.
 - `consent.html`: terms/privacy consent.
 - `parent-profile.html`: parent profile form.
 - `students.html`: student list/add/edit.
@@ -126,8 +126,8 @@ Screen details:
 - Back link to `search.html`.
 
 3. `login.html`
-- Google demo button, Facebook demo button.
-- OTP request form, OTP verify form with code `272727`.
+- Google demo button (server-side redirect), Facebook demo button.
+- Email + password register form and login form; verify-email link demo.
 - On successful demo login, save session to localStorage and redirect to `consent.html` if consent not accepted, otherwise `parent-profile.html`.
 
 4. `consent.html`
@@ -198,7 +198,7 @@ Screen details:
 API stubs in `app.js`:
 - `apiRequest(path, options)`
 - `searchTutors(query)`, `getTutorPublic(id)`
-- `loginGoogle`, `loginFacebook`, `requestOtp`, `verifyOtp`, `getMe`, `submitConsent`
+- `register`, `verifyEmail`, `login`, `loginGoogle`, `loginFacebook`, `getMe`, `submitConsent`
 - `getParentProfile`, `saveParentProfile`
 - `listStudents`, `saveStudent`, `deleteStudent`
 - `createTrial`, `listMyTrials`
@@ -253,7 +253,7 @@ Design quality bar:
 Required files:
 - `index.html`: opens/links to `dashboard.html`.
 - `dashboard.html`: tutor work queue.
-- `login.html`: auth/OTP demo.
+- `login.html`: email + password auth demo.
 - `consent.html`: consent demo.
 - `profile.html`: tutor profile editor and publish flow.
 - `availability.html`: weekly availability grid.
@@ -285,7 +285,7 @@ Screen details:
 - Quick action buttons link to profile, trials, lesson logs, QR records.
 
 2. `login.html` and `consent.html`
-- Login has Google/Facebook demo and OTP `272727`.
+- Login has email + password form and Google demo.
 - Consent saves localStorage and redirects to dashboard.
 
 3. `profile.html`
@@ -362,7 +362,7 @@ Screen details:
 
 API stubs in `app.js`:
 - `apiRequest`
-- `loginGoogle`, `loginFacebook`, `requestOtp`, `verifyOtp`, `getMe`, `submitConsent`
+- `register`, `verifyEmail`, `login`, `loginGoogle`, `loginFacebook`, `getMe`, `submitConsent`
 - `getTutorProfile`, `saveTutorProfile`, `publishTutorProfile`, `createUploadUrl`
 - `listAvailabilities`, `createAvailability`, `deleteAvailability`
 - `listTutorTrials`, `acceptTrial`, `declineTrial`
@@ -445,7 +445,7 @@ Screen details:
 - CTA buttons link to moderation, payments, logs.
 
 2. `login.html`
-- Admin OTP demo `272727`.
+- Admin email + password demo login.
 - Save adminLoggedIn=true.
 - If not logged in, pages show forbidden state with link to login.
 

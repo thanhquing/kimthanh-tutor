@@ -13,7 +13,7 @@ Ghi chú trạng thái code ngày 2026-07-16:
 - Thiết lập Redis (cache, rate limit, lock, BullMQ).
 - ✅ Thiết lập lint/test/build cho workspace hiện có. Benchmark hot-path search (EXPLAIN ANALYZE trong CI) vẫn TODO.
 - ✅ Thiết lập env config cơ bản; secret manager thật vẫn là việc triển khai hạ tầng.
-- ✅ Thiết lập xác thực Google/Facebook OAuth phía server; phone OTP còn là fallback/local với mã `272727`, hash mã, cooldown/rate-limit cơ bản.
+- ✅ Thiết lập xác thực **email + password** (register → verify email qua link → login → quên/đặt lại mật khẩu) và **Google OAuth server-side**; Facebook OAuth là đích lâu dài. Đã bỏ OTP-SMS. Rate-limit/khóa tài khoản cơ bản cho auth.
 - ✅ Tạo versioning cho legal consent (`legal_documents`/`legal_consents`).
 - ✅ Dựng khung observability cơ bản: request_id, healthz/readyz; metric p95 search/webhook còn cần hạ tầng đo thật.
 
@@ -109,7 +109,7 @@ Ghi chú trạng thái code ngày 2026-07-16:
 
 ## Nhóm việc 8: Thông báo
 
-- Thông báo OTP/provider thật nếu bật phone login production; local hiện dùng mã `272727`, Google/Facebook là đường chính.
+- Email giao dịch (verify email, đặt lại mật khẩu) gửi qua Resend; đã bỏ OTP-SMS.
 - Thông báo yêu cầu dạy thử.
 - Link kích hoạt khi yêu cầu được chấp nhận.
 - Thông báo sổ đầu bài mới.

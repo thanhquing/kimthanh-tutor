@@ -28,7 +28,7 @@ Dùng tài liệu này để kiểm tra MVP khi bắt đầu triển khai.
 
 ## `tutor-app`
 
-- Gia sư đăng ký bằng Google/Facebook OAuth hoặc OTP SĐT fallback/local và bị chặn bởi popup pháp lý trước khi kích hoạt.
+- Gia sư đăng ký bằng email + password (verify email qua link) hoặc Google OAuth server-side và bị chặn bởi popup pháp lý trước khi kích hoạt.
 - Gia sư tạo được hồ sơ tối thiểu.
 - Hồ sơ thiếu thông tin cần thiết không được xuất bản.
 - Gia sư nhập được lịch bận/lịch có thể dạy.
@@ -75,6 +75,6 @@ Dùng tài liệu này để kiểm tra MVP khi bắt đầu triển khai.
 - Lỗi phân quyền trả mã lỗi nhất quán; ownership check ở phía máy chủ (chống IDOR).
 - Các hành động quan trọng có validation phía máy chủ, không chỉ dựa vào giao diện.
 - p95 tìm kiếm chợ gia sư < 200ms với dữ liệu quy mô thực tế (`12-non-functional-requirements.md`).
-- Có rate limit cho OTP/search/guest request/payment.
+- Có rate limit cho auth (login/register/forgot)/search/guest request/payment.
 - Dữ liệu trẻ em & PII tuân thủ `14-data-privacy-and-compliance.md` (consent, retention, ẩn danh khi xóa).
 - Tài liệu API sau này phải map ngược được về mô hình miền nghiệp vụ trong `05-domain-model.md` và ERD `11`.

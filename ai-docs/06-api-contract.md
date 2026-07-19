@@ -66,9 +66,8 @@ Dữ liệu ra:
 
 ## API xác thực và consent
 
-- Đăng nhập/đăng ký bằng Google/Facebook OAuth, server verify token với provider.
-- Gửi/xác minh OTP SĐT fallback/local; non-production dùng mã cố định `272727`.
-- Parent/tutor giữ access/refresh token trong RAM; `/auth/refresh` quay vòng refresh token và `/auth/logout` thu hồi refresh token hiện tại. Lỗi refresh 5xx/network tạm thời không được tự xóa token còn dùng được; `AUTH_REQUIRED` mới kết thúc phiên local.
+- Đăng nhập/đăng ký bằng email + password (register → verify email qua link → login → forgot/reset) hoặc Google OAuth chạy server-side (Authorization Code): `GET /auth/oauth/google/start` đặt nonce vào cookie `kt_oauth_state` rồi redirect sang Google, `GET /auth/oauth/google/callback` verify state, đổi `code` lấy `id_token` bằng `client_secret` ở server, register-or-login rồi set cookie phiên. SĐT chỉ để liên hệ, KHÔNG đăng nhập (đã bỏ OTP-SMS).
+- Parent/tutor giữ access token trong RAM tab; refresh token nằm trong cookie HttpOnly `kt_refresh` (không trả ra body). `/auth/refresh` đọc cookie để quay vòng refresh token và set lại cookie (boot app gọi silent refresh để giữ đăng nhập qua reload), `/auth/logout` đọc cookie để thu hồi refresh token hiện tại và clear cookie. Lỗi refresh 5xx/network tạm thời không được tự xóa phiên còn dùng được; `AUTH_REQUIRED` mới kết thúc phiên local.
 - Admin đăng nhập qua endpoint riêng bằng email/password đã provision; server kiểm tra scrypt hash, status và role `admin`, tăng failed-attempt bằng compare-and-swap, khóa 15 phút sau 5 lần sai. Access token chỉ giữ trong RAM; refresh token hash nằm trong PostgreSQL và token thô chỉ ở cookie HttpOnly `SameSite=Strict`. `/auth/admin/refresh` claim/rotate trong transaction, cho grace 5 giây với xung đột multi-tab; reuse sau grace thu hồi mọi refresh token còn hoạt động của user. `/auth/admin/logout` thu hồi phiên và rotate password thu hồi mọi refresh token của admin.
 - Tạo tài khoản ở trạng thái chờ consent.
 - Lấy version pháp lý hiện tại.

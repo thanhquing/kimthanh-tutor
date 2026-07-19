@@ -49,7 +49,7 @@ Phạm vi kiểm chứng hiện tại:
 
 - `prisma validate` đọc `tutor-api/prisma/schema.prisma`.
 - API container chạy `prisma db push --accept-data-loss` để dựng schema vào PostgreSQL verify.
-- `psql` kiểm tra các bảng chính: `users`, `otp_requests`, `tutor_profiles`, `payments`, `class_contracts`, `reviews`, `audit_logs`. Schema hiện còn có `admin_credentials`, `refresh_tokens`, `platform_payment_accounts`, `product_pricing`, `paid_feature_overrides`; bổ sung chúng vào script DB assertion khi mở rộng verify schema.
+- `psql` kiểm tra các bảng chính: `users`, `user_credentials`, `email_tokens`, `tutor_profiles`, `payments`, `class_contracts`, `reviews`, `audit_logs`. Schema hiện còn có `admin_credentials`, `refresh_tokens`, `platform_payment_accounts`, `product_pricing`, `paid_feature_overrides`; bổ sung chúng vào script DB assertion khi mở rộng verify schema.
 - `psql` kiểm tra enum chính: `UserStatus`, `ProductType`, `PaymentStatus`, `ClassStatus`.
 - `curl` kiểm tra output `GET /healthz`.
 - `curl` kiểm tra output `GET /readyz`.
@@ -142,7 +142,7 @@ Nguyên tắc bảo mật của harness:
 - **Không hardcode secret.** Password admin + password gia sư sinh ngẫu nhiên lúc chạy, lưu vào `tutor-e2e/.e2e-state/` (gitignored); link verify/reset đọc từ `dev_verification_link`/`dev_reset_link` trong response API. Chỉ định danh tài khoản test (email) là hằng số, không phải thông tin DB.
 - **Không nhúng credential/tên container.** Seed truy cập DB/API qua `docker compose exec db|api` (service từ chính compose file), không hardcode tên container hay mật khẩu DB.
 - Dev không dính CORS/IPv4-IPv6 nhờ dev proxy `/api` trong `vite.config.ts` của tutor-app/tutor-admin; tutor-market SSR fetch server-side.
-- Throttle OTP là 5 lần/5 phút theo IP → gộp login trong một smoke khi có thể; token tutor/parent memory-only nên điều hướng client-side sau login (không `page.goto` route bảo vệ).
+- Throttle auth là 5 lần/5 phút theo IP → gộp login trong một smoke khi có thể; access token tutor/parent chỉ ở RAM nhưng refresh token nằm trong cookie HttpOnly `kt_refresh` nên phiên giữ qua reload (boot gọi `/auth/refresh`), `page.goto` route bảo vệ vẫn vào được.
 
 ## Quy tắc cập nhật docs sau mỗi task API
 

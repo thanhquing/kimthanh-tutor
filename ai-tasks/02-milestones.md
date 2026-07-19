@@ -48,7 +48,7 @@ Mục tiêu:
 
 Công việc:
 
-- Xác thực Google/Facebook OAuth là đường chính; phone OTP chỉ là fallback/local với mã `272727` cho tới khi có provider gửi OTP thật.
+- Xác thực **email + password** (register → verify email qua link → login → quên/đặt lại mật khẩu) là phương thức hoạt động; **Google OAuth server-side** đã bật; Facebook OAuth là đích lâu dài. Đã bỏ OTP-SMS.
 - Vai trò người dùng.
 - API version pháp lý.
 - Popup consent toàn màn hình.

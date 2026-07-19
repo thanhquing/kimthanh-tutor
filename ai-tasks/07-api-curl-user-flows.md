@@ -20,7 +20,7 @@ Nguyên tắc khi test UI/API:
 
 | Flow | Màn hình chính | Status | Blocker / ghi chú |
 | --- | --- | --- | --- |
-| 1 | Social login + Consent Gate | Verified | Google/Facebook là đường register/login chính; phone OTP fallback local pass ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-01-auth-consent.sh` với mã `272727`; script tự seed legal documents dev |
+| 1 | Login + Consent Gate | Verified | Email + password (register → verify email → login) là đường register/login chính; pass ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-01-auth-consent.sh` (register+verify+login thay OTP); script tự seed legal documents dev. Google OAuth server-side verify bằng browser/E2E |
 | 2 | Tutor profile setup | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-02-tutor-profile.sh`; đã refactor `POST /tutors/me/payout-accounts` trả đủ safe UI shape |
 | 3 | Guest search + paywall | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-03-guest-search-paywall.sh`; script tự tạo tutor published qua Flow 2 |
 | 4 | Guest trial + activation | Verified | Pass end-to-end ngày 2026-07-14 bằng `tutor-api/scripts/verify-flow-04-guest-trial-activation.sh`; script tự tạo tutor published qua Flow 2 |
@@ -41,7 +41,7 @@ Mục tiêu của phần này là giúp mock UI/UX đối chiếu nhanh: mỗi m
 
 ```mermaid
 flowchart TD
-  F1["Flow 1<br/>Social login + Consent Gate"] --> ROLE{"User active<br/>chọn vai trò"}
+  F1["Flow 1<br/>Login + Consent Gate"] --> ROLE{"User active<br/>chọn vai trò"}
   ROLE --> F2["Flow 2<br/>Tutor profile setup"]
   ROLE --> F5["Flow 5<br/>Parent onboarding + student"]
 
@@ -305,7 +305,7 @@ erDiagram
 
 | Flow | Màn hình | Entity ghi/đọc chính | ID output quan trọng |
 | --- | --- | --- | --- |
-| 1 | Social login + Consent Gate | `users`, `auth_accounts`, `otp_requests`, `legal_documents`, `legal_consents` | `access_token`, `user.id` |
+| 1 | Login + Consent Gate | `users`, `user_credentials`, `email_tokens`, `auth_accounts`, `legal_documents`, `legal_consents` | `access_token`, `user.id` |
 | 2 | Tutor profile setup | `tutor_profiles`, `tutor_availabilities`, `tutor_payout_accounts` | `TUTOR_PROFILE_ID`, `PAYOUT_ACCOUNT_ID` |
 | 3 | Guest search + paywall | `tutor_profiles`, `profile_unlocks`, `subscriptions` | `TUTOR_PROFILE_ID` |
 | 4 | Guest trial + activation | `leads`, `trial_requests`, `activation_tokens`, `class_contracts`, `parent_profiles` | `TRIAL_ID`, `CLASS_ID`, `activation_token` |
@@ -355,53 +355,40 @@ export FEATURE="tutor_qr"
 Ghi chú:
 
 - Output dưới đây là shape tối thiểu để mock UI, không phải toàn bộ response.
-- Với môi trường development/local, `POST /auth/otp/request` trả thêm `dev_code="272727"` để test nhanh. Google/Facebook mới là đường register/login chính; OTP phone chỉ là fallback/local cho tới khi có provider gửi OTP thật.
+- Đăng ký (`POST /auth/register`) trả `verification_required=true`; non-prod thiếu `RESEND_API_KEY` thì kèm `dev_verification_link` để verify email nhanh. Email + password là đường register/login chính; Google OAuth chạy server-side (redirect trình duyệt).
 - Một số kịch bản cần dữ liệu có sẵn: legal documents active, tutor đã published, user có role admin, hoặc subscription active. Nếu chưa có seed, dùng phần này như contract mock.
 - Mọi lỗi API chuẩn hóa dạng `{ code, message, details?, request_id? }`.
 
 ---
 
-## Kịch bản 1: Màn Social Login + Consent Gate
+## Kịch bản 1: Màn Login + Consent Gate
 
 Mục tiêu UI:
 
-- Người dùng bấm "Tiếp tục với Google" hoặc "Tiếp tục với Facebook".
-- Client lấy `id_token`/`access_token` từ SDK chính thức rồi gửi về API; server verify token với provider, không tin thông tin profile client tự gửi.
-- Phone OTP vẫn còn cho fallback/local; môi trường local dùng mã cố định `272727`.
+- Người dùng đăng ký/đăng nhập bằng email + password (đường hoạt động chính), hoặc bấm "Tiếp tục với Google" (OAuth server-side).
+- Đăng ký bắt buộc verify email qua link trước khi login được (`pending_verification → pending_consent → active`).
+- Google OAuth chạy server-side: FE chỉ mở link tới `GET /auth/oauth/google/start`; server xử lý `code` + set cookie phiên rồi redirect về FE (không dùng client id/`id_token` ở browser). Facebook client-side là đích lâu dài.
+- Sau login, refresh token nằm trong cookie HttpOnly `kt_refresh` (giữ đăng nhập qua reload); body chỉ có `access_token` + `user` + `consent_required`.
 - Nếu `consent_required=true`, app chuyển sang màn consent toàn màn hình.
 - Sau khi đồng ý, app gọi lại `/auth/me` để quyết định route tiếp theo.
 
-### Step 1A. Login/register bằng Google
+### Step 1A. Login/register bằng Google (server-side)
 
 User action: bấm "Tiếp tục với Google".
 
-```bash
-curl -sS -X POST "$API/auth/oauth/google" \
-  -H "$JSON" \
-  --data '{
-    "id_token": "<google_id_token_from_google_sdk>"
-  }'
+FE chỉ mở link trình duyệt tới:
+
+```text
+GET $API/auth/oauth/google/start?return_to=<fe_url>&next=<path_nội_bộ>
 ```
 
-Expected output:
+Server đặt nonce chống CSRF vào cookie `kt_oauth_state` rồi redirect sang Google. Sau khi user đồng ý, Google gọi lại `GET /auth/oauth/google/callback?code&state`; server verify `state`, đổi `code` lấy `id_token` bằng `client_secret` (chỉ ở server), register-or-login, set cookie phiên `kt_refresh` rồi redirect về `return_to+next`. Lỗi → redirect `/login?oauth_error=state|denied|failed`.
 
-```json
-{
-  "access_token": "<jwt>",
-  "user": {
-    "id": "01K...",
-    "phone": null,
-    "email": "parent@example.com",
-    "status": "pending_consent"
-  },
-  "consent_required": true
-}
-```
-
-Response còn kèm header `Set-Cookie: kt_refresh=...; HttpOnly; SameSite=Strict; Path=/api/v1/auth` — refresh token KHÔNG nằm trong body. Với cURL, thêm `-c cookies.txt` để lưu cookie.
+Đây là luồng redirect trình duyệt (cần theo cookie + redirect của Google), **không test bằng cURL thuần được** — verify bằng browser thật/E2E. Luồng `id_token` client-side (`POST /auth/oauth/google`) vẫn còn trong code nhưng FE không dùng.
 
 UI state:
 
+- Sau khi redirect về FE, app gọi silent `POST /auth/refresh` (cookie tự đính) để lấy `access_token`, rồi `/auth/me`.
 - Chỉ lưu `access_token` trong RAM; refresh token do cookie HttpOnly giữ (giữ đăng nhập qua reload).
 - Nếu `consent_required=true`, mở màn consent bắt buộc.
 
@@ -439,16 +426,16 @@ UI state:
 - Chỉ lưu `access_token` trong RAM; refresh token do cookie HttpOnly giữ.
 - Nếu `consent_required=true`, mở màn consent bắt buộc.
 
-### Step 1C. Fallback/local: Request phone OTP
+### Step 1C. Đăng ký bằng email + password
 
-User action: bấm "Đăng nhập bằng SĐT" hoặc chạy verify local.
+User action: nhập email + password, bấm "Đăng ký".
 
 ```bash
-curl -sS -X POST "$API/auth/otp/request" \
+curl -sS -X POST "$API/auth/register" \
   -H "$JSON" \
   --data '{
-    "channel": "sms",
-    "destination": "0900000000"
+    "email": "parent@gmail.com",
+    "password": "flow-pass-12345"
   }'
 ```
 
@@ -456,49 +443,61 @@ Expected output:
 
 ```json
 {
-  "request_id": "01K...",
-  "expires_at": "2026-07-14T10:05:00.000Z",
-  "dev_code": "272727"
+  "user": {
+    "id": "01K...",
+    "email": "parent@gmail.com",
+    "status": "pending_verification"
+  },
+  "verification_required": true,
+  "dev_verification_link": "http://localhost:3000/verify-email?token=..."
 }
 ```
 
 UI state:
 
-- Hiển thị màn nhập OTP.
-- Countdown theo `expires_at`.
-- Dev/test có thể auto-fill `dev_code`; non-production luôn là `272727`.
+- Chỉ nhận email domain whitelist (mặc định `gmail.com`) hoặc domain chứa nhãn `edu`.
+- Hiển thị màn "Kiểm tra email để xác thực". Login trước khi verify bị chặn (`EMAIL_NOT_VERIFIED`, 403).
+- Non-prod thiếu `RESEND_API_KEY` thì trả `dev_verification_link` để test; có key thì gửi email thật (không trả link).
 
-### Step 1D. Fallback/local: Verify OTP
+### Step 1D. Verify email rồi đăng nhập
 
-User action: nhập OTP và bấm "Tiếp tục".
+User action: bấm link trong email (verify), quay lại đăng nhập.
 
 ```bash
-curl -sS -X POST "$API/auth/otp/verify" \
+# Xác thực email qua token trong link
+curl -sS -X POST "$API/auth/email/verify" \
+  -H "$JSON" \
+  --data '{ "token": "<token_từ_dev_verification_link>" }'
+
+# Đăng nhập (lưu cookie phiên vào cookie jar)
+curl -sS -c cookies.txt -X POST "$API/auth/login" \
   -H "$JSON" \
   --data '{
-    "request_id": "<request_id>",
-    "code": "<dev_code>"
+    "email": "parent@gmail.com",
+    "password": "flow-pass-12345"
   }'
 ```
 
-Expected output:
+Expected output (login):
 
 ```json
 {
   "access_token": "<jwt>",
-  "refresh_token": "<refresh_token>",
   "user": {
     "id": "01K...",
-    "phone": "0900000000",
+    "phone": null,
+    "email": "parent@gmail.com",
     "status": "pending_consent"
   },
   "consent_required": true
 }
 ```
 
+Response còn kèm header `Set-Cookie: kt_refresh=...; HttpOnly; SameSite=Strict; Path=/api/v1/auth` — refresh token KHÔNG nằm trong body.
+
 UI state:
 
-- Lưu token.
+- Chỉ lưu `access_token` trong RAM; refresh token do cookie HttpOnly giữ (giữ đăng nhập qua reload).
 - Nếu `consent_required=true`, mở màn consent bắt buộc.
 
 ### Step 3. Load legal documents

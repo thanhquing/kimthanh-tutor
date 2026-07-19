@@ -38,7 +38,7 @@ Chia theo miền nghiệp vụ, không chia theo tầng kỹ thuật. Mỗi modu
 
 Đây là **bản đồ bounded context mục tiêu**. Một số context nhỏ hiện được gộp vào module lân cận trong `tutor-api/src/modules` để tránh chia nhỏ sớm; khi phình to sẽ tách thành module riêng mà không đổi ranh giới nghiệp vụ. Cột "code" ghi trạng thái thực tế.
 
-- `auth` — email + password (register/verify email/login/forgot/reset), Google/Facebook OAuth (đích lâu dài), phiên, JWT, vai trò; module `mail` gửi email verify/reset qua Resend. *(code: `auth`, `mail`, gồm luôn context `users`)*
+- `auth` — email + password (register/verify email/login/forgot/reset), Google OAuth server-side (Authorization Code, đã hoạt động) + Facebook OAuth (đích lâu dài), phiên, JWT, vai trò; module `mail` gửi email verify/reset qua Resend. *(code: `auth`, `mail`, gồm luôn context `users`)*
 - `consent` — legal documents versioning, ghi nhận đồng ý. *(code: `consent`)*
 - `users` — `users`, hồ sơ vai trò gốc. *(code: gộp trong `auth`)*
 - `parents` — parent profile, students. *(code: `parents`)*
@@ -126,5 +126,5 @@ Phân biệt "thiết kế đã đúng" với "hạ tầng đã bật" — các 
 
 - **Outbox worker**: `OutboxService.emit` ghi `outbox_events` trong transaction nghiệp vụ (đúng pattern), nhưng **chưa có consumer** drain outbox để gửi ra kênh ngoài. Notification in-app ghi thẳng DB nên đọc được ngay; các kênh sms/email/push và đồng bộ search mới dừng ở mức phát sự kiện.
 - **Redis + BullMQ**: là quyết định kiến trúc (cache/lock/queue) nhưng **chưa thêm dependency**; rate limit hiện dùng `@nestjs/throttler` in-memory. Bật khi tách worker hoặc scale ngang > 1 instance.
-- Provider gửi OTP thật, object storage thật, OAuth production hardening, provider webhook thật: xem `../ai-tasks/01-backlog.md`.
+- Object storage thật, OAuth production hardening (Facebook), provider webhook thật: xem `../ai-tasks/01-backlog.md`.
 - **Code evidence**: API 16 suite / 93 test pass; `tutor-app` `TA-00` DONE (15 test), `tutor-market` `TM-00` DONE (17 test), `tutor-admin` `AD-00` DONE (15 test). Các con số frontend là evidence của task; business screens sau scaffold vẫn TODO theo `../ai-tasks/14-active-work.md`.

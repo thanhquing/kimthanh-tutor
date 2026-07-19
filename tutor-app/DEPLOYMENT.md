@@ -6,6 +6,6 @@ App gia sư là bề mặt **private** (authenticated + consent + role `tutor`),
 - `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`.
 - `X-Robots-Tag: noindex, nofollow, noarchive` và `Cache-Control: no-store` cho HTML/route protected.
 
-`VITE_API_BASE_URL` và môi trường build chỉ đặt khi build/deploy. Không thêm công tắc đổi API, token mẫu, analytics session replay hay dữ liệu mock vào production. Access/refresh token giữ trong memory store (không browser storage/log).
+`VITE_API_BASE_URL` và môi trường build chỉ đặt khi build/deploy. Không thêm công tắc đổi API, token mẫu, analytics session replay hay dữ liệu mock vào production. Access token chỉ giữ trong RAM (không browser storage/log); refresh token do API giữ trong cookie HttpOnly `kt_refresh` nên reload vẫn khôi phục được phiên.
 
 API production phải cấu hình `CORS_ORIGINS` bằng danh sách origin chính xác của app, bật HTTPS. Không đặt wildcard CORS khi cho phép credentials.

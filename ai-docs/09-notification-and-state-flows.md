@@ -6,7 +6,7 @@ Giai đoạn 1 có thể dùng:
 
 - Trong ứng dụng.
 - Email.
-- SMS/OTP.
+- SMS.
 - Push nếu ứng dụng/PWA hỗ trợ.
 
 ## Sự kiện cần thông báo

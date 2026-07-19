@@ -26,9 +26,9 @@ Tài liệu mô tả lược đồ dữ liệu giai đoạn 1 ở mức thiết 
 5. **Ràng buộc duy nhất & tương tranh** rõ ràng (chống double-accept, review trùng, race webhook).
 6. **`subscriptions` gắn scope theo học sinh** cho gói `parent_tracking` (theo quyết định sản phẩm: tính theo mỗi con).
 7. **`profile_unlocks` mặc định vĩnh viễn** (`expires_at = null`) theo quyết định sản phẩm.
-8. **Thêm `auth_accounts` và cho phép `users.phone` nullable**: Google/Facebook OAuth là đường đăng ký/đăng nhập chính; SĐT chỉ là fallback/local.
+8. **Thêm `auth_accounts` và cho phép `users.phone` nullable**: email + password (bảng `user_credentials`) và Google OAuth server-side là đường đăng ký/đăng nhập chính; SĐT chỉ để liên hệ, không đăng nhập (đã bỏ OTP-SMS).
 9. **Thêm cấu hình vận hành cho `tutor-admin`**: `platform_payment_accounts`, `product_pricing`, `paid_feature_overrides` để chủ dự án cấu hình VietQR nền tảng, giá sản phẩm và quyền paid feature theo user.
-10. **Tách credential admin và phiên refresh**: `admin_credentials` quan hệ 1-1 với `users`, lưu scrypt hash/counter/lock/password-change time; `refresh_tokens` chỉ lưu token hash + rotation chain/revocation trong PostgreSQL. Parent/tutor vẫn dùng OAuth/OTP và không có password.
+10. **Tách credential admin và phiên refresh**: `admin_credentials` quan hệ 1-1 với `users`, lưu scrypt hash/counter/lock/password-change time; `refresh_tokens` chỉ lưu token hash + rotation chain/revocation trong PostgreSQL. Parent/tutor dùng email + password (bảng `user_credentials`) hoặc Google OAuth server-side.
 
 ## 2. Sơ đồ ERD tổng thể
 
@@ -558,7 +558,7 @@ Chi tiết chiến lược ở `12-non-functional-requirements.md`. Tối thiể
 | --- | --- | --- | --- |
 | Tìm kiếm gia sư công khai | `tutor_profiles` + bảng chuẩn hóa + `rating_avg` | Không ghi | Chỉ bản xem thử; **không** AGG review runtime (dùng cột denormalized); keyset pagination |
 | Chi tiết gia sư công khai | `tutor_profiles`, `profile_unlocks`, `subscriptions`, `reviews`, `media_assets` | Không ghi | Mở chi tiết khi có unlock/VIP hợp lệ; video chỉ trả signed URL khi có quyền |
-| Xác thực/consent | `users`, `auth_accounts`, `admin_credentials`, `refresh_tokens`, `otp_requests`, `legal_documents`, `legal_consents` | như trái | Parent/tutor dùng OAuth hoặc OTP fallback; admin dùng email/password scrypt + lock/rate limit; refresh hash/rotation/revocation nằm trong PostgreSQL; mọi nhánh vẫn kiểm tra status/role và consent ở server |
+| Xác thực/consent | `users`, `auth_accounts`, `admin_credentials`, `refresh_tokens`, `otp_requests`, `legal_documents`, `legal_consents` | như trái | Parent/tutor dùng email + password hoặc Google OAuth server-side; admin dùng email/password scrypt + lock/rate limit; refresh hash/rotation/revocation nằm trong PostgreSQL; mọi nhánh vẫn kiểm tra status/role và consent ở server |
 | Hồ sơ phụ huynh | `parent_profiles`, `students` | như trái | Chỉ sửa dữ liệu của chính mình (ownership check) |
 | Hồ sơ gia sư | `tutor_profiles`, bảng chuẩn hóa, `tutor_availabilities`, `media_assets` | như trái | Chỉ sửa hồ sơ của mình; media qua signed upload + kiểm duyệt |
 | Payout account | `tutor_payout_accounts` | như trái | Chỉ gia sư sở hữu; số tài khoản là PII |

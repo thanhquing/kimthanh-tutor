@@ -89,7 +89,7 @@ Cần giới hạn:
 - Mọi hành động admin quan trọng phải có nhật ký kiểm toán.
 - Mọi mutation nhạy cảm phải có `reason`; response/log không unmask PII.
 - Không dùng admin để sửa dữ liệu học tập tùy tiện nếu không có lý do.
-- Admin đăng nhập bằng credential riêng đã provision ngoài UI; không dùng OAuth/OTP/password flow của parent/tutor.
+- Admin đăng nhập bằng credential riêng đã provision ngoài UI; không dùng OAuth/password flow của parent/tutor.
 
 ## Ma trận quyền rút gọn
 

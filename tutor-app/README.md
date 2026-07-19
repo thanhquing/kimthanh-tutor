@@ -13,7 +13,7 @@ pnpm --filter tutor-app build
 
 API base được đóng tại build time bằng `VITE_API_BASE_URL` (mặc định `/api/v1`). Production UI không cho sửa API base, đọc token hay xóa storage.
 
-OAuth production đọc `VITE_GOOGLE_CLIENT_ID`, `VITE_FACEBOOK_APP_ID` và `VITE_FACEBOOK_API_VERSION`; URL quay về chợ gia sư đọc `VITE_MARKET_URL`. Nếu provider chưa cấu hình, UI báo không khả dụng và vẫn giữ OTP fallback theo server contract, không giả lập đăng nhập.
+Phương thức đăng nhập hoạt động chính là email + password (đăng ký → verify email qua link → login → quên/đặt lại mật khẩu). Đăng nhập Google dùng luồng Authorization Code **server-side**: nút Google chỉ là link tới `/auth/oauth/google/start`, FE **không cần** `VITE_GOOGLE_CLIENT_ID`. Facebook (client-side) đọc `VITE_FACEBOOK_APP_ID` và `VITE_FACEBOOK_API_VERSION`; URL quay về chợ gia sư đọc `VITE_MARKET_URL`. Nếu provider OAuth chưa cấu hình, UI báo không khả dụng, không giả lập đăng nhập.
 
 ## Kiến trúc nền
 

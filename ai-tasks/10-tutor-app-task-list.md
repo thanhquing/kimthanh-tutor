@@ -42,7 +42,7 @@ Danh mục hạng mục chuẩn (OWASP Top 10/ASVS, OWASP API Security Top 10, C
 - Started: 2026-07-15
 - Completed: 2026-07-15
 - Commit lookup: `git log --oneline --grep='TA-00' -1`
-- Evidence: local desktop UI review đã xử lý alignment Lucide icon/text; deep link `/dashboard` và `/classes/class-01` trả `200`; `pnpm --filter tutor-app lint`, `test` (15 tests) và `build` pass; `pnpm --filter @kimthanh-tutor/contracts test` pass; `docker compose run --rm verify` pass health/ready/error envelope/OTP/auth-me/database checks.
+- Evidence: local desktop UI review đã xử lý alignment Lucide icon/text; deep link `/dashboard` và `/classes/class-01` trả `200`; `pnpm --filter tutor-app lint`, `test` (15 tests) và `build` pass; `pnpm --filter @kimthanh-tutor/contracts test` pass; `docker compose run --rm verify` pass health/ready/error envelope/auth-me/database checks.
 - Mock: `app/styles.css`, `app/app.js`, `app/mock-data.js`, shell của mọi màn, `settings.html`, `index.html`.
 
 Scope:
@@ -66,13 +66,13 @@ Nghiệm thu và test:
 - Started: 2026-07-17
 - Completed: 2026-07-17
 - Commit lookup: `git log --oneline --grep='TA-01' -1`
-- Evidence: 29 unit/integration test `tutor-app` pass (OAuth callback mapper, OTP two-step/sai mã, open-redirect `next` allowlist, pending consent, wrong role parent-only, suspended, document đổi version, scroll gate); `pnpm --filter tutor-app lint`, `test`, `build` xanh; `pnpm --filter @kimthanh-tutor/contracts test` pass; backend `auth.controller.spec.ts` 6 tests pass (logout thu hồi refresh token). `verify-flow-01-auth-consent.sh` pass end-to-end trên Docker DB cô lập (`kt-ta01-flow01`, đã dọn sạch container/network/volume): OTP → từ chối consent khi `scroll_reached_bottom=false` (`400 VALIDATION_ERROR`) → consent hợp lệ → `/auth/me` active → logout `204` → refresh cũ `401 AUTH_REQUIRED`. Deep-link smoke qua `vite preview`: `/`, `/login`, `/consent`, `/profile`, `/dashboard` đều `200` (SPA fallback). Browser visual skill không khả dụng trong phiên (`browsers.list=[]`); hành vi được phủ bằng component/integration tests + HTTP smoke thay cho ảnh chụp.
+- Evidence: 29 unit/integration test `tutor-app` pass (OAuth callback mapper, email+password + verify email/sai thông tin, open-redirect `next` allowlist, pending consent, wrong role parent-only, suspended, document đổi version, scroll gate); `pnpm --filter tutor-app lint`, `test`, `build` xanh; `pnpm --filter @kimthanh-tutor/contracts test` pass; backend `auth.controller.spec.ts` 6 tests pass (logout thu hồi refresh token). `verify-flow-01-auth-consent.sh` pass end-to-end trên Docker DB cô lập (`kt-ta01-flow01`, đã dọn sạch container/network/volume): register + verify email + login → từ chối consent khi `scroll_reached_bottom=false` (`400 VALIDATION_ERROR`) → consent hợp lệ → `/auth/me` active → logout `204` → refresh cũ `401 AUTH_REQUIRED`. Deep-link smoke qua `vite preview`: `/`, `/login`, `/consent`, `/profile`, `/dashboard` đều `200` (SPA fallback). Browser visual skill không khả dụng trong phiên (`browsers.list=[]`); hành vi được phủ bằng component/integration tests + HTTP smoke thay cho ảnh chụp.
 - Blocker: —
 - Mock: `login.html`, `consent.html`. API: Auth & Consent. Flow 1.
 
 Scope:
 
-- Google/Facebook OAuth thật theo server contract; OTP fallback gửi `{channel,destination}`, giữ `request_id`, verify `{request_id,code}`; không thêm email/password vì API không hỗ trợ.
+- **Google OAuth server-side** (nút trỏ tới `/auth/oauth/google/start`, FE không cần client id) + **email/password**: đăng ký `POST /auth/register` → verify email qua link → login → quên/đặt lại mật khẩu; Facebook OAuth là đích lâu dài. Đã bỏ OTP-SMS.
 - Sau auth gọi `/auth/me`, kiểm tra role/status; active user chưa có tutor profile được phép bootstrap ở TA-02; parent-only bị chặn và có link về market.
 - Legal gate full-screen không đóng: tải terms/privacy active, hiển thị version/link/checksum, chỉ bật checkbox/nút sau scroll 100%, POST một consent gồm hai document ID và consent metadata.
 - Wire `decideRouteAccess` vào route tree bằng auth snapshot thật trước khi bất kỳ protected screen/data nào render; không giữ scaffold bypass hoặc snapshot mặc định trong production. Mọi nhánh `auth/consent/role/suspended` phải điều hướng vào màn an toàn tương ứng.
@@ -80,8 +80,8 @@ Scope:
 
 Nghiệm thu và test:
 
-- Không route protected nào render data trước khi auth+consent hợp lệ; sai OTP/cooldown/document đổi version có state rõ.
-- Test OAuth callback mapper, OTP two-step, open-redirect, scroll gate, pending consent và wrong role.
+- Không route protected nào render data trước khi auth+consent hợp lệ; sai mật khẩu/email chưa verify/document đổi version có state rõ.
+- Test OAuth callback mapper, email+password verify, open-redirect, scroll gate, pending consent và wrong role.
 - Chạy unit service API nếu phải refactor auth/cookie; `verify-flow-01-auth-consent.sh` pass và thêm case không thể consent với `scroll_reached_bottom=false`.
 
 ## TA-02 — Hồ sơ gia sư, media và publish
@@ -113,7 +113,7 @@ Nghiệm thu và test:
 - Trạng thái: DONE (thanh.nguyen, 2026-07-18)
 - Commit: tra bằng `git log --oneline --grep='TA-03' -1`
 - Mock: `availability.html`. API: tutor availabilities. Flow 2.
-- Evidence: tutor-app lint sạch + build xanh + test 87 pass (thêm `lib/availability/availability` mapper/overlap/grid/validation, `AvailabilityPage` create/delete/overlap/optimistic-rollback, regression `ApiClient` fetch-binding). Dựng grid tuần (bảng giờ × 7 ngày) + list responsive, modal thêm khung giờ, optimistic UI có rollback qua react-query. **Chốt quy ước `day_of_week` 0=T2..6=CN và loại lịch available/busy (bỏ online/offline của mock)** — cập nhật `ai-docs/05`, `ai-tasks/05`. **E2E smoke browser thật (Playwright + Chrome, API dockerized)**: `e2e/availability.e2e.ts` đăng nhập OTP → thêm khung Thứ Sáu 07:00–08:00 (POST 201) → thấy trong list → xóa (DELETE 200); `e2e/profile.e2e.ts` (TA-02) tải hồ sơ — cả hai xanh, thỏa DoD browser-smoke mới. `verify-flow-02` pass end-to-end trên Docker gồm case mới 2b (end<start → `VALIDATION_ERROR` 400/422), 2c (xóa slot lạ → 404 fail-closed), 2d (xóa slot của mình → 200). Checklist 🟢: A01/API1 bổ sung evidence availability; A03/D7 (app) đã đạt từ trước. Backend không đổi behavior (endpoint đã có). Kèm foundational fix R-01 (`fetch.bind`) cho tutor-app + tutor-market.
+- Evidence: tutor-app lint sạch + build xanh + test 87 pass (thêm `lib/availability/availability` mapper/overlap/grid/validation, `AvailabilityPage` create/delete/overlap/optimistic-rollback, regression `ApiClient` fetch-binding). Dựng grid tuần (bảng giờ × 7 ngày) + list responsive, modal thêm khung giờ, optimistic UI có rollback qua react-query. **Chốt quy ước `day_of_week` 0=T2..6=CN và loại lịch available/busy (bỏ online/offline của mock)** — cập nhật `ai-docs/05`, `ai-tasks/05`. **E2E smoke browser thật (Playwright + Chrome, API dockerized)**: `e2e/availability.e2e.ts` đăng nhập email+password → thêm khung Thứ Sáu 07:00–08:00 (POST 201) → thấy trong list → xóa (DELETE 200); `e2e/profile.e2e.ts` (TA-02) tải hồ sơ — cả hai xanh, thỏa DoD browser-smoke mới. `verify-flow-02` pass end-to-end trên Docker gồm case mới 2b (end<start → `VALIDATION_ERROR` 400/422), 2c (xóa slot lạ → 404 fail-closed), 2d (xóa slot của mình → 200). Checklist 🟢: A01/API1 bổ sung evidence availability; A03/D7 (app) đã đạt từ trước. Backend không đổi behavior (endpoint đã có). Kèm foundational fix R-01 (`fetch.bind`) cho tutor-app + tutor-market.
 
 Scope:
 

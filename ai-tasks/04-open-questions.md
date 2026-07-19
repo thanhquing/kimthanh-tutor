@@ -51,13 +51,9 @@ Cần chốt trước khi triển khai thật.
 - Gia sư có thể dạy nhiều học sinh trong cùng một lớp không?
 - Phụ huynh có thể có nhiều con trong một tài khoản không? Mặc định tài liệu đã thiết kế là có.
 
-## Phiên đăng nhập frontend (mới — cần chốt)
+## Phiên đăng nhập frontend (đã chốt)
 
-Hiện tại `tutor-app`/`tutor-market` giữ access + refresh token **chỉ trong memory** (tab-scoped), reload trang = mất phiên phải đăng nhập lại. Đây là **chủ đích bảo mật** (tránh localStorage bị XSS đọc trộm — checklist A02 🟢), không phải thiếu sót. Nhưng đánh đổi UX. Cần chốt:
-
-- Giữ nguyên memory-only cho tutor/parent (an toàn nhất, reload = login lại), hay cấp **refresh token qua cookie HttpOnly `SameSite`** để giữ phiên qua reload (như `tutor-admin` đã làm)?
-- Nếu chọn HttpOnly cookie: cần task refactor `tutor-api` auth (set/clear cookie, CSRF/`SameSite`, rotation) + FE bỏ nhận refresh trong body. Ghi nhận trong `16-remediation-backlog.md`.
-- OTP SMS hiện **tự tạo tài khoản** khi SĐT chưa tồn tại (passwordless = đăng ký/đăng nhập). Xác nhận đây là hành vi mong muốn cho production, và giới hạn chống lạm dụng (rate-limit theo SĐT/IP) đã đủ chưa.
+Đã chốt và triển khai (R-05 trong `16-remediation-backlog.md`): `tutor-app`/`tutor-market` giữ **access token chỉ trong RAM** (tab-scoped) và **refresh token qua cookie HttpOnly `SameSite`** (`kt_refresh`), giống `tutor-admin` (`kt_admin_refresh`). Boot app gọi silent `POST /auth/refresh` (cookie tự đính) nên **giữ phiên qua reload**, không phải đăng nhập lại. Body `login`/`oauth`/`refresh` không trả `refresh_token`. Cách này vừa tránh localStorage bị XSS đọc trộm (checklist A02 🟢) vừa giữ UX qua reload. Xung đột rotate multi-tab dùng grace ngắn + client retry (`409`).
 
 ## Kỹ thuật/hạ tầng (mới)
 

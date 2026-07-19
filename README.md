@@ -36,7 +36,7 @@ Snapshot code ngày 2026-07-16:
 - API backend đã qua bước tài liệu thuần túy; frontend apps/contracts và hạ tầng production tiếp tục được triển khai theo backlog.
 - Tài liệu trong `ai-docs` là nguồn tham chiếu chính cho luồng nghiệp vụ.
 - Tài liệu trong `ai-tasks` dùng để tách việc khi bắt đầu thiết kế và triển khai.
-- Parent/tutor đăng ký/đăng nhập chính bằng Google/Facebook OAuth; OTP SĐT chỉ là fallback/local với mã `272727` cho tới khi có provider thật. Admin dùng email/password riêng được provision ngoài UI, không dùng chung password login với parent/tutor.
+- Parent/tutor đăng ký/đăng nhập bằng email + password (đăng ký → verify email qua link → login → quên/đặt lại mật khẩu) và Google OAuth luồng Authorization Code server-side; Google/Facebook OAuth là đích chính về lâu dài. Đã bỏ OTP-SMS: SĐT chỉ để liên hệ, không đăng nhập. Admin dùng email/password riêng được provision ngoài UI, không dùng chung password login với parent/tutor.
 - Hệ thống không thu hộ học phí, không yêu cầu CCCD.
 - Doanh thu đến từ mở khóa hồ sơ, gói VIP mở khóa hồ sơ, gói theo dõi bảng điều khiển và gói QR cho gia sư.
 

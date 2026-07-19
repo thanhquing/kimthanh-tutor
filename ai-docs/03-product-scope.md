@@ -25,7 +25,7 @@ Tạo nền tảng hai mặt:
 
 ### `tutor-app`
 
-- Đăng ký/đăng nhập Google/Facebook; OTP SĐT chỉ là fallback/local.
+- Đăng ký/đăng nhập bằng email + mật khẩu (Google OAuth phía server đã hoạt động; Facebook là đích lâu dài); SĐT chỉ để liên hệ.
 - Popup điều khoản/chính sách bắt buộc.
 - Tạo và quản lý hồ sơ gia sư.
 - Quản lý lịch bận.

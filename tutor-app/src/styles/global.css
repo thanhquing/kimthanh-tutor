@@ -360,4 +360,33 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px s
 @media (min-width: 720px) { .class-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .class-detail-grid { grid-template-columns: minmax(0, 1.4fr) minmax(280px, .6fr); } }
 @media (max-width: 639px) { .class-detail-heading { align-items: flex-start; flex-direction: column; } .class-card { grid-template-columns: auto minmax(0, 1fr); } .class-open { grid-column: 1 / -1; width: 100%; background: var(--brand-50); } }
 
+/* ---- Lesson logs (TA-07) ---- */
+.lesson-log-heading { align-items: center; }
+.lesson-log-heading .button { flex: 0 0 auto; gap: 7px; }
+.lesson-log-panel { min-height: 380px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }
+.lesson-log-panel > .state { min-height: 346px; }
+.lesson-log-list { display: grid; gap: 12px; }
+.lesson-log-card { padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-muted); }
+.lesson-log-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.lesson-log-head h2 { margin: 3px 0 0; overflow-wrap: anywhere; font-size: 16px; }
+.lesson-log-time { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--ink-500); font-size: 12px; }
+.absorption-chip { flex: 0 0 auto; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.absorption-good { color: var(--success-600); background: var(--success-50); }
+.absorption-normal { color: var(--brand-700); background: var(--brand-50); }
+.absorption-needs_review { color: #92600a; background: #fff3d6; }
+.lesson-log-detail { display: grid; gap: 8px; margin: 14px 0; }
+.lesson-log-detail div { min-width: 0; padding: 10px 12px; border-radius: var(--radius-sm); background: white; }
+.lesson-log-detail dt { color: var(--ink-500); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.lesson-log-detail dd { margin: 3px 0 0; overflow-wrap: anywhere; color: var(--ink-700); font-size: 13px; white-space: pre-wrap; }
+.lesson-log-detail .lesson-parent-note { border-left: 3px solid var(--brand-300); background: var(--brand-50); }
+.lesson-log-footer { display: flex; min-height: 32px; align-items: center; justify-content: space-between; gap: 12px; color: var(--ink-500); }
+.lesson-log-footer .button { gap: 6px; }
+.lesson-edit-expired { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+.lesson-load-more { justify-self: center; margin: 6px auto; }
+.lesson-log-modal { max-width: 720px; max-height: min(90vh, 820px); overflow-y: auto; }
+.lesson-log-modal .field textarea { min-height: 84px; }
+.lesson-log-modal .form-error { margin: 0; }
+@media (min-width: 720px) { .lesson-log-detail { grid-template-columns: repeat(2, minmax(0, 1fr)); } .lesson-log-detail .lesson-parent-note { grid-column: 1 / -1; } }
+@media (max-width: 639px) { .lesson-log-heading { align-items: stretch; flex-direction: column; } .lesson-log-heading .button { width: 100%; } .lesson-log-head, .lesson-log-footer { align-items: flex-start; flex-direction: column; } }
+
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

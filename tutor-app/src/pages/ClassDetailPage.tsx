@@ -69,7 +69,7 @@ export function ClassDetailPage() {
       </dl><p className="class-domain-note"><CalendarClock size={17} />Hình thức và lịch ở trên là đề xuất từ yêu cầu học thử, không phải lịch hợp đồng đã xác nhận. Hệ thống chưa có fee/schedule hợp đồng nên không suy diễn.</p></section>
       <section className="panel class-actions-panel"><div className="section-heading"><h2>Thao tác hợp lệ</h2></div>{item.capabilities.transitions.length ? <div className="class-transition-actions">{item.capabilities.transitions.map((target) => { const action = classTransitionPresentation(target); return <button key={target} type="button" className={`button ${action.tone}`} disabled={mutation.isPending} onClick={() => requestTransition(target)}>{action.label}</button>; })}</div> : <p className="muted-copy">Trạng thái hiện tại không còn thao tác chuyển lớp dành cho gia sư.</p>}
         <div className="class-quick-links">
-          {item.capabilities.can_create_lesson_log && <Link to={`/lesson-logs?class_id=${encodeURIComponent(item.id)}`}><ClipboardList size={17} />Mở sổ đầu bài</Link>}
+          {item.capabilities.can_create_lesson_log && <Link to={`/classes/${encodeURIComponent(item.id)}/lesson-logs`}><ClipboardList size={17} />Mở sổ đầu bài</Link>}
           {item.capabilities.can_view_review && <Link to={`/reviews?class_id=${encodeURIComponent(item.id)}`}><MessageSquareText size={17} />Xem đánh giá</Link>}
           {!item.capabilities.can_create_lesson_log && !item.capabilities.can_view_review && <span><BookCheck size={17} />Chưa có tác vụ phụ phù hợp trạng thái.</span>}
         </div>

@@ -114,9 +114,9 @@ Snapshot 2026-07-16: catalog endpoint đã implement; 16 suite / 93 unit test AP
 
 | Method | Path | Vai trò | Input | Output | Bảng | Quy tắc |
 | --- | --- | --- | --- | --- | --- | --- |
-| GET | `/classes/:id/lesson-logs` | tutor | `?limit&cursor` | `{ items:[log], next_cursor }` | `lesson_logs` | Chỉ gia sư của lớp; keyset theo `lesson_at,id`; không mở cho parent để tránh bypass gói tracking ✅ |
-| POST | `/classes/:id/lesson-logs` | tutor | `{ lesson_at, subject, content, homework, absorption_level, tutor_note }` | log | `lesson_logs`,`outbox_events` | Chỉ gia sư của lớp ✅ |
-| PATCH | `/lesson-logs/:id` | tutor | partial | log | `lesson_logs` | Trong khung thời gian cho phép ✅ |
+| GET | `/classes/:id/lesson-logs` | tutor | `?limit&cursor` | `{ items:[log + capabilities], next_cursor }` | `lesson_logs` | Chỉ gia sư của lớp; keyset theo `lesson_at,id`; không mở cho parent để tránh bypass gói tracking ✅ |
+| POST | `/classes/:id/lesson-logs` | tutor | `{ lesson_at, subject, content, homework, absorption_level, tutor_note }` | log + capabilities | `lesson_logs`,`outbox_events` | Chỉ gia sư của lớp; `class_id` lấy từ path, không nhận qua body ✅ |
+| PATCH | `/lesson-logs/:id` | tutor | partial | log + capabilities | `lesson_logs` | Chỉ chủ log; trong khung thời gian cho phép; trả `can_edit/edit_until` để UI render theo server ✅ |
 | GET | `/dashboard/tutor/overview` | tutor | — | profile + tổng pending trial/lớp/QR + preview giới hạn + gói/capability QR + `partial_errors` | `tutor_profiles`,`trial_requests`,`class_contracts`,`lesson_logs`,`tutor_payment_qr_records`,`subscriptions` | Owner-safe theo `user_id`; mỗi section truy vấn độc lập, lỗi một section không làm mất section khác; danh sách preview bounded (5/6/5), latest lesson batch không N+1; không suy diễn “quá hạn ghi sổ” khi chưa có lesson schedule ✅ |
 | GET | `/dashboard/students/:id/overview` | parent | — | overview + `latest_lesson` | `class_contracts`,`lesson_logs` | Của mình; luôn cho xem tổng quan; trả lesson mới nhất để UI preview dashboard ✅ |
 | GET | `/dashboard/students/:id/detail` | parent | `?cursor` | timeline + growth | `lesson_logs`,`subscriptions` | Cần `parent_tracking active` cho đúng học sinh; chưa có gói trả `PAYMENT_REQUIRED`, gói hết hạn/pending trả `SUBSCRIPTION_EXPIRED`; keyset ✅ |

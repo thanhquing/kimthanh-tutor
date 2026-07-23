@@ -14,12 +14,12 @@ Kết quả chạy gần nhất: ✅ pass ngày 2026-07-14 bằng:
 docker compose up --build --abort-on-container-exit verify
 ```
 
-Kết quả API/unit mới nhất: ✅ pass ngày 2026-07-19:
+Kết quả API/unit mới nhất: ✅ pass ngày 2026-07-23:
 
-- Full Jest API: 18 suite / 131 test pass.
+- Full Jest API: 18 suite / 135 test pass.
 - API lint và Nest production build pass.
-- `tutor-app`: 23 file / 116 test, lint và Vite production build pass; build lazy-split dashboard/profile/availability/trials/classes/detail.
-- `@kimthanh-tutor/contracts`: serialization tests pass (gồm `TutorDashboardOverview`, `TrialRequestSummary`, `ClassDetail`).
+- `tutor-app`: 25 file / 125 test, lint và Vite production build pass; build lazy-split dashboard/profile/availability/trials/classes/detail/lesson logs.
+- `@kimthanh-tutor/contracts`: serialization tests pass (gồm `TutorDashboardOverview`, `TrialRequestSummary`, `ClassDetail`, `LessonLogDetail` capabilities).
 
 Evidence Docker/flow mới nhất cho TA-04 ngày 2026-07-19:
 
@@ -39,6 +39,13 @@ Evidence TA-06 ngày 2026-07-19:
 - Docker rebuild Prisma/Nest pass; Flow 6 pass list keyset + detail owner-safe có relation summary, parent pause bị chặn, class lạ 404, CAS start + stale conflict; lesson/dashboard regression xanh.
 - Flow 9 pass: tutor chuyển `active → completed_pending_review` bằng expected version; review hợp lệ của parent mới đưa class sang `completed`, report/moderation giữ xanh.
 - Playwright tutor-app và smoke riêng thoát mã 0: accept trial → class detail GET 200 → start POST 201 → confirm pause POST 201; regression session/dashboard/availability/profile xanh. OAuth tiếp tục skip khi thiếu client id.
+
+Evidence TA-07 ngày 2026-07-23:
+
+- Contracts/API/app full verify pass: `pnpm --filter @kimthanh-tutor/contracts test`; `pnpm --filter tutor-api lint`, `build`, `test -- --runInBand` (18 suite/135 test); `pnpm --filter tutor-app lint`, `build`, `test -- --maxWorkers=1 --minWorkers=1 --fileParallelism=false` (25 file/125 test).
+- Docker Flow 6 pass: tutor accept trial, chuyển class active, tạo lesson log qua `/classes/:id/lesson-logs`, sửa qua `/lesson-logs/:id`, response log có `capabilities.can_edit/edit_until`, dashboard tutor đọc latest lesson.
+- Docker Flow 7 pass: parent overview thấy latest lesson, detail bị khóa trước subscription, checkout + webhook dev, timeline sau payment đọc lesson log đã sửa.
+- Playwright `pnpm --filter @kimthanh-tutor/e2e test:app` pass 3, skip OAuth khi thiếu client id như baseline; smoke Chrome bao phủ dashboard → inbox accept → class start → list/create/edit sổ đầu bài → quay lại pause class. Seed E2E được harden để báo body lỗi khi setup thất bại.
 
 File liên quan:
 

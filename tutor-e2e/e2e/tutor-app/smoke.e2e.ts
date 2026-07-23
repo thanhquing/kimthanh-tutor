@@ -3,7 +3,8 @@ import { loginViaPassword } from "./helpers";
 import { E2E_TRIAL_SUBJECT } from "../lib/seed";
 
 // Smoke tutor-app: một phiên đăng nhập email+password bao phủ TA-02 (hồ sơ),
-// TA-03 (lịch), TA-04 (dashboard), TA-05 (trial), TA-06 (class state), điều hướng trong cùng phiên.
+// TA-03 (lịch), TA-04 (dashboard), TA-05 (trial), TA-06 (class state),
+// TA-07 (sổ đầu bài), điều hướng trong cùng phiên.
 test("tutor-app: dashboard, trial inbox, hồ sơ và lịch rảnh trên browser thật", async ({ page }) => {
   await page.addInitScript(() => {
     const measuredWindow = window as typeof window & { __ktCls?: number };
@@ -55,16 +56,22 @@ test("tutor-app: dashboard, trial inbox, hồ sơ và lịch rảnh trên browse
     (r) => r.url().includes("/trials/") && r.url().endsWith("/accept") && r.request().method() === "POST",
   );
   await trialCard.getByRole("button", { name: "Nhận dạy thử" }).click();
-  expect((await acceptTrial).status()).toBe(201);
-  await expect(trialCard.getByText("Lớp học thử đã được tạo.")).toBeVisible();
-  await expect(trialCard.getByRole("link", { name: /Mở lớp/ })).toBeVisible();
-  await expect(trialCard.getByText(/không cần kích hoạt/i)).toBeVisible();
+  const acceptTrialResponse = await acceptTrial;
+  expect(acceptTrialResponse.status()).toBe(201);
+  const acceptBody = await acceptTrialResponse.json() as { class_contract: { id: string } };
+  const classId = acceptBody.class_contract.id;
+  const acceptedTrialCard = page.locator(".trial-card", {
+    has: page.locator(`a[href="/classes/${classId}"]`),
+  });
+  await expect(acceptedTrialCard.getByText("Lớp học thử đã được tạo.")).toBeVisible();
+  await expect(acceptedTrialCard.getByRole("link", { name: /Mở lớp/ })).toBeVisible();
+  await expect(acceptedTrialCard.getByText(/không cần kích hoạt/i)).toBeVisible();
 
   // --- TA-06: detail owner-safe và state machine dùng expected_version ---
   const classDetail = page.waitForResponse(
     (r) => /\/classes\/[^/]+$/.test(new URL(r.url()).pathname) && r.request().method() === "GET",
   );
-  await trialCard.getByRole("link", { name: /Mở lớp/ }).click();
+  await acceptedTrialCard.getByRole("link", { name: /Mở lớp/ }).click();
   expect((await classDetail).status()).toBe(200);
   await expect(page.getByRole("heading", { name: E2E_TRIAL_SUBJECT })).toBeVisible();
   await expect(page.getByText(/không phải lịch hợp đồng đã xác nhận/i)).toBeVisible();
@@ -76,6 +83,47 @@ test("tutor-app: dashboard, trial inbox, hồ sơ và lịch rảnh trên browse
   expect((await startClass).status()).toBe(201);
   await expect(page.getByText("Đang học")).toBeVisible();
   await expect(page.getByRole("link", { name: "Mở sổ đầu bài" })).toBeVisible();
+
+  // --- TA-07: list/create/edit sổ đầu bài qua API thật ---
+  const lessonList = page.waitForResponse(
+    (r) => /\/classes\/[^/]+\/lesson-logs(?:\?|$)/.test(r.url()) && r.request().method() === "GET",
+  );
+  await page.getByRole("link", { name: "Mở sổ đầu bài" }).click();
+  expect((await lessonList).status()).toBe(200);
+  await expect(page.getByRole("heading", { name: `Sổ đầu bài · ${E2E_TRIAL_SUBJECT}` })).toBeVisible();
+
+  await page.getByRole("button", { name: "Ghi buổi học" }).click();
+  const lessonDialog = page.getByRole("dialog");
+  await lessonDialog.getByLabel("Môn/chủ đề").fill("Đại số TA-07 E2E");
+  await lessonDialog.getByLabel("Nội dung đã học").fill("Ôn phương trình bậc nhất");
+  await lessonDialog.getByLabel("Mức độ tiếp thu").selectOption("normal");
+  await lessonDialog.getByLabel("Nhận xét chia sẻ với phụ huynh").fill("Cần luyện thêm bài vận dụng");
+  const createLesson = page.waitForResponse(
+    (r) => /\/classes\/[^/]+\/lesson-logs$/.test(new URL(r.url()).pathname) && r.request().method() === "POST",
+  );
+  await lessonDialog.getByRole("button", { name: "Lưu buổi học" }).click();
+  const createLessonResponse = await createLesson;
+  expect(createLessonResponse.status()).toBe(201);
+  expect(createLessonResponse.request().postDataJSON()).not.toHaveProperty("class_id");
+
+  const lessonCard = page.locator(".lesson-log-card", { hasText: "Đại số TA-07 E2E" });
+  await expect(lessonCard).toBeVisible();
+  await lessonCard.getByRole("button", { name: "Sửa buổi học" }).click();
+  const editDialog = page.getByRole("dialog");
+  await editDialog.getByLabel("Môn/chủ đề").fill("Hình học TA-07 E2E");
+  await editDialog.getByLabel("Mức độ tiếp thu").selectOption("good");
+  const updateLesson = page.waitForResponse(
+    (r) => /\/lesson-logs\/[^/]+$/.test(new URL(r.url()).pathname) && r.request().method() === "PATCH",
+  );
+  await editDialog.getByRole("button", { name: "Lưu thay đổi" }).click();
+  expect((await updateLesson).status()).toBe(200);
+  await expect(page.getByRole("heading", { name: "Hình học TA-07 E2E" })).toBeVisible();
+
+  const classDetailAfterLesson = page.waitForResponse(
+    (r) => /\/classes\/[^/]+$/.test(new URL(r.url()).pathname) && r.request().method() === "GET",
+  );
+  await page.getByRole("link", { name: "Chi tiết lớp" }).click();
+  expect((await classDetailAfterLesson).status()).toBe(200);
 
   await page.getByRole("button", { name: "Tạm dừng lớp" }).click();
   const pauseDialog = page.getByRole("dialog");

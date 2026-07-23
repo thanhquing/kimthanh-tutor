@@ -561,13 +561,36 @@ export interface LessonLogSummary {
   tutor_profile_id: string;
   lesson_at: string;
   subject: string;
-  content: string;
+  content: string | null;
   homework: string | null;
   absorption_level: AbsorptionLevel;
   tutor_note: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export interface LessonLogDetail extends LessonLogSummary {
+  capabilities: {
+    can_edit: boolean;
+    edit_until: string;
+  };
+}
+
+export interface LessonLogsQuery {
+  cursor?: string;
+  limit?: number;
+}
+
+export interface LessonLogInput {
+  lesson_at?: string;
+  subject: string;
+  content?: string;
+  homework?: string;
+  absorption_level: AbsorptionLevel;
+  tutor_note?: string;
+}
+
+export type LessonLogUpdateInput = Partial<LessonLogInput>;
 
 export interface DashboardTimelineItem extends LessonLogSummary {
   class_subject: string | null;

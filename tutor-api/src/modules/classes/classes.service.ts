@@ -232,9 +232,15 @@ export class ClassesService {
   }
 
   async updateLessonLog(userId: string, id: string, dto: UpdateLessonLogDto) {
+    const tutor = await this.prisma.tutorProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!tutor) {
+      throw new AppException(ErrorCode.FORBIDDEN_ROLE, "Chưa có hồ sơ gia sư");
+    }
     const log = await this.prisma.lessonLog.findFirst({
-      where: { id },
-      include: { classContract: true },
+      where: { id, tutorProfileId: tutor.id, deletedAt: null },
     });
     if (!log) {
       throw new AppException(
@@ -242,17 +248,7 @@ export class ClassesService {
         "Không tìm thấy sổ buổi học",
       );
     }
-    const tutor = await this.prisma.tutorProfile.findUnique({
-      where: { userId },
-      select: { id: true },
-    });
-    if (!tutor || tutor.id !== log.tutorProfileId) {
-      throw new AppException(
-        ErrorCode.FORBIDDEN_ROLE,
-        "Không phải gia sư của lớp",
-      );
-    }
-    if (Date.now() - log.createdAt.getTime() > 7 * 24 * 60 * 60 * 1000) {
+    if (!this.canEditLessonLog(log)) {
       throw new AppException(
         ErrorCode.INVALID_STATE_TRANSITION,
         "Chỉ được sửa sổ buổi học trong 7 ngày",
@@ -445,6 +441,7 @@ export class ClassesService {
   }
 
   private toLessonLog(l: LessonLog) {
+    const editUntil = new Date(l.createdAt.getTime() + 7 * 24 * 60 * 60 * 1000);
     return {
       id: l.id,
       class_contract_id: l.classContractId,
@@ -457,7 +454,18 @@ export class ClassesService {
       tutor_note: l.tutorNote,
       created_at: l.createdAt.toISOString(),
       updated_at: l.updatedAt.toISOString(),
+      capabilities: {
+        can_edit: this.canEditLessonLog(l),
+        edit_until: editUntil.toISOString(),
+      },
     };
+  }
+
+  private canEditLessonLog(log: Pick<LessonLog, "createdAt" | "deletedAt">) {
+    return (
+      log.deletedAt === null &&
+      Date.now() <= log.createdAt.getTime() + 7 * 24 * 60 * 60 * 1000
+    );
   }
 
   private requiredTrim(value: string, field: string): string {

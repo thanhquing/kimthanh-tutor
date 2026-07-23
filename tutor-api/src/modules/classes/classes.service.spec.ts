@@ -59,6 +59,13 @@ const lessonLog = {
 };
 
 describe("ClassesService", () => {
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-01-02T00:00:00Z"));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
   it("transitions class state with optimistic locking", async () => {
     const tx = {
       classContract: {
@@ -273,6 +280,10 @@ describe("ClassesService", () => {
           id: secondLog.id,
           class_contract_id: klass.id,
           lesson_at: secondLog.lessonAt.toISOString(),
+          capabilities: {
+            can_edit: true,
+            edit_until: "2026-01-08T00:00:00.000Z",
+          },
         }),
       ],
       next_cursor: encodeCursor(secondLog.lessonAt.toISOString(), secondLog.id),
@@ -317,5 +328,53 @@ describe("ClassesService", () => {
       details: { field: "subject" },
     });
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("updates only a tutor-owned lesson log inside the server edit window", async () => {
+    const updated = { ...lessonLog, content: "Updated content" };
+    const prisma = {
+      tutorProfile: { findUnique: jest.fn().mockResolvedValue({ id: klass.tutorProfileId }) },
+      lessonLog: {
+        findFirst: jest.fn().mockResolvedValue(lessonLog),
+        update: jest.fn().mockResolvedValue(updated),
+      },
+    };
+    const service = new ClassesService(prisma as any, {} as any);
+
+    const result = await service.updateLessonLog("user-1", lessonLog.id, {
+      content: " Updated content ",
+    });
+
+    expect(prisma.lessonLog.findFirst).toHaveBeenCalledWith({
+      where: { id: lessonLog.id, tutorProfileId: klass.tutorProfileId, deletedAt: null },
+    });
+    expect(prisma.lessonLog.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { content: "Updated content" } }),
+    );
+    expect(result.capabilities.can_edit).toBe(true);
+  });
+
+  it("fails closed for a lesson log owned by another tutor", async () => {
+    const prisma = {
+      tutorProfile: { findUnique: jest.fn().mockResolvedValue({ id: klass.tutorProfileId }) },
+      lessonLog: { findFirst: jest.fn().mockResolvedValue(null) },
+    };
+    const service = new ClassesService(prisma as any, {} as any);
+
+    await expect(service.updateLessonLog("user-1", "foreign-log", { subject: "math" }))
+      .rejects.toMatchObject({ code: ErrorCode.RESOURCE_NOT_FOUND });
+  });
+
+  it("rejects edits after the server-provided seven-day window", async () => {
+    const expired = { ...lessonLog, createdAt: new Date("2025-12-20T00:00:00Z") };
+    const prisma = {
+      tutorProfile: { findUnique: jest.fn().mockResolvedValue({ id: klass.tutorProfileId }) },
+      lessonLog: { findFirst: jest.fn().mockResolvedValue(expired), update: jest.fn() },
+    };
+    const service = new ClassesService(prisma as any, {} as any);
+
+    await expect(service.updateLessonLog("user-1", lessonLog.id, { subject: "math" }))
+      .rejects.toMatchObject({ code: ErrorCode.INVALID_STATE_TRANSITION });
+    expect(prisma.lessonLog.update).not.toHaveBeenCalled();
   });
 });

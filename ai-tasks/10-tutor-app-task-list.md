@@ -2,7 +2,7 @@
 
 Tất cả task khởi tạo ở trạng thái `TODO`. Quy tắc trạng thái, commit và Definition of Done: `09-frontend-task-governance.md`. Sai lệch mock cần xử lý: `13-mock-ui-ux-audit.md`.
 
-Snapshot 2026-07-19: `TA-00`–`TA-06` DONE theo evidence bên dưới; `TA-07` là `Current task`. Placeholder route của TA-07–TA-13 không phải feature đã hoàn tất.
+Snapshot 2026-07-23: `TA-00`–`TA-07` DONE theo evidence bên dưới; `TA-08` là `Current task`. Placeholder route của TA-08–TA-13 không phải feature đã hoàn tất.
 
 ## Thứ tự đề xuất
 
@@ -15,7 +15,7 @@ Snapshot 2026-07-19: `TA-00`–`TA-06` DONE theo evidence bên dưới; `TA-07` 
 | 5 | TA-04 Dashboard công việc | TA-02, TA-03 | DONE |
 | 6 | TA-05 Inbox yêu cầu học thử | TA-01 | DONE |
 | 7 | TA-06 Lớp và state machine | TA-05 | DONE |
-| 8 | TA-07 Sổ đầu bài | TA-06 | TODO |
+| 8 | TA-07 Sổ đầu bài | TA-06 | DONE |
 | 9 | TA-08 Tài khoản nhận học phí | TA-01 | TODO |
 | 10 | TA-09 Checkout/gói `tutor_qr` | TA-01 | TODO |
 | 11 | TA-10 QR học phí | TA-06, TA-08, TA-09 | TODO |
@@ -214,8 +214,13 @@ Evidence hoàn tất:
 
 ## TA-07 — Tạo, xem và sửa sổ đầu bài
 
-- Trạng thái: TODO
-- Commit: —
+- Trạng thái: DONE
+- Owner: `codex/root`
+- Started: 2026-07-19
+- Completed: 2026-07-23
+- Commit lookup: `git log --oneline --grep='TA-07' -1`
+- Evidence: class-scoped route `/classes/:id/lesson-logs`; list keyset + create/update cache; create POST không gửi `class_id`; edit dùng `capabilities.can_edit` + lỗi server, không tự đoán client; copy `tutor_note` là nhận xét chia sẻ với phụ huynh. `pnpm --filter @kimthanh-tutor/contracts test`, `pnpm --filter tutor-api lint/build/test` (18 suite/135 test), `pnpm --filter tutor-app lint/build/test` (25 file/125 test) pass. Docker Flow 6 pass tạo/sửa lesson log có `capabilities.edit_until`; Flow 7 pass dashboard parent đọc timeline. Playwright `pnpm --filter @kimthanh-tutor/e2e test:app` pass 3, skip OAuth do thiếu client id như baseline; smoke Chrome bao phủ list/create/edit sổ đầu bài. Checklist scope xanh: A01/A04/A09/API1/API3/API4/API5/C3/D5/D7/D8/E1/E3/E7.
+- Blocker: —
 - Mock: `lesson-logs.html`. API: lesson logs. Flow 6, 7.
 
 Scope:

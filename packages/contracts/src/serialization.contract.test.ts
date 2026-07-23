@@ -13,6 +13,7 @@ import type {
   AdminUserStatusMutation,
   ClassDetail,
   DashboardOverview,
+  LessonLogDetail,
   TutorDashboardOverview,
   MediaAssetStatus,
   MediaUploadRequest,
@@ -271,11 +272,30 @@ const classDetail = {
   },
 } satisfies ClassDetail;
 
+const lessonLogDetail = {
+  id: "lesson_01",
+  class_contract_id: "class_01",
+  tutor_profile_id: "tutor_01",
+  lesson_at: "2026-07-15T00:00:00.000Z",
+  subject: "Phân số",
+  content: "Cộng trừ phân số",
+  homework: null,
+  absorption_level: "good",
+  tutor_note: "Con tập trung và hoàn thành tốt bài học.",
+  created_at: "2026-07-15T00:00:00.000Z",
+  updated_at: "2026-07-15T00:00:00.000Z",
+  capabilities: {
+    can_edit: true,
+    edit_until: "2026-07-22T00:00:00.000Z",
+  },
+} satisfies LessonLogDetail;
+
 assert.deepEqual(roundTrip(student), student);
 assert.deepEqual(roundTrip(lockedDetail), lockedDetail);
 assert.deepEqual(roundTrip(overview), overview);
 assert.deepEqual(roundTrip(tutorOverview), tutorOverview);
 assert.deepEqual(roundTrip(classDetail), classDetail);
+assert.deepEqual(roundTrip(lessonLogDetail), lessonLogDetail);
 
 const publishResponse = { status: "published" } satisfies TutorProfilePublishResponse;
 const mediaUploadRequest = { kind: "avatar", content_type: "image/png", size: 20_480 } satisfies MediaUploadRequest;

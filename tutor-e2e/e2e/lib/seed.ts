@@ -61,6 +61,9 @@ export async function ensureTutorAccount(password: string, email = E2E_TUTOR_EMA
   }
 
   const login = await apiRaw("/auth/login", { method: "POST", body: { email, password } });
+  if (login.status < 200 || login.status >= 300 || !login.body.access_token) {
+    throw new Error(`Không login được tutor seed: HTTP ${login.status} ${JSON.stringify(login.body)}`);
+  }
   let token = String(login.body.access_token ?? "");
 
   const docs = await apiRaw("/legal/documents/active");
@@ -78,7 +81,7 @@ export async function ensureTutorAccount(password: string, email = E2E_TUTOR_EMA
   });
 
   // POST upsert không cần role tutor, nên dùng được cả lần seed đầu tiên.
-  await apiRaw("/tutors/me/profile", {
+  const profileUpsert = await apiRaw("/tutors/me/profile", {
     method: "POST",
     token,
     body: {
@@ -93,12 +96,21 @@ export async function ensureTutorAccount(password: string, email = E2E_TUTOR_EMA
       expected_fee_max: 250000,
     },
   });
+  if (profileUpsert.status !== 201) {
+    throw new Error(`Không seed được tutor profile: HTTP ${profileUpsert.status} ${JSON.stringify(profileUpsert.body)}`);
+  }
   // JWT cũ chưa có role tutor ở lần bootstrap đầu; login lại rồi publish để
   // parent có thể tạo trial qua API public đúng business rule.
   const tutorLogin = await apiRaw("/auth/login", { method: "POST", body: { email, password } });
   token = String(tutorLogin.body.access_token ?? "");
-  await apiRaw("/tutors/me/profile/publish", { method: "POST", token });
+  const publish = await apiRaw("/tutors/me/profile/publish", { method: "POST", token });
+  if (publish.status !== 201) {
+    throw new Error(`Không publish được tutor profile: HTTP ${publish.status} ${JSON.stringify(publish.body)}`);
+  }
   const profile = await apiRaw("/tutors/me/profile", { token });
+  if (profile.status !== 200 || !profile.body.id) {
+    throw new Error(`Không đọc được tutor profile id: HTTP ${profile.status} ${JSON.stringify(profile.body)}`);
+  }
   return { token, profileId: String(profile.body.id ?? "") };
 }
 
@@ -113,6 +125,9 @@ async function registerVerifyLoginConsent(email: string, password: string): Prom
   if (resetToken) await apiRaw("/auth/password/reset", { method: "POST", body: { token: resetToken, password } });
 
   const login = await apiRaw("/auth/login", { method: "POST", body: { email, password } });
+  if (login.status < 200 || login.status >= 300 || !login.body.access_token) {
+    throw new Error(`Không login được user seed ${email}: HTTP ${login.status} ${JSON.stringify(login.body)}`);
+  }
   const token = String(login.body.access_token ?? "");
 
   const docs = await apiRaw("/legal/documents/active");
@@ -167,7 +182,7 @@ export async function ensurePendingTutorTrial(
     },
   });
   if (created.status !== 201) {
-    throw new Error(`Không seed được trial TA-05: HTTP ${created.status}`);
+    throw new Error(`Không seed được trial TA-05: HTTP ${created.status} ${JSON.stringify(created.body)}`);
   }
 }
 

@@ -8,9 +8,9 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-07` |
+| Task | `TA-08` |
 | App | `tutor-app` |
-| Title | Tạo, xem và sửa sổ đầu bài |
+| Title | Tài khoản nhận học phí |
 | Source | `ai-tasks/10-tutor-app-task-list.md` |
 | Status | `TODO` |
 | Owner | — |
@@ -18,15 +18,15 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 | Branch/worktree | `main` |
 | Blocker | — |
 
-Lệnh cho AI mới: nhận đúng `TA-07`; không tự chuyển sang task khác.
+Lệnh cho AI mới: nhận đúng `TA-08`; không tự chuyển sang task khác.
 
 ## Last completed
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-06` — Danh sách lớp, chi tiết và state machine |
-| Commit | Tra bằng `git log --oneline --grep='TA-06' -1` |
-| Evidence | List/detail owner-safe + relation summary/capability actor-specific; class enum chuẩn, keyset/index, confirm destructive action và CAS conflict state. API 18 suite/131 test, app 23 file/116 test, lint/build/contracts/Prisma xanh; Docker Flow 6/9 pass. Playwright accept→detail→start/pause và regression app thoát mã 0. Checklist scope xanh: A01/A04/A09/API1/API3/API5/C3/D5/D7/D8/E1/E3/E5. |
+| Task | `TA-07` — Tạo, xem và sửa sổ đầu bài |
+| Commit | Tra bằng `git log --oneline --grep='TA-07' -1` |
+| Evidence | Class-scoped route `/classes/:id/lesson-logs`; list keyset + create/update cache; POST không gửi `class_id`; edit theo capability/error server; copy note chia sẻ với phụ huynh. Contracts pass; API lint/build + 18 suite/135 test pass; app lint/build + 25 file/125 test pass; Docker Flow 6/7 pass; Playwright tutor-app smoke 3 pass/1 OAuth skip, bao phủ list/create/edit sổ đầu bài. Checklist scope xanh: A01/A04/A09/API1/API3/API4/API5/C3/D5/D7/D8/E1/E3/E7. |
 
 ## Global queue
 

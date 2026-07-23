@@ -102,8 +102,8 @@ Quy tắc:
 - Xem danh sách lớp.
 - Xem detail lớp owner-safe với relation summary tối thiểu và capability theo actor; list dùng keyset `updated_at,id`.
 - Cập nhật trạng thái lớp bằng `expected_version`; conflict `409` trả `details.class_contract`. Gia sư điều khiển bắt đầu/tạm dừng/kết thúc, parent chỉ được hủy; `completed` do review hợp lệ tạo.
-- Tạo sổ đầu bài.
-- Cập nhật sổ đầu bài của mình trong khoảng thời gian cho phép.
+- Tạo/xem sổ đầu bài theo lớp bằng `/classes/:id/lesson-logs`; `class_id` lấy từ path, không gửi trong body.
+- Cập nhật sổ đầu bài của mình trong khoảng thời gian cho phép bằng `/lesson-logs/:id`; response log trả `capabilities.can_edit` và `capabilities.edit_until`, UI không tự suy đoán quyền sửa.
 - Xem dashboard công việc owner-safe qua aggregate giới hạn kích thước: trạng thái hồ sơ, yêu cầu học thử chờ, lớp `trial_accepted/active` kèm hoạt động sổ gần nhất, QR chờ thu và capability gói QR. Lỗi một widget được cô lập qua `partial_errors`; không suy ra “quá hạn ghi sổ” khi domain chưa có lịch buổi học.
 - Quản lý gói QR định kỳ.
 - Quản lý tài khoản nhận tiền để tạo QR học phí.

@@ -224,7 +224,7 @@ export function DashboardPage() {
                     <small>{item.latest_lesson ? `Hoạt động gần nhất ${formatUtcForVietnam(item.latest_lesson.lesson_at)}` : "Chưa có sổ đầu bài"}</small>
                   </div>
                   {item.can_create_lesson_log && (
-                    <Link className="button primary small" to={`/lesson-logs?classId=${encodeURIComponent(item.id)}`}>Ghi sổ</Link>
+                    <Link className="button primary small" to={`/classes/${encodeURIComponent(item.id)}/lesson-logs`}>Ghi sổ</Link>
                   )}
                 </li>
               ))}

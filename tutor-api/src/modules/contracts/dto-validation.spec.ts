@@ -23,7 +23,7 @@ import {
 import { SearchQueryDto } from "../search/dto/search-query.dto";
 import { AdminPasswordLoginDto } from "../auth/dto/auth.dto";
 import { DeclineTrialDto, TrialActionDto, TrialMineQueryDto } from "../trials/dto/trial.dto";
-import { ClassesMineQueryDto, TransitionDto } from "../classes/dto/class.dto";
+import { ClassesMineQueryDto, LessonLogDto, TransitionDto, UpdateLessonLogDto } from "../classes/dto/class.dto";
 
 function errorsFor<T extends object>(Cls: new () => T, payload: object) {
   const instance = plainToInstance(Cls, payload);
@@ -40,6 +40,14 @@ describe("DTO validation contracts", () => {
     expect(errorsFor(TransitionDto, { to: "completed" })).toHaveLength(1);
     expect(errorsFor(TransitionDto, { to: "paused", expected_version: -1 })).toHaveLength(1);
     expect(errorsFor(TransitionDto, { to: "paused", expected_version: 0 })).toEqual([]);
+  });
+  it("validates lesson log lengths, datetime and canonical absorption values", () => {
+    expect(errorsFor(LessonLogDto, { subject: "Toán", absorption_level: "excellent" })).toHaveLength(1);
+    expect(errorsFor(LessonLogDto, { subject: "x".repeat(81), absorption_level: "good" })).toHaveLength(1);
+    expect(errorsFor(LessonLogDto, { lesson_at: "not-a-date", subject: "Toán", absorption_level: "normal" })).toHaveLength(1);
+    expect(errorsFor(LessonLogDto, { lesson_at: "2026-07-19T12:30:00.000Z", subject: "Toán", absorption_level: "needs_review", tutor_note: "Cần ôn lại" })).toEqual([]);
+    expect(errorsFor(UpdateLessonLogDto, { content: "x".repeat(4001) })).toHaveLength(1);
+    expect(errorsFor(UpdateLessonLogDto, { content: "", tutor_note: "" })).toEqual([]);
   });
   it("validates trial filters, expected version and non-empty decline reason", () => {
     expect(errorsFor(TrialMineQueryDto, { status: "unknown" })).toHaveLength(1);

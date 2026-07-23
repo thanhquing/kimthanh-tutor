@@ -32,7 +32,7 @@ describe("ClassDetailPage", () => {
     expect(await screen.findByRole("heading", { name: "Toán lớp 9" })).toBeInTheDocument();
     expect(screen.getByText("Anh Minh")).toBeInTheDocument();
     expect(screen.getByText(/không phải lịch hợp đồng đã xác nhận/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Mở sổ đầu bài" })).toHaveAttribute("href", "/lesson-logs?class_id=class-active");
+    expect(screen.getByRole("link", { name: "Mở sổ đầu bài" })).toHaveAttribute("href", "/classes/class-active/lesson-logs");
     expect(screen.queryByRole("link", { name: "Xem đánh giá" })).not.toBeInTheDocument();
   });
 

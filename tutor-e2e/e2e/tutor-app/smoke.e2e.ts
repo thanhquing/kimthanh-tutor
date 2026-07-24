@@ -4,7 +4,7 @@ import { E2E_TRIAL_SUBJECT } from "../lib/seed";
 
 // Smoke tutor-app: một phiên đăng nhập email+password bao phủ TA-02 (hồ sơ),
 // TA-03 (lịch), TA-04 (dashboard), TA-05 (trial), TA-06 (class state),
-// TA-07 (sổ đầu bài), điều hướng trong cùng phiên.
+// TA-07 (sổ đầu bài), TA-08 (tài khoản nhận tiền), điều hướng trong cùng phiên.
 test("tutor-app: dashboard, trial inbox, hồ sơ và lịch rảnh trên browser thật", async ({ page }) => {
   await page.addInitScript(() => {
     const measuredWindow = window as typeof window & { __ktCls?: number };
@@ -69,11 +69,14 @@ test("tutor-app: dashboard, trial inbox, hồ sơ và lịch rảnh trên browse
 
   // --- TA-06: detail owner-safe và state machine dùng expected_version ---
   const classDetail = page.waitForResponse(
-    (r) => /\/classes\/[^/]+$/.test(new URL(r.url()).pathname) && r.request().method() === "GET",
+    (r) => new URL(r.url()).pathname.endsWith(`/classes/${classId}`) && r.request().method() === "GET",
   );
-  await acceptedTrialCard.getByRole("link", { name: /Mở lớp/ }).click();
+  await Promise.all([
+    page.waitForURL((url) => url.pathname === `/classes/${classId}`),
+    acceptedTrialCard.getByRole("link", { name: /Mở lớp/ }).click(),
+  ]);
   expect((await classDetail).status()).toBe(200);
-  await expect(page.getByRole("heading", { name: E2E_TRIAL_SUBJECT })).toBeVisible();
+  await expect(page.locator(".class-detail-heading").getByRole("heading", { name: E2E_TRIAL_SUBJECT })).toBeVisible();
   await expect(page.getByText(/không phải lịch hợp đồng đã xác nhận/i)).toBeVisible();
 
   const startClass = page.waitForResponse(
@@ -164,6 +167,35 @@ test("tutor-app: dashboard, trial inbox, hồ sơ và lịch rảnh trên browse
   await row.getByRole("button", { name: "Xóa" }).click();
   expect((await del).status()).toBe(200);
   await expect(row).toHaveCount(0);
+
+  // --- TA-08: chọn bank từ catalog + tạo account, UI chỉ render masked value ---
+  const payoutBanks = page.waitForResponse(
+    (r) => r.url().includes("/tutors/me/payout-accounts/banks") && r.request().method() === "GET",
+  );
+  const payoutList = page.waitForResponse(
+    (r) => new URL(r.url()).pathname.endsWith("/tutors/me/payout-accounts") && r.request().method() === "GET",
+  );
+  await page.locator(".sidebar").getByRole("link", { name: "Tài khoản nhận tiền", exact: true }).click();
+  expect((await payoutBanks).status()).toBe(200);
+  const payoutListResponse = await payoutList;
+  expect(payoutListResponse.status()).toBe(200);
+  const existingPayouts = await payoutListResponse.json() as { items?: unknown[] };
+  const firstPayoutAccount = (existingPayouts.items?.length ?? 0) === 0;
+  await expect(page.getByRole("heading", { name: "Tài khoản nhận tiền", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Thêm tài khoản", exact: true }).click();
+  const payoutDialog = page.getByRole("dialog");
+  await payoutDialog.getByLabel("Ngân hàng").selectOption("970436");
+  await payoutDialog.getByLabel("Số tài khoản").fill("1234 567-890");
+  await payoutDialog.getByLabel("Tên chủ tài khoản").fill("NGUYEN THI LINH");
+  const createPayout = page.waitForResponse(
+    (r) => new URL(r.url()).pathname.endsWith("/tutors/me/payout-accounts") && r.request().method() === "POST",
+  );
+  await payoutDialog.getByRole("button", { name: "Lưu tài khoản" }).click();
+  const createPayoutResponse = await createPayout;
+  expect(createPayoutResponse.status()).toBe(201);
+  expect(createPayoutResponse.request().postDataJSON()).toMatchObject({ bank_code: "970436", is_default: firstPayoutAccount });
+  await expect(page.getByText("****7890 · NGUYEN THI LINH")).toBeVisible();
+  await expect(page.getByText("1234567890")).toHaveCount(0);
 
   // --- TA-02: hồ sơ — điều hướng client-side (không reload) và kiểm dữ liệu thật ---
   await page.getByRole("link", { name: "Hồ sơ gia sư" }).click();

@@ -8,9 +8,9 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-08` |
+| Task | `TA-09` |
 | App | `tutor-app` |
-| Title | Tài khoản nhận học phí |
+| Title | Checkout và subscription `tutor_qr` |
 | Source | `ai-tasks/10-tutor-app-task-list.md` |
 | Status | `TODO` |
 | Owner | — |
@@ -18,15 +18,15 @@ Không dùng file này thay cho full scope. Sau khi lấy ID tại đây, phải
 | Branch/worktree | `main` |
 | Blocker | — |
 
-Lệnh cho AI mới: nhận đúng `TA-08`; không tự chuyển sang task khác.
+Lệnh cho AI mới: nhận đúng `TA-09`; không tự chuyển sang task khác.
 
 ## Last completed
 
 | Field | Value |
 | --- | --- |
-| Task | `TA-07` — Tạo, xem và sửa sổ đầu bài |
-| Commit | Tra bằng `git log --oneline --grep='TA-07' -1` |
-| Evidence | Class-scoped route `/classes/:id/lesson-logs`; list keyset + create/update cache; POST không gửi `class_id`; edit theo capability/error server; copy note chia sẻ với phụ huynh. Contracts pass; API lint/build + 18 suite/135 test pass; app lint/build + 25 file/125 test pass; Docker Flow 6/7 pass; Playwright tutor-app smoke 3 pass/1 OAuth skip, bao phủ list/create/edit sổ đầu bài. Checklist scope xanh: A01/A04/A09/API1/API3/API4/API5/C3/D5/D7/D8/E1/E3/E7. |
+| Task | `TA-08` — Tài khoản nhận học phí |
+| Commit | Tra bằng `git log --oneline --grep='TA-08' -1` |
+| Evidence | Route lazy `/payout-accounts`; bank catalog server-configured; form normalize/validate + reset PII; chỉ render masked account, không action chưa có contract. API catalog/validation/audit redaction + QR wrong-owner test, contracts serialization, app lint/build + full Vitest tuần tự pass; API lint/build + 18 suite/138 test; Docker Flow 10 pass. Playwright browser smoke 1 pass, quan sát GET catalog/list + POST payout qua API thật và không render số account đầy đủ. Checklist xanh: A01/A09/API1/API3/API5/C5/D5/D7. |
 
 ## Global queue
 

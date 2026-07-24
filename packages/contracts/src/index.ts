@@ -410,6 +410,11 @@ export interface TutorPayoutAccount {
   updated_at: string;
 }
 
+export interface TutorPayoutBank {
+  bank_code: string;
+  name: string;
+}
+
 export interface TrialRequestSummary {
   id: string;
   parent_profile_id: string | null;

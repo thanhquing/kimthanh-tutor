@@ -34,6 +34,27 @@ function errorsFor<T extends object>(Cls: new () => T, payload: object) {
 }
 
 describe("DTO validation contracts", () => {
+  it("validates and normalizes PII payout-account input", () => {
+    const valid = plainToInstance(PayoutAccountDto, {
+      bank_code: " 970436 ",
+      account_number: "1234 567-890",
+      account_holder: " Nguyễn   Thị Linh ",
+      is_default: true,
+    });
+    expect(validateSync(valid)).toEqual([]);
+    expect(valid).toMatchObject({
+      bank_code: "970436",
+      account_number: "1234567890",
+      account_holder: "Nguyễn Thị Linh",
+    });
+    expect(errorsFor(PayoutAccountDto, {
+      bank_code: "VCB",
+      account_number: "abc",
+      account_holder: "",
+      is_default: "true",
+    })).not.toEqual([]);
+  });
+
   it("validates class filters and optimistic transition input", () => {
     expect(errorsFor(ClassesMineQueryDto, { status: "ended" })).toHaveLength(1);
     expect(errorsFor(ClassesMineQueryDto, { role: "tutor", status: "paused", limit: "20" })).toEqual([]);
@@ -178,7 +199,7 @@ describe("DTO validation contracts", () => {
   it("requires payout account default flag to be a boolean", () => {
     expect(
       errorsFor(PayoutAccountDto, {
-        bank_code: "VCB",
+        bank_code: "970436",
         account_number: "123456789",
         account_holder: "NGUYEN VAN A",
         is_default: "false",
@@ -187,7 +208,7 @@ describe("DTO validation contracts", () => {
 
     expect(
       errorsFor(PayoutAccountDto, {
-        bank_code: "VCB",
+        bank_code: "970436",
         account_number: "123456789",
         account_holder: "NGUYEN VAN A",
         is_default: false,

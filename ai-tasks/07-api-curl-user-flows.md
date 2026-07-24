@@ -674,6 +674,15 @@ Expected output:
 
 User action: nhập tài khoản ngân hàng để tạo QR học phí.
 
+Trước khi mở form, app lấy danh mục ngân hàng được cấu hình ở server; không tự nhận bank code ngoài danh mục:
+
+```bash
+curl -sS "$API/tutors/me/payout-accounts/banks" \
+  -H "$TUTOR_AUTH"
+```
+
+Expected: `items` chỉ chứa `{ bank_code, name }`, ví dụ `970436` / `Vietcombank`.
+
 ```bash
 curl -sS -X POST "$API/tutors/me/payout-accounts" \
   -H "$JSON" \

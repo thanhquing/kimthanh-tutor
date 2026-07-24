@@ -1,4 +1,4 @@
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   ArrayMaxSize,
   IsArray,
@@ -163,9 +163,14 @@ export class AvailabilityDto {
 }
 
 export class PayoutAccountDto {
-  @IsString() @IsNotEmpty() @MaxLength(20) bank_code!: string;
-  @IsString() @IsNotEmpty() @MaxLength(40) account_number!: string;
-  @IsString() @IsNotEmpty() @MaxLength(120) account_holder!: string;
+  @Transform(({ value }) => typeof value === "string" ? value.trim() : value)
+  @IsString() @IsNotEmpty() @Matches(/^\d{6}$/) bank_code!: string;
+
+  @Transform(({ value }) => typeof value === "string" ? value.replace(/[\s-]/g, "") : value)
+  @IsString() @Matches(/^\d{6,19}$/) account_number!: string;
+
+  @Transform(({ value }) => typeof value === "string" ? value.trim().replace(/\s+/g, " ") : value)
+  @IsString() @IsNotEmpty() @MaxLength(120) @Matches(/^[\p{L}][\p{L}\p{M}\s.'-]*$/u) account_holder!: string;
   @IsOptional() @IsBoolean() is_default?: boolean;
 }
 

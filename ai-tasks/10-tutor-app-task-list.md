@@ -16,7 +16,7 @@ Snapshot 2026-07-23: `TA-00`–`TA-07` DONE theo evidence bên dưới; `TA-08` 
 | 6 | TA-05 Inbox yêu cầu học thử | TA-01 | DONE |
 | 7 | TA-06 Lớp và state machine | TA-05 | DONE |
 | 8 | TA-07 Sổ đầu bài | TA-06 | DONE |
-| 9 | TA-08 Tài khoản nhận học phí | TA-01 | TODO |
+| 9 | TA-08 Tài khoản nhận học phí | TA-01 | DONE |
 | 10 | TA-09 Checkout/gói `tutor_qr` | TA-01 | TODO |
 | 11 | TA-10 QR học phí | TA-06, TA-08, TA-09 | TODO |
 | 12 | TA-11 Xem và report review | TA-06 | TODO |
@@ -238,8 +238,10 @@ Nghiệm thu và test:
 
 ## TA-08 — Tài khoản nhận học phí
 
-- Trạng thái: TODO
-- Commit: —
+- Trạng thái: DONE
+- Owner: codex/root
+- Completed: 2026-07-24
+- Commit lookup: `git log --oneline --grep='TA-08' -1`
 - Mock: `payout-accounts.html`. API: tutor payout accounts. Flow 10.
 
 Scope:
@@ -252,6 +254,13 @@ Nghiệm thu và test:
 
 - Default update nhất quán; form reset không giữ PII; screenshot/test output chỉ dùng masked fixture.
 - Test masking UI, boolean mapper, validation/error; Flow 10 payout cURL và wrong-owner service test pass.
+
+Evidence hoàn tất:
+
+- Route lazy `/payout-accounts`; danh mục bank lấy từ `GET /tutors/me/payout-accounts/banks`, chỉ render `account_number_masked`, không có action delete/edit/set-default chưa được contract hỗ trợ. Form normalize/validate client và unmount sau submit để không giữ PII.
+- API chỉ nhận BIN trong `PAYOUT_BANK_CATALOG`, validate/normalize holder + account number, audit create không chứa số tài khoản thô; test DTO, catalog, audit redaction và QR wrong-owner pass.
+- API lint/build + 18 suite/138 test pass; contracts serialization pass; tutor-app lint/build + full Vitest suite tuần tự pass. Docker Flow 10 (gồm Flow 2 payout) pass. Playwright browser thật `smoke.e2e.ts` 1 pass: GET catalog/list, POST account qua API thật, assert account masked và không render số đầy đủ.
+- Checklist scope xanh: `A01`, `A09`, `API1`, `API3`, `API5`, `C5`, `D5`, `D7`.
 
 ## TA-09 — Checkout và subscription `tutor_qr`
 

@@ -16,5 +16,7 @@ export default async function globalSetup() {
   const tutor = await ensureTutorAccount(userPassword);
   const parentToken = await ensureParentAccount(userPassword);
   await ensurePendingTutorTrial(tutor.token, parentToken, tutor.profileId);
-  await ensureAdminAccount(adminPassword);
+  if (process.env.E2E_SKIP_ADMIN_SEED !== "true") {
+    await ensureAdminAccount(adminPassword);
+  }
 }

@@ -1,4 +1,5 @@
 import { QrService } from './qr.service';
+import { ErrorCode } from '../../common/errors/error-codes';
 
 const now = new Date('2026-01-01T00:00:00Z');
 const tutor = { id: 'tutor-1' };
@@ -82,5 +83,21 @@ describe('QrService', () => {
       data: expect.objectContaining({ collectionStatus: 'marked_collected' }),
     });
     expect(result.collection_status).toBe('marked_collected');
+  });
+
+  it('fails closed when a tutor tries to create a QR with another tutor payout account', async () => {
+    const prisma = {
+      tutorProfile: { findUnique: jest.fn().mockResolvedValue(tutor) },
+      tutorPayoutAccount: { findFirst: jest.fn().mockResolvedValue(null) },
+    };
+    const service = new QrService(prisma as any, { assertTutorQr: jest.fn() } as any);
+
+    await expect(service.create('user-1', {
+      payout_account_id: 'foreign-payout',
+      amount: 200_000,
+    })).rejects.toMatchObject({ code: ErrorCode.RESOURCE_NOT_FOUND });
+    expect(prisma.tutorPayoutAccount.findFirst).toHaveBeenCalledWith({
+      where: { id: 'foreign-payout', tutorProfileId: tutor.id },
+    });
   });
 });

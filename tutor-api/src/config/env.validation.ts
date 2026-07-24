@@ -74,6 +74,7 @@ const base = {
   PLATFORM_BANK_CODE: z.string().default(''),
   PLATFORM_BANK_ACCOUNT: z.string().default(''),
   PLATFORM_BANK_ACCOUNT_NAME: z.string().default(''),
+  PAYOUT_BANK_CATALOG: z.string().default(''),
   SEPAY_WEBHOOK_API_KEY: z.string().default(''),
   SEPAY_IP_ALLOWLIST: z.string().default(''),
 

@@ -210,7 +210,14 @@ curl -sS -o /dev/null -X POST "$API/tutors/me/availabilities" \
   -H "Content-Type: application/json" -H "$AUTH" \
   --data '{"day_of_week":2,"start_time":"19:00","end_time":"21:00","type":"available","note":"Day online hoac quanh Cau Giay"}'
 
-echo "== Flow 2 Step 3: add payout account =="
+echo "== Flow 2 Step 3a: load configured payout-bank catalog =="
+banks_http="$(curl -sS -o /tmp/flow02-payout-banks.json -w "%{http_code}" \
+  "$API/tutors/me/payout-accounts/banks" \
+  -H "$AUTH")"
+require_code "$banks_http" "200" "List payout banks" /tmp/flow02-payout-banks.json
+require_json_value /tmp/flow02-payout-banks.json items.0.bank_code "970436"
+
+echo "== Flow 2 Step 3b: add payout account =="
 payout_http="$(curl -sS -o /tmp/flow02-payout.json -w "%{http_code}" \
   -X POST "$API/tutors/me/payout-accounts" \
   -H "Content-Type: application/json" \

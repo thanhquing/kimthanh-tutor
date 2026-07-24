@@ -141,11 +141,11 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px s
 .panel-section > h2 { margin: 0 0 14px; font-size: 15px; }
 .field-grid { display: grid; gap: 12px; }
 .field { display: grid; gap: 6px; min-width: 0; color: var(--ink-700); font-size: 12px; font-weight: 700; }
-.field > span:not(.visually-hidden) { color: var(--ink-700); }
+.field > label, .field > span:not(.visually-hidden) { color: var(--ink-700); }
 .field input, .field select, .field textarea { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--ink-300); border-radius: var(--radius-sm); color: var(--ink-950); background: white; font: inherit; font-weight: 500; }
 .field textarea { min-height: 110px; resize: vertical; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--brand-600); outline: 3px solid rgba(34,120,189,.14); }
-.field input[aria-invalid="true"] { border-color: var(--danger-600); }
+.field input[aria-invalid="true"], .field select[aria-invalid="true"], .field textarea[aria-invalid="true"] { border-color: var(--danger-600); }
 .field-error { color: var(--danger-600); font-size: 12px; font-weight: 500; font-style: normal; }
 .field-hint { margin: 4px 0 0; color: var(--ink-500); font-size: 12px; }
 .chip-field { margin: 0 0 14px; padding: 0; border: 0; }
@@ -234,6 +234,30 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px s
 .modal-head h2 { margin: 0; font-size: 16px; }
 .modal-body { padding: 18px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+
+/* ---- Payout accounts (TA-08) ---- */
+.payout-add-button { gap: 7px; }
+.payout-disclaimer { display: flex; gap: 11px; margin: 0 0 14px; padding: 13px 15px; border: 1px solid var(--brand-100); border-radius: var(--radius-md); color: var(--brand-900); background: var(--brand-50); }
+.payout-disclaimer > svg { flex: 0 0 auto; margin-top: 2px; }
+.payout-disclaimer div { display: grid; gap: 2px; }
+.payout-disclaimer strong { font-size: 13px; }
+.payout-disclaimer span { color: var(--ink-600); font-size: 12px; }
+.payout-panel { min-height: 300px; }
+.payout-account-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.payout-account-row { display: flex; align-items: center; gap: 11px; min-width: 0; padding: 13px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-muted); }
+.payout-account-row > svg { flex: 0 0 auto; color: var(--brand-700); }
+.payout-account-row > div { display: grid; min-width: 0; gap: 2px; }
+.payout-account-row strong, .payout-account-row span { overflow-wrap: anywhere; }
+.payout-account-row strong { font-size: 14px; }
+.payout-account-row div > span { color: var(--ink-600); font-size: 12px; }
+.payout-account-row .status-chip { margin-left: auto; }
+.payout-default-field { display: flex; align-items: flex-start; gap: 9px; padding: 11px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink-700); background: var(--surface-muted); font-size: 13px; font-weight: 650; }
+.payout-default-field input { width: 17px; height: 17px; margin: 1px 0 0; accent-color: var(--brand-700); }
+.payout-default-field span { display: grid; gap: 2px; }
+.payout-default-field small { color: var(--ink-500); font-size: 11px; font-weight: 500; }
+.payout-privacy-note { display: flex; align-items: flex-start; gap: 7px; margin: 0; color: var(--ink-600); font-size: 12px; }
+.payout-privacy-note svg { flex: 0 0 auto; margin-top: 1px; }
+.payout-catalog-error { margin: 14px 0 0; padding: 10px 12px; border-radius: var(--radius-sm); color: var(--danger-600); background: var(--danger-50); font-size: 12px; }
 
 /* ---- Auth email+password ---- */
 .auth-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 16px; font-size: 13px; }

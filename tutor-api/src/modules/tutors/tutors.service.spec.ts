@@ -482,6 +482,7 @@ describe('TutorsService', () => {
     };
     const tx = {
       tutorPayoutAccount: {
+        findFirst: jest.fn().mockResolvedValue(null),
         updateMany: jest.fn(),
         create: jest.fn().mockResolvedValue(account),
       },
@@ -497,11 +498,17 @@ describe('TutorsService', () => {
       },
       $transaction: jest.fn((fn) => fn(tx)),
     };
+    const config = {
+      get: jest.fn().mockReturnValue([{ bank_code: '970436', name: 'Vietcombank' }]),
+    };
+    const audit = { log: jest.fn() };
     const service = new TutorsService(
       prisma as any,
       {} as any,
       {} as any,
       {} as any,
+      config as any,
+      audit as any,
     );
 
     const result = await service.addPayoutAccount('user-1', {
@@ -515,6 +522,9 @@ describe('TutorsService', () => {
       where: { tutorProfileId: 'tutor-1' },
       data: { isDefault: false },
     });
+    expect(tx.tutorPayoutAccount.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ isDefault: true }),
+    });
     expect(result).toEqual({
       id: 'payout-1',
       bank_code: '970436',
@@ -525,6 +535,122 @@ describe('TutorsService', () => {
       updated_at: updatedAt.toISOString(),
     });
     expect(JSON.stringify(result)).not.toContain('1234567890');
+    expect(audit.log).toHaveBeenCalledWith(tx, expect.objectContaining({
+      action: 'tutor.payout_account.created',
+      entityId: 'payout-1',
+      after: { bank_code: '970436', is_default: true },
+    }));
+    expect(JSON.stringify(audit.log.mock.calls)).not.toContain('1234567890');
+  });
+
+  it('makes the first payout account the default even when the client sends false', async () => {
+    const createdAt = new Date('2026-01-01T00:00:00Z');
+    const account = {
+      id: 'payout-1',
+      tutorProfileId: 'tutor-1',
+      bankCode: '970436',
+      accountNumber: '1234567890',
+      accountHolder: 'NGUYEN THI LINH',
+      isDefault: true,
+      createdAt,
+      updatedAt: createdAt,
+    };
+    const tx = {
+      tutorPayoutAccount: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        updateMany: jest.fn(),
+        create: jest.fn().mockResolvedValue(account),
+      },
+    };
+    const prisma = {
+      tutorProfile: { findUnique: jest.fn().mockResolvedValue(profile()) },
+      $transaction: jest.fn((fn) => fn(tx)),
+    };
+    const config = {
+      get: jest.fn().mockReturnValue([{ bank_code: '970436', name: 'Vietcombank' }]),
+    };
+    const service = new TutorsService(
+      prisma as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      config as any,
+    );
+
+    await service.addPayoutAccount('user-1', {
+      bank_code: '970436',
+      account_number: '1234567890',
+      account_holder: 'NGUYEN THI LINH',
+      is_default: false,
+    });
+
+    expect(tx.tutorPayoutAccount.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ isDefault: true }),
+    });
+  });
+
+  it('switches the default payout account only within the current tutor profile', async () => {
+    const createdAt = new Date('2026-01-01T00:00:00Z');
+    const account = {
+      id: 'payout-2',
+      tutorProfileId: 'tutor-1',
+      bankCode: '970436',
+      accountNumber: '1234567890',
+      accountHolder: 'NGUYEN THI LINH',
+      isDefault: false,
+      createdAt,
+      updatedAt: createdAt,
+    };
+    const updated = { ...account, isDefault: true };
+    const tx = {
+      tutorPayoutAccount: {
+        findFirst: jest.fn().mockResolvedValue(account),
+        updateMany: jest.fn(),
+        update: jest.fn().mockResolvedValue(updated),
+      },
+    };
+    const prisma = {
+      tutorProfile: { findUnique: jest.fn().mockResolvedValue(profile()) },
+      $transaction: jest.fn((fn) => fn(tx)),
+    };
+    const audit = { log: jest.fn() };
+    const service = new TutorsService(prisma as any, {} as any, {} as any, {} as any, {} as any, audit as any);
+
+    const result = await service.setDefaultPayoutAccount('user-1', 'payout-2');
+
+    expect(tx.tutorPayoutAccount.findFirst).toHaveBeenCalledWith({
+      where: { id: 'payout-2', tutorProfileId: 'tutor-1' },
+    });
+    expect(tx.tutorPayoutAccount.updateMany).toHaveBeenCalledWith({
+      where: { tutorProfileId: 'tutor-1', isDefault: true },
+      data: { isDefault: false },
+    });
+    expect(tx.tutorPayoutAccount.update).toHaveBeenCalledWith({
+      where: { id: 'payout-2' },
+      data: { isDefault: true },
+    });
+    expect(result).toEqual(expect.objectContaining({ id: 'payout-2', is_default: true, account_number_masked: '****7890' }));
+    expect(audit.log).toHaveBeenCalledWith(tx, expect.objectContaining({
+      action: 'tutor.payout_account.default_changed',
+      entityId: 'payout-2',
+    }));
+  });
+
+  it('returns the configured bank catalog and rejects a bank outside it', async () => {
+    const config = {
+      get: jest.fn().mockReturnValue([{ bank_code: '970436', name: 'Vietcombank' }]),
+    };
+    const service = new TutorsService({} as any, {} as any, {} as any, {} as any, config as any);
+
+    expect(service.listPayoutBanks()).toEqual({
+      items: [{ bank_code: '970436', name: 'Vietcombank' }],
+    });
+    await expect(service.addPayoutAccount('user-1', {
+      bank_code: '970415',
+      account_number: '1234567890',
+      account_holder: 'NGUYEN THI LINH',
+      is_default: false,
+    })).rejects.toMatchObject({ code: ErrorCode.VALIDATION_ERROR });
   });
 
   it('validates media upload and creates a presigned upload URL contract', async () => {

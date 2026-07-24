@@ -15,6 +15,8 @@ import type {
   DashboardOverview,
   LessonLogDetail,
   TutorDashboardOverview,
+  TutorPayoutAccount,
+  TutorPayoutBank,
   MediaAssetStatus,
   MediaUploadRequest,
   MediaUploadResponse,
@@ -78,6 +80,21 @@ const payment = {
   vietqr: { qr_url: "https://qr.example/01", transfer_content: "KTT000001" },
   entitlement: { kind: "subscription", type: "tutor_qr", scope_ref_id: "tutor_01", status: "pending_payment", active: false },
 } satisfies PaymentSummary;
+
+const payoutBank = {
+  bank_code: "970436",
+  name: "Vietcombank",
+} satisfies TutorPayoutBank;
+
+const payoutAccount = {
+  id: "payout_01",
+  bank_code: "970436",
+  account_number_masked: "******7890",
+  account_holder: "NGUYỄN THỊ LINH",
+  is_default: true,
+  created_at: "2026-07-24T00:00:00.000Z",
+  updated_at: "2026-07-24T00:00:00.000Z",
+} satisfies TutorPayoutAccount;
 
 assert.deepEqual(roundTrip(card), card);
 assert.deepEqual(roundTrip(me), me);
@@ -296,6 +313,8 @@ assert.deepEqual(roundTrip(overview), overview);
 assert.deepEqual(roundTrip(tutorOverview), tutorOverview);
 assert.deepEqual(roundTrip(classDetail), classDetail);
 assert.deepEqual(roundTrip(lessonLogDetail), lessonLogDetail);
+assert.deepEqual(roundTrip(payoutBank), payoutBank);
+assert.deepEqual(roundTrip(payoutAccount), payoutAccount);
 
 const publishResponse = { status: "published" } satisfies TutorProfilePublishResponse;
 const mediaUploadRequest = { kind: "avatar", content_type: "image/png", size: 20_480 } satisfies MediaUploadRequest;

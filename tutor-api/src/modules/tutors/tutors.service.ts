@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AppException } from '../../common/errors/app.exception';
 import { ErrorCode } from '../../common/errors/error-codes';
@@ -7,7 +8,12 @@ import { Db } from '../../common/shared/db.type';
 import { AccessService } from '../../common/shared/access.service';
 import { MediaService } from '../../common/shared/media.service';
 import { OutboxService } from '../../common/shared/outbox.service';
+import { AuditService } from '../../common/shared/audit.service';
 import { AuthUser } from '../../common/auth/auth-user';
+import {
+  parsePayoutBankCatalog,
+  type PayoutBankCatalogItem,
+} from '../../common/payments/payout-bank-catalog';
 import {
   AvailabilityDto,
   MediaUploadDto,
@@ -41,6 +47,8 @@ export class TutorsService {
     private readonly access: AccessService,
     private readonly media: MediaService,
     private readonly outbox: OutboxService,
+    private readonly config?: ConfigService,
+    private readonly audit?: AuditService,
   ) {}
 
   // POST /tutors/me/profile — tạo (hoặc cập nhật) hồ sơ + cấp vai trò 'tutor'.
@@ -220,6 +228,10 @@ export class TutorsService {
   }
 
   // ---- Payout accounts (PII) ----
+  listPayoutBanks() {
+    return { items: this.payoutBanks() };
+  }
+
   async listPayoutAccounts(userId: string) {
     const profile = await this.requireOwnProfile(userId);
     const items = await this.prisma.tutorPayoutAccount.findMany({
@@ -240,24 +252,44 @@ export class TutorsService {
   }
 
   async addPayoutAccount(userId: string, dto: PayoutAccountDto) {
+    this.assertPayoutBank(dto.bank_code);
     const profile = await this.requireOwnProfile(userId);
     const account = await this.prisma.$transaction(async (tx) => {
-      if (dto.is_default) {
+      const existingAccount = await tx.tutorPayoutAccount.findFirst({
+        where: { tutorProfileId: profile.id },
+        select: { id: true },
+      });
+      // Tài khoản đầu tiên luôn là mặc định. Các lần sau chỉ đổi mặc định khi
+      // tutor chủ động gửi is_default=true.
+      const isDefault = !existingAccount || dto.is_default === true;
+
+      if (isDefault) {
         await tx.tutorPayoutAccount.updateMany({
           where: { tutorProfileId: profile.id },
           data: { isDefault: false },
         });
       }
-      return tx.tutorPayoutAccount.create({
+      const created = await tx.tutorPayoutAccount.create({
         data: {
           id: newId(),
           tutorProfileId: profile.id,
           bankCode: dto.bank_code,
           accountNumber: dto.account_number,
           accountHolder: dto.account_holder,
-          isDefault: dto.is_default ?? false,
+          isDefault,
         },
       });
+      await this.audit?.log(tx, {
+        actorUserId: userId,
+        actorRole: 'tutor',
+        action: 'tutor.payout_account.created',
+        entityType: 'tutor_payout_account',
+        entityId: created.id,
+        // Không đưa số tài khoản/chủ tài khoản vào audit hash để tránh tạo thêm
+        // bản sao PII; audit chỉ chứng minh hành động và trạng thái mặc định.
+        after: { bank_code: created.bankCode, is_default: created.isDefault },
+      });
+      return created;
     });
     return {
       id: account.id,
@@ -269,6 +301,60 @@ export class TutorsService {
       created_at: account.createdAt.toISOString(),
       updated_at: account.updatedAt.toISOString(),
     };
+  }
+
+  async setDefaultPayoutAccount(userId: string, id: string) {
+    const profile = await this.requireOwnProfile(userId);
+    const account = await this.prisma.$transaction(async (tx) => {
+      const found = await tx.tutorPayoutAccount.findFirst({
+        where: { id, tutorProfileId: profile.id },
+      });
+      if (!found) {
+        throw new AppException(ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy tài khoản nhận tiền');
+      }
+      if (found.isDefault) return found;
+
+      await tx.tutorPayoutAccount.updateMany({
+        where: { tutorProfileId: profile.id, isDefault: true },
+        data: { isDefault: false },
+      });
+      const updated = await tx.tutorPayoutAccount.update({
+        where: { id: found.id },
+        data: { isDefault: true },
+      });
+      await this.audit?.log(tx, {
+        actorUserId: userId,
+        actorRole: 'tutor',
+        action: 'tutor.payout_account.default_changed',
+        entityType: 'tutor_payout_account',
+        entityId: updated.id,
+        after: { bank_code: updated.bankCode, is_default: true },
+      });
+      return updated;
+    });
+    return {
+      id: account.id,
+      bank_code: account.bankCode,
+      account_number_masked: this.maskAccount(account.accountNumber),
+      account_holder: account.accountHolder,
+      is_default: account.isDefault,
+      created_at: account.createdAt.toISOString(),
+      updated_at: account.updatedAt.toISOString(),
+    };
+  }
+
+  private payoutBanks(): PayoutBankCatalogItem[] {
+    return this.config?.get<PayoutBankCatalogItem[]>('payment.tutorPayoutBanks') ?? parsePayoutBankCatalog();
+  }
+
+  private assertPayoutBank(bankCode: string) {
+    if (!this.payoutBanks().some((bank) => bank.bank_code === bankCode)) {
+      throw new AppException(
+        ErrorCode.VALIDATION_ERROR,
+        'Mã ngân hàng không nằm trong danh mục được hỗ trợ',
+        { field: 'bank_code' },
+      );
+    }
   }
 
   // ---- Public detail (paywall) ----

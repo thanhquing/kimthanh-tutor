@@ -1,3 +1,8 @@
+import {
+  parsePayoutBankCatalog,
+  type PayoutBankCatalogItem,
+} from '../common/payments/payout-bank-catalog';
+
 export interface AppConfig {
   env: string;
   port: number;
@@ -65,6 +70,7 @@ export interface AppConfig {
     platformBankCode: string;
     platformBankAccount: string;
     platformBankAccountName: string;
+    tutorPayoutBanks: PayoutBankCatalogItem[];
     sepayWebhookApiKey: string;
     sepayIpAllowlist: string[];
   };
@@ -153,6 +159,7 @@ export default (): AppConfig => ({
     platformBankCode: process.env.PLATFORM_BANK_CODE ?? '',
     platformBankAccount: process.env.PLATFORM_BANK_ACCOUNT ?? '',
     platformBankAccountName: process.env.PLATFORM_BANK_ACCOUNT_NAME ?? '',
+    tutorPayoutBanks: parsePayoutBankCatalog(process.env.PAYOUT_BANK_CATALOG),
     sepayWebhookApiKey: process.env.SEPAY_WEBHOOK_API_KEY ?? '',
     sepayIpAllowlist: (process.env.SEPAY_IP_ALLOWLIST ?? '')
       .split(',')

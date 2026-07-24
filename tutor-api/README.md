@@ -14,6 +14,7 @@ pnpm install
 cp .env.example .env            # sửa DATABASE_URL, secrets, VietQR/SePay
 pnpm prisma:generate            # sinh Prisma client
 npx prisma db push              # tạo bảng local khi chưa có migrations chính thức
+npx prisma db execute --file prisma/constraints.sql # áp dụng partial unique indexes
 pnpm start:dev                  # http://localhost:3000/api/v1
 ```
 

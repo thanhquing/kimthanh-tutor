@@ -15,6 +15,10 @@ const ADMIN_PORT = Number(process.env.E2E_ADMIN_PORT || 5175);
 const MARKET_PORT = Number(process.env.E2E_MARKET_PORT || 3001);
 const API_PROXY_TARGET = process.env.API_PROXY_TARGET || "http://127.0.0.1:3000";
 const API_BASE_URL = process.env.API_BASE_URL || "http://127.0.0.1:3000/api/v1";
+// Local/CI tiếp tục dùng Chrome hệ thống. Docker Playwright có thể đặt chuỗi
+// rỗng để dùng Chromium được image cung cấp, tránh tải browser lúc verify.
+const browserChannel = process.env.E2E_BROWSER_CHANNEL ?? "chrome";
+const targetProject = process.env.E2E_TARGET_PROJECT;
 
 export default defineConfig({
   globalSetup: "./global-setup.ts",
@@ -26,7 +30,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   reporter: [["list"]],
   use: {
-    channel: "chrome",
+    ...(browserChannel ? { channel: browserChannel } : {}),
     headless: true,
     trace: "retain-on-failure",
   },
@@ -63,5 +67,5 @@ export default defineConfig({
       timeout: 120_000,
       env: { API_BASE_URL },
     },
-  ],
+  ].filter((_, index) => !targetProject || ["tutor-app", "tutor-admin", "tutor-market"][index] === targetProject),
 });

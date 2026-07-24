@@ -85,7 +85,7 @@ Không bao gồm:
 
 ### A. Học phí gia sư (tính năng QR 30k) — tiền vào tài khoản GIA SƯ
 
-- Tạo QR VietQR từ `tutor_payout_accounts` (bank_code + account_number + account_holder) + số tiền + nội dung.
+- Tạo QR VietQR từ `tutor_payout_accounts` (bank_code + account_number + account_holder) + số tiền + nội dung. `bank_code` phải là BIN NAPAS trong danh mục `PAYOUT_BANK_CATALOG` được server trả về; không nhận alias/mã tùy ý từ client.
 - Cách tạo (miễn phí, không phụ thuộc bên thứ ba):
   - Sinh **chuỗi EMVCo VietQR tại máy chủ** rồi render QR ở client, **hoặc**
   - Dùng ảnh QR miễn phí qua `https://img.vietqr.io/image/{BANK}-{ACCOUNT}-{TEMPLATE}.png?amount=...&addInfo=...&accountName=...`.

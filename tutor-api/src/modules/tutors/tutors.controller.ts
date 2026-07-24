@@ -67,6 +67,12 @@ export class TutorsController {
   }
 
   @Roles('tutor')
+  @Get('me/payout-accounts/banks')
+  listPayoutBanks() {
+    return this.tutors.listPayoutBanks();
+  }
+
+  @Roles('tutor')
   @Get('me/payout-accounts')
   listPayoutAccounts(@CurrentUser() user: AuthUser) {
     return this.tutors.listPayoutAccounts(user.userId);
@@ -79,6 +85,12 @@ export class TutorsController {
     @Body() dto: PayoutAccountDto,
   ) {
     return this.tutors.addPayoutAccount(user.userId, dto);
+  }
+
+  @Roles('tutor')
+  @Patch('me/payout-accounts/:id/default')
+  setDefaultPayoutAccount(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.tutors.setDefaultPayoutAccount(user.userId, id);
   }
 
   // Chi tiết công khai: khách xem preview; phụ huynh đã đăng nhập thấy unlock_state.
